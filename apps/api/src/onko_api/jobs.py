@@ -25,7 +25,15 @@ from onko_ai import (
     index_missing,
 )
 from onko_cases import conclusion_prefill, result_rows, sync_case_from_handover
-from onko_contracts import CaseAnswer, Job, JobKind, JobStatus, ParsedDocument
+from onko_contracts import (
+    CaseAnswer,
+    DraftKind,
+    DraftResult,
+    Job,
+    JobKind,
+    JobStatus,
+    ParsedDocument,
+)
 from onko_llm_gateway import Gateway
 from onko_repository import CaseRepository
 
@@ -37,7 +45,7 @@ NO_MODEL = "Není nastaven žádný jazykový model (ONKO_MODELS / ONKO_ACTIVE_M
 NO_EMBED_MODEL = "Není nastaven embedding model (ONKO_EMBED_MODEL)."
 
 # Drafts that need the MDT snapshot and record; the conclusion prefill is not AI (Q-F37).
-RECORD_DRAFTS = frozenset({"mdt_results", "mdt_conclusion"})
+RECORD_DRAFTS = frozenset({DraftKind.MDT_RESULTS, DraftKind.MDT_CONCLUSION})
 
 
 class ImmediateExecutor(Executor):
@@ -100,7 +108,7 @@ def queue_draft(repo: CaseRepository, now: dt.datetime, case_id: str, kind: str)
 
 def run_draft(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gateway | None) -> None:
     # The conclusion prefill needs no model; _draft asks for one where it does.
-    _run(job_id, repo, clock, gateway, lambda job, gw: {"result": _draft(job, repo, gw)},
+    _run(job_id, repo, clock, gateway, lambda job, gw: {"draft": _draft(job, repo, gw)},
          needs_model=False)
 
 
@@ -119,8 +127,8 @@ def _run(
     *,
     needs_model: bool = True,
 ) -> None:
-    """Mark the job running, do the work, store what it returns (`result` / `answer`) or the
-    error."""
+    """Mark the job running, do the work, store what it returns (`result` / `answer` / `draft`)
+    or the error."""
     job = repo.get_job(job_id)
     if job is None:
         return
@@ -141,13 +149,13 @@ def _run(
     repo.save_job(job)
 
 
-def _draft(job: Job, repo: CaseRepository, gateway: Gateway | None) -> dict[str, Any]:
-    """`{text}` for the epikríza summary and the MDT question (from the live handover),
-    `{rows}` for the MDT record's result one-liners (from the frozen snapshot), `{fields}` for the
-    conclusion prefill (from the MDT record, no model)."""
-    kind = job.params["kind"]
+def _draft(job: Job, repo: CaseRepository, gateway: Gateway | None) -> DraftResult:
+    """`text` for the epikríza summary and the MDT question (from the live handover), `rows` for
+    the MDT record's result one-liners (from the frozen snapshot), `fields` for the conclusion
+    prefill (from the MDT record, no model)."""
+    kind = DraftKind(job.params["kind"])
     case = repo.get_case(job.case_id)
-    if kind == "mdt_conclusion":
+    if kind is DraftKind.MDT_CONCLUSION:
         record = repo.get_mdt_record(case.id)
         if record is None:
             raise LookupError("MDT záznam zatím neexistuje.")
@@ -155,19 +163,19 @@ def _draft(job: Job, repo: CaseRepository, gateway: Gateway | None) -> dict[str,
         actors = {a.id: a for a in repo.list_actors()}
         referrer = actors.get(case.referring_doctor_id)
         practice = organizations.get(referrer.organization_id or "") if referrer else None
-        return {"fields": conclusion_prefill(record, organizations.get(case.koc_id), referrer,
-                                             practice)}
+        fields = conclusion_prefill(record, organizations.get(case.koc_id), referrer, practice)
+        return DraftResult(kind=kind, fields=fields)
     model = _require_model(gateway)
-    if kind == "mdt_results":
+    if kind is DraftKind.MDT_RESULTS:
         snapshot = repo.get_handover(case.id, snapshot=True)
         if snapshot is None:
             raise LookupError("Podklad pro MDT zatím neexistuje.")
-        rows = draft_results(result_rows(snapshot), gateway=model)
-        return {"rows": [r.model_dump(mode="json") for r in rows]}
+        return DraftResult(kind=kind, rows=draft_results(result_rows(snapshot), gateway=model))
     handover = repo.get_handover(case.id)
     if handover is None:
         raise LookupError("Případ nemá handover.")
-    return {"text": draft(kind, handover, repo.list_findings(case.id), gateway=model)}
+    return DraftResult(kind=kind, text=draft(kind, handover, repo.list_findings(case.id),
+                                             gateway=model))
 
 
 def _snapshot(repo: CaseRepository, case_id: str, now: dt.datetime) -> list[ParsedDocument]:

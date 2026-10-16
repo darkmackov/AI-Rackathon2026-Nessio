@@ -13,10 +13,14 @@ from onko_contracts import (
     Actor,
     Case,
     CaseState,
+    ConclusionPrefill,
     ConclusionSource,
     DocumentMeta,
     Finding,
     Handover,
+    Job,
+    JobKind,
+    JobStatus,
     LabPanel,
     MdtBoard,
     MdtConclusion,
@@ -71,6 +75,12 @@ def late_documents(handover: Handover, documents: Iterable[DocumentMeta], as_of:
     return sorted(late & _evidence_documents(handover.model_dump()))
 
 
+def pending_ingest(jobs: Iterable[Job]) -> list[str]:
+    """Ids of the case's document ingest jobs that are still queued or running."""
+    return [j.id for j in jobs
+            if j.kind is JobKind.INGEST_DOCUMENT and j.status in (JobStatus.QUEUED, JobStatus.RUNNING)]
+
+
 def prepare_snapshot(
     case: Case,
     handover: Handover,
@@ -81,14 +91,19 @@ def prepare_snapshot(
     mdt_date: dt.date,
     by: str,
     now: dt.datetime,
+    jobs: Iterable[Job] = (),
 ) -> tuple[Case, Handover]:
     """'Připravit podklad pro MDT': kompletni → pripraveno_k_mdt with the board and date set, and
     the frozen copy of the live handover (`as_of` = MDT date), confirmed by the coordinator
-    (Q-F5, D-3). Only what was known by the MDT date may be in it."""
+    (Q-F5, D-3). Only what was known by the MDT date may be in it, and never a handover whose
+    documents are still being extracted (Q-F39)."""
     if case.state is not CaseState.COMPLETE:
         raise TransitionError(f"the MDT input is prepared from {CaseState.COMPLETE}, not {case.state}")
     if board.organization_id != case.koc_id:
         raise MdtBoardError("not an MDT board of the case's KOC")
+    pending = pending_ingest(jobs)
+    if pending:
+        raise SnapshotBlockedError("documents still processing: " + ", ".join(pending))
     blockers = open_blockers(findings)
     if blockers:
         raise SnapshotBlockedError(
@@ -254,19 +269,18 @@ def conclusion_prefill(
     koc: Organization | None,
     referrer: Actor | None,
     referrer_organization: Organization | None,
-) -> dict[str, Any]:
+) -> ConclusionPrefill:
     """The `mdt_conclusion` draft (Q-F37): not AI, only the `MDT_zaver` parts that restate the
     record. The diagnosis from the snapshot, the MDT date, the KOC's town and a copy to the
-    referring doctor. Assessment, conclusion and recommendations are the MDT's and stay empty.
-    Shaped like the conclusion upsert body, JSON-ready."""
+    referring doctor. Assessment, conclusion and recommendations are the MDT's and stay empty."""
     copy_to = []
     if referrer is not None:
         address = referrer_organization.address if referrer_organization else None
         copy_to.append(", ".join(v for v in (referrer.name, address) if v))
-    return {
-        "diagnosis_name": record.diagnosis_name,
-        "diagnosis_code": record.diagnosis_code,
-        "date": record.mdt_date.isoformat(),
-        "place": town(koc.address) if koc else None,
-        "copy_to": copy_to,
-    }
+    return ConclusionPrefill(
+        diagnosis_name=record.diagnosis_name,
+        diagnosis_code=record.diagnosis_code,
+        date=record.mdt_date,
+        place=town(koc.address) if koc else None,
+        copy_to=copy_to,
+    )

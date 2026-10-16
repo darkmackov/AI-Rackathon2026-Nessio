@@ -17,6 +17,7 @@ from onko_cases import (
     confirm_conclusion,
     late_documents,
     open_blockers,
+    pending_ingest,
     prepare_snapshot,
     result_rows,
     save_conclusion,
@@ -27,6 +28,7 @@ from onko_contracts import (
     Actor,
     Case,
     CaseState,
+    ConclusionPrefill,
     ConclusionSource,
     Contacts,
     DocumentMeta,
@@ -36,6 +38,9 @@ from onko_contracts import (
     Finding,
     FindingKind,
     Handover,
+    Job,
+    JobKind,
+    JobStatus,
     LabPanel,
     LabValue,
     MdtBoard,
@@ -153,6 +158,21 @@ def test_a_late_document_the_handover_does_not_use_is_fine():
     unused = [*DOCS, _doc("d9", datetime(2026, 10, 27, 9))]
     assert late_documents(_handover(), unused, MDT_DAY) == []
     _snapshot(documents=unused)
+
+
+def test_documents_still_being_extracted_stop_the_snapshot():
+    def job(job_id: str, status: JobStatus, kind: JobKind = JobKind.INGEST_DOCUMENT) -> Job:
+        return Job(id=job_id, kind=kind, case_id="c1", status=status, created_at=NOW)
+
+    finished = [job("j-done", JobStatus.DONE), job("j-failed", JobStatus.FAILED),
+                job("j-draft", JobStatus.RUNNING, JobKind.DRAFT)]
+    assert pending_ingest(finished) == []
+    _snapshot(jobs=finished)  # a running draft never blocks: it changes nothing
+
+    running = [*finished, job("j-run", JobStatus.RUNNING), job("j-queue", JobStatus.QUEUED)]
+    assert pending_ingest(running) == ["j-run", "j-queue"]
+    with pytest.raises(SnapshotBlockedError, match="j-run, j-queue"):
+        _snapshot(jobs=running)
 
 
 def test_snapshot_only_from_complete_and_with_a_board_of_the_koc():
@@ -303,14 +323,14 @@ def test_prefill_restates_the_record_and_leaves_the_decision_empty():
 
     fields = conclusion_prefill(record, koc, GP, practice)
 
-    assert fields == {
-        "diagnosis_name": "Karcinom pankreatu",
-        "diagnosis_code": "C25.0",
-        "date": "2026-10-21",
-        "place": "Praha 4",
-        "copy_to": ["MUDr. Řezníček, Na Návsi 3, 252 41 Dolní Břežany"],
-    }
-    assert conclusion_prefill(record, None, None, None)["copy_to"] == []
+    assert fields == ConclusionPrefill(
+        diagnosis_name="Karcinom pankreatu",
+        diagnosis_code="C25.0",
+        date=MDT_DAY,
+        place="Praha 4",
+        copy_to=["MUDr. Řezníček, Na Návsi 3, 252 41 Dolní Břežany"],
+    )
+    assert conclusion_prefill(record, None, None, None).copy_to == []
 
 
 @pytest.mark.parametrize(("address", "expected"), [
