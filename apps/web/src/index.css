@@ -1,6 +1,10 @@
-:root {
-  font-family: system-ui, sans-serif;
-  color: #1f2430;
-  background: #f6f7f9;
+:root { color-scheme: light; background: var(--mantine-color-gray-0); }
+body { margin: 0; background: var(--mantine-color-gray-0); }
+.app-header { border-bottom: 1px solid var(--mantine-color-gray-3); background: var(--mantine-color-white); }
+* { overflow-wrap: anywhere; }
+:focus-visible { outline: 3px solid var(--mantine-color-blue-8); outline-offset: 3px; }
+.skip-link { position: absolute; left: 1rem; top: -10rem; z-index: 1000; background: white; padding: .75rem; }
+.skip-link:focus { top: .5rem; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
-body { margin: 0; }

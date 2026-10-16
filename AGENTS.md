@@ -33,9 +33,9 @@ Each module also has its own `AGENTS.md` with its boundaries. Read it before edi
 
 **Web** (WEB-*, UX-*, A11Y-*)
 - **Use the existing API models for all API communication.** Read `apps/web/src/client/types.gen.ts` and the endpoint in api.md first. Call the API only through the generated TanStack Query helpers (`xxxOptions()` / `xxxMutation()`). Never redeclare model shapes, `fetch` by hand, or cast API data.
-- If a screen needs data no API model has, change the contract in the backend and regenerate. Never fake it in the browser.
+- If a screen needs data no API model has, change the contract in the backend and regenerate. Never fake it in a screen. Q-W6 explicitly permits contract-shaped MSW fixtures at the HTTP boundary for the labelled S0 demo.
 - **No `useEffect`** (nor `useLayoutEffect` or `useInsertionEffect`). Use the replacement table in web.md.
-- Build with React function components. Use the UI library's components for everything it offers. Until one is chosen (Q-W1), use semantic HTML and add no UI library.
+- Build with React function components. Use Mantine components, forms and theming for everything they offer (Q-W1).
 - Follow ui-ux.md: show every `Sourced` status and origin, label AI proposals, cover loading/error/empty/success, meet WCAG 2.2 AA.
 - Never edit `apps/web/src/client/**` (generated).
 

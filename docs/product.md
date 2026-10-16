@@ -103,6 +103,8 @@ Dashboard columns (slide 9):
 
 ## Screens (MVP)
 
+S0 supplies the shared shell and identity selection before these screens (Q-W9). The referring doctor's temporary home shows identity, workplace and contacts only. The coordinator dashboard belongs to S1; its existing provisional read-only implementation is partial S1 work and is not counted toward S0 completion. Navigation contains only working destinations; the referral screen below arrives in S3, and the inbox in S6. Both roles can change language and open demo time/reset controls (Q-W10). S0 uses visibly labelled mock HTTP responses until the backend is implemented (Q-W6).
+
 1. **Referral (GP portal), slide 7.**
    - Pick a KOC → drag and drop the referral (epikríza) plus any reports at hand.
    - AI extracts the handover: patient details, contacts, suspected diagnosis, referrer contact, and so on.
