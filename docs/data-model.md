@@ -155,7 +155,7 @@ Package ids, versions, profile names and identifier systems below were **checked
 | Doctors, coordinator, MDT members, authors | `Practitioner`, `PractitionerRole` | `cz-practitioner-core`, `cz-practitionerrole-core` (cz.core); identifier systems `…/sid/krzp`, `…/sid/clk` exist in cz.core |
 | Facilities (KOC 1, KOC 2, labs, clinics, GP) | `Organization`, `Location` | `cz-organization-core`, `cz-location-core` (cz.core). Identifier slices KRPZS, IČO, IČZ, **IČP** (`https://ncez.mzcr.cz/fhir/sid/icp`; the GP's IČP 72045318 is in report 07), KP |
 | Case | `EpisodeOfCare` + `CarePlan` | `carePlan-cz-core` (cz.core); EpisodeOfCare base R4 + extensions for the case states (the brief's 8 plus `koncept` and `vraceno_lekari`), the on-hold flag and the time-to-treatment milestones |
-| Referral (request to take over) | `ServiceRequest` | base R4 (cz.lab/cz.img only have lab/imaging order profiles) |
+| Referral (request to take over) | `ServiceRequest` | base R4 (cz.lab/cz.img only have lab/imaging order profiles). Also accepted **in** as a FHIR `Bundle` (S9, see *Referral in*) |
 | Each uploaded report | `DocumentReference` + `Binary` | base R4 (cz.core has only attachment/logo/presented-form helpers) |
 | Labs incl. tumour markers | `DiagnosticReport` + `Observation` | `diagnosticReport-cz-lab`, `observation-resultlab-cz-lab` (cz.lab 1.0.0, built on eu.laboratory 2.0.0) |
 | Imaging (UZ, CT, RTG) | `DiagnosticReport`, `ImagingStudy` | `cz-diagnostic-report`, `cz-study-imaging` (cz.img 1.0.0, built on eu.imaging 1.0.0-ballot) |
@@ -174,6 +174,12 @@ Package ids, versions, profile names and identifier systems below were **checked
 | MDT result delivery, returned referrals (`case_returned`), receipts, patient notices (simulated) | `Communication` | base R4. `CommunicationRequest` for request/reply flows is Phase 2 (Q-F23) |
 | Consent to share with the daughter | `Consent` | base R4 |
 | Audit | `AuditEvent` | base R4, projected from `app_audit` (S9, Q-I26) |
+
+### Referral in (S9, Q-I20, Q-I21)
+`POST /referrals/fhir` takes a referral as a FHIR R4 `Bundle` (any `type`) uploaded as a file, with the KOC as a form field and the GP as `X-Actor-Id`. The case arrives **sent** (`odeslano`, queue Nový, `referred_at` = now) with no `validated_by_referrer` stamp: the GP never validated it in the app.
+- **Documents:** every attachment of `DocumentReference.content` and `DiagnosticReport.presentedForm`, inline (`data`) or as a `Binary` inside the Bundle (its `fullUrl` or `Binary/{id}`), becomes a case document (`received_at` = now) and goes through extraction like an upload (S2). External URLs are never fetched. Supported types are those of uploads (.docx, .pptx, .pdf; by `contentType`, else the title's extension).
+- **Structured resources** (`Patient`, `Condition`, `Observation`, …) are **not mapped** until Q-I21 adds an origin for values from another system; the handover holds only AI values with verbatim evidence from the attached documents.
+- Nothing is saved when the Bundle or any attachment can't be read (422), a type is unsupported (415) or there is no document (400).
 
 ### Packages (as published on packages.fhir.org)
 

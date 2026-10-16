@@ -8,6 +8,7 @@ The current user comes from the `X-Actor-Id` header (demo role switcher, Q-I11).
 from __future__ import annotations
 
 import datetime as dt
+import json
 from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
@@ -18,6 +19,7 @@ from onko_cases import (
     NotValidatedError,
     TransitionError,
     new_referral,
+    receive_referral,
     require_editable,
     set_handover_field,
     sync_case_from_handover,
@@ -52,6 +54,7 @@ from onko_documents import DOCX as DOCX_MIME
 from onko_documents import PARSERS, parse
 from onko_documents import PDF as PDF_MIME
 from onko_documents import PPTX as PPTX_MIME
+from onko_repository import BundleError, referral_attachments
 from pydantic import ValidationError
 
 from .deps import ActorId, Clock, CurrentUser, Jobs, Llm, Repo
@@ -162,6 +165,53 @@ def create_referral(body: ReferralCreate, user: CurrentUser, repo: Repo, clock: 
     return case
 
 
+@router.post("/referrals/fhir", status_code=201, tags=["referral"])
+def create_referral_from_bundle(
+    user: CurrentUser,
+    file: Annotated[UploadFile, File(description="The referral as a FHIR R4 Bundle (JSON)")],
+    koc_id: Annotated[str, Form(description="Organization id of the receiving KOC")],
+    repo: Repo,
+    clock: Clock,
+    llm: Llm,
+    jobs: Jobs,
+) -> Case:
+    """A referral from the GP's system as a FHIR `Bundle` (S9, Q-I20): the case arrives sent, in
+    Nový. Its documents (DocumentReference / DiagnosticReport attachments) are stored and go
+    through extraction like uploads; structured resources are not mapped yet (Q-I21)."""
+    if user.role != "referring_doctor":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "only a referring doctor can refer")
+    if not any(o.id == koc_id and o.kind is OrganizationKind.KOC for o in repo.list_organizations()):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "unknown KOC")
+    try:
+        attachments = referral_attachments(json.loads(file.file.read()))
+    except (ValueError, BundleError) as e:  # BundleError, invalid JSON or UTF-8
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"cannot read the Bundle: {e}") from None
+    if not attachments:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "the Bundle carries no documents")
+    # Read every document before saving anything: a bad attachment leaves no half case behind.
+    documents = []
+    for attachment in attachments:
+        mime = _mime_for(attachment.mime_type, attachment.filename)
+        try:
+            text = parse(attachment.data, mime)
+        except Exception as e:  # noqa: BLE001 - a broken file is the client's problem
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                                f"cannot read {attachment.filename}: {e}") from None
+        documents.append((attachment, mime, text))
+
+    now = clock.now()
+    case, handover = receive_referral(new_id("case"), koc_id, user.id, now)
+    repo.save_case(case)
+    repo.save_handover(handover)
+    for attachment, mime, text in documents:
+        meta = DocumentMeta(id=new_id("doc"), case_id=case.id, filename=attachment.filename,
+                            received_at=now, uploaded_by=user.id, mime_type=mime)
+        repo.save_document(meta, attachment.data, text)
+        job = queue_ingest(repo, now, case.id, meta.id)
+        jobs.submit(run_ingest, job.id, repo, clock, llm)
+    return case
+
+
 @router.post("/cases/{case_id}/documents", status_code=201, tags=["documents"])
 def upload_document(
     case_id: str,
@@ -238,9 +288,13 @@ _EXTENSIONS = {".docx": DOCX_MIME, ".pptx": PPTX_MIME, ".pdf": PDF_MIME}
 
 def _mime_type(file: UploadFile) -> str:
     """The declared type if we can parse it, else the extension (browsers often send octet-stream)."""
-    if file.content_type in PARSERS:
-        return file.content_type
-    suffix = "." + (file.filename or "").rsplit(".", 1)[-1].lower()
+    return _mime_for(file.content_type, file.filename)
+
+
+def _mime_for(declared: str | None, filename: str | None) -> str:
+    if declared in PARSERS:
+        return declared
+    suffix = "." + (filename or "").rsplit(".", 1)[-1].lower()
     if suffix in _EXTENSIONS:
         return _EXTENSIONS[suffix]
     raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "supported files: .docx, .pptx, .pdf")

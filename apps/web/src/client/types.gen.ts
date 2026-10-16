@@ -70,6 +70,24 @@ export type AuditEvent = {
 };
 
 /**
+ * Body_create_referral_from_bundle
+ */
+export type BodyCreateReferralFromBundle = {
+    /**
+     * File
+     *
+     * The referral as a FHIR R4 Bundle (JSON)
+     */
+    file: Blob | File;
+    /**
+     * Koc Id
+     *
+     * Organization id of the receiving KOC
+     */
+    koc_id: string;
+};
+
+/**
  * Body_upload_document
  */
 export type BodyUploadDocument = {
@@ -2199,6 +2217,39 @@ export type CreateReferralResponses = {
 };
 
 export type CreateReferralResponse = CreateReferralResponses[keyof CreateReferralResponses];
+
+export type CreateReferralFromBundleData = {
+    body: BodyCreateReferralFromBundle;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/referrals/fhir';
+};
+
+export type CreateReferralFromBundleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateReferralFromBundleError = CreateReferralFromBundleErrors[keyof CreateReferralFromBundleErrors];
+
+export type CreateReferralFromBundleResponses = {
+    /**
+     * Successful Response
+     */
+    201: Case;
+};
+
+export type CreateReferralFromBundleResponse = CreateReferralFromBundleResponses[keyof CreateReferralFromBundleResponses];
 
 export type ListDocumentsData = {
     body?: never;

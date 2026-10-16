@@ -12,6 +12,7 @@ from onko_cases import (
     TransitionError,
     add_examination,
     new_referral,
+    receive_referral,
     require_editable,
     send_referral,
     set_handover_field,
@@ -152,3 +153,10 @@ def test_sync_copies_name_and_diagnosis_and_keeps_what_is_missing():
     synced = sync_case_from_handover(case, handover)
     assert synced.patient_name == "Jana Nováková"
     assert synced.diagnosis_label == "Tumor hlavy pankreatu"
+
+
+def test_received_referral_is_sent_and_new_without_a_validation():
+    case, handover = receive_referral("case-2", "koc-1", GP, NOW)
+    assert case.state is CaseState.SENT and case.queue is QueueColumn.NEW
+    assert case.milestones.referred_at == NOW and case.referring_doctor_id == GP
+    assert handover.case_id == "case-2" and handover.validated_by_referrer is None

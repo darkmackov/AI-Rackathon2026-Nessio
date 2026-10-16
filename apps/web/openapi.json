@@ -360,6 +360,61 @@
         }
       }
     },
+    "/referrals/fhir": {
+      "post": {
+        "tags": [
+          "referral"
+        ],
+        "summary": "Create Referral From Bundle",
+        "description": "A referral from the GP's system as a FHIR `Bundle` (S9, Q-I20): the case arrives sent, in\nNový. Its documents (DocumentReference / DiagnosticReport attachments) are stored and go\nthrough extraction like uploads; structured resources are not mapped yet (Q-I21).",
+        "operationId": "create_referral_from_bundle",
+        "parameters": [
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_referral_from_bundle"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cases/{case_id}/documents": {
       "post": {
         "tags": [
@@ -3515,6 +3570,27 @@
           "action"
         ],
         "title": "AuditEvent"
+      },
+      "Body_create_referral_from_bundle": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "The referral as a FHIR R4 Bundle (JSON)"
+          },
+          "koc_id": {
+            "type": "string",
+            "title": "Koc Id",
+            "description": "Organization id of the receiving KOC"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "koc_id"
+        ],
+        "title": "Body_create_referral_from_bundle"
       },
       "Body_upload_document": {
         "properties": {
