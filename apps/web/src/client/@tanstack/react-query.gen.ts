@@ -215,9 +215,9 @@ export const listDocumentsOptions = (options: Options<ListDocumentsData>) => que
 /**
  * Upload Document
  *
- * Upload a report (GP while drafting or after a return, coordinator later). Stores it,
- * parses the text and queues an `ingest_document` job: AI metadata + handover extraction +
- * checks.
+ * Upload a report (the case's GP while drafting or after a return, a coordinator of the
+ * case's KOC later). Stores it, parses the text and queues an `ingest_document` job: AI metadata
+ * + handover extraction + checks.
  */
 export const uploadDocumentMutation = (options?: Partial<Options<UploadDocumentData>>): UseMutationOptions<UploadDocumentResponse, UploadDocumentError, Options<UploadDocumentData>> => {
     const mutationOptions: UseMutationOptions<UploadDocumentResponse, UploadDocumentError, Options<UploadDocumentData>> = {
@@ -236,7 +236,8 @@ export const uploadDocumentMutation = (options?: Partial<Options<UploadDocumentD
 /**
  * Update Document
  *
- * Correct AI-extracted metadata (type, date, facility, …).
+ * Correct AI-extracted metadata (type, date, facility, …). The case's referring doctor or a
+ * coordinator of the case's KOC.
  */
 export const updateDocumentMutation = (options?: Partial<Options<UpdateDocumentData>>): UseMutationOptions<UpdateDocumentResponse, UpdateDocumentError, Options<UpdateDocumentData>> => {
     const mutationOptions: UseMutationOptions<UpdateDocumentResponse, UpdateDocumentError, Options<UpdateDocumentData>> = {
@@ -411,7 +412,8 @@ export const listCaseJobsOptions = (options: Options<ListCaseJobsData>) => query
 /**
  * Reextract Case
  *
- * Re-run extraction + checks over all case documents (e.g. after the model choice).
+ * Re-run extraction + checks over all case documents (e.g. after the model choice). The
+ * case's referring doctor or a coordinator of the case's KOC.
  */
 export const reextractCaseMutation = (options?: Partial<Options<ReextractCaseData>>): UseMutationOptions<ReextractCaseResponse, ReextractCaseError, Options<ReextractCaseData>> => {
     const mutationOptions: UseMutationOptions<ReextractCaseResponse, ReextractCaseError, Options<ReextractCaseData>> = {
@@ -469,7 +471,8 @@ export const suggestTasksMutation = (options?: Partial<Options<SuggestTasksData>
 /**
  * Take Over Case
  *
- * 'Převzít': the current coordinator takes the case (sets coordinator_id), odeslano → v_triage.
+ * 'Převzít': a coordinator of the case's KOC takes the case (sets coordinator_id),
+ * odeslano → v_triage. 409 in any other state.
  */
 export const takeOverCaseMutation = (options?: Partial<Options<TakeOverCaseData>>): UseMutationOptions<TakeOverCaseResponse, TakeOverCaseError, Options<TakeOverCaseData>> => {
     const mutationOptions: UseMutationOptions<TakeOverCaseResponse, TakeOverCaseError, Options<TakeOverCaseData>> = {
@@ -506,7 +509,8 @@ export const getCaseOptions = (options: Options<GetCaseData>) => queryOptions<Ge
 /**
  * Update Case
  *
- * Priority, coordinator, planned MDT board/date.
+ * Priority, coordinator, planned MDT board/date. Omitted fields stay unchanged; `null` clears
+ * the MDT board or date. The coordinator and the board must belong to the case's KOC (400).
  */
 export const updateCaseMutation = (options?: Partial<Options<UpdateCaseData>>): UseMutationOptions<UpdateCaseResponse, UpdateCaseError, Options<UpdateCaseData>> => {
     const mutationOptions: UseMutationOptions<UpdateCaseResponse, UpdateCaseError, Options<UpdateCaseData>> = {
@@ -525,8 +529,9 @@ export const updateCaseMutation = (options?: Partial<Options<UpdateCaseData>>): 
 /**
  * Transition Case
  *
- * Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).
- * `vraceno_lekari` only through `return_case`, which requires a note.
+ * The coordinator's own moves: v_triage → ceka_na_podklady | kompletni and
+ * ceka_na_podklady ↔ kompletni. Every other change has its own endpoint (take-over, return, MDT
+ * snapshot and confirmation, feedback, receipt): 409. The note goes to the audit trail.
  */
 export const transitionCaseMutation = (options?: Partial<Options<TransitionCaseData>>): UseMutationOptions<TransitionCaseResponse, TransitionCaseError, Options<TransitionCaseData>> => {
     const mutationOptions: UseMutationOptions<TransitionCaseResponse, TransitionCaseError, Options<TransitionCaseData>> = {
@@ -546,7 +551,8 @@ export const transitionCaseMutation = (options?: Partial<Options<TransitionCaseD
  * Return Case
  *
  * 'Vrátit lékaři': → vraceno_lekari; the note goes to the GP's inbox as a `case_returned`
- * Message (D-15). 409 outside v_triage / ceka_na_podklady / kompletni.
+ * Message (D-15) and the GP is on the move. 409 outside v_triage / ceka_na_podklady /
+ * kompletni; 400 for a finding the case doesn't have.
  */
 export const returnCaseMutation = (options?: Partial<Options<ReturnCaseData>>): UseMutationOptions<ReturnCaseResponse, ReturnCaseError, Options<ReturnCaseData>> => {
     const mutationOptions: UseMutationOptions<ReturnCaseResponse, ReturnCaseError, Options<ReturnCaseData>> = {
@@ -564,6 +570,8 @@ export const returnCaseMutation = (options?: Partial<Options<ReturnCaseData>>): 
 
 /**
  * Clear Hold
+ *
+ * Resume the case; a case that isn't on hold stays as it is.
  */
 export const clearHoldMutation = (options?: Partial<Options<ClearHoldData>>): UseMutationOptions<ClearHoldResponse, ClearHoldError, Options<ClearHoldData>> => {
     const mutationOptions: UseMutationOptions<ClearHoldResponse, ClearHoldError, Options<ClearHoldData>> = {
@@ -582,7 +590,8 @@ export const clearHoldMutation = (options?: Partial<Options<ClearHoldData>>): Us
 /**
  * Set Hold
  *
- * 'Odložit': manual on-hold flag (Q-F9).
+ * 'Odložit': manual on-hold flag (Q-F9), from v_triage until the feedback is sent (409
+ * otherwise). Setting it again replaces it; `until` is information only.
  */
 export const setHoldMutation = (options?: Partial<Options<SetHoldData>>): UseMutationOptions<SetHoldResponse, SetHoldError, Options<SetHoldData>> => {
     const mutationOptions: UseMutationOptions<SetHoldResponse, SetHoldError, Options<SetHoldData>> = {
@@ -600,6 +609,9 @@ export const setHoldMutation = (options?: Partial<Options<SetHoldData>>): UseMut
 
 /**
  * Update Milestones
+ *
+ * Symptom onset and treatment start for time to treatment. Omitted fields stay unchanged;
+ * `null` clears one.
  */
 export const updateMilestonesMutation = (options?: Partial<Options<UpdateMilestonesData>>): UseMutationOptions<UpdateMilestonesResponse, UpdateMilestonesError, Options<UpdateMilestonesData>> => {
     const mutationOptions: UseMutationOptions<UpdateMilestonesResponse, UpdateMilestonesError, Options<UpdateMilestonesData>> = {
@@ -639,6 +651,8 @@ export const listAuditQueryKey = (options: Options<ListAuditData>) => createQuer
 
 /**
  * List Audit
+ *
+ * The case's audit trail, oldest first.
  */
 export const listAuditOptions = (options: Options<ListAuditData>) => queryOptions<ListAuditResponse, ListAuditError, ListAuditResponse, ReturnType<typeof listAuditQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -656,7 +670,8 @@ export const listAuditOptions = (options: Options<ListAuditData>) => queryOption
 /**
  * Resolve Finding
  *
- * Resolve, override (note required) or dismiss a finding.
+ * Resolve, override (note required, 422 without; 409 if not overridable) or dismiss a finding.
+ * A later resolution replaces an earlier one.
  */
 export const resolveFindingMutation = (options?: Partial<Options<ResolveFindingData>>): UseMutationOptions<ResolveFindingResponse, ResolveFindingError, Options<ResolveFindingData>> => {
     const mutationOptions: UseMutationOptions<ResolveFindingResponse, ResolveFindingError, Options<ResolveFindingData>> = {
@@ -675,7 +690,8 @@ export const resolveFindingMutation = (options?: Partial<Options<ResolveFindingD
 /**
  * Request From Finding
  *
- * 'Vyžádat': a request task linked to the finding (`Task.finding_id`).
+ * 'Vyžádat': a `request_documents` task addressed to whoever holds the information, linked to
+ * the finding (`Task.finding_id`). The case state doesn't change; the note goes to the audit.
  */
 export const requestFromFindingMutation = (options?: Partial<Options<RequestFromFindingData>>): UseMutationOptions<RequestFromFindingResponse, RequestFromFindingError, Options<RequestFromFindingData>> => {
     const mutationOptions: UseMutationOptions<RequestFromFindingResponse, RequestFromFindingError, Options<RequestFromFindingData>> = {
@@ -712,7 +728,8 @@ export const listTasksOptions = (options: Options<ListTasksData>) => queryOption
 /**
  * Create Task
  *
- * 'Přidat úkol': one-off task.
+ * 'Přidat úkol': one-off task. The owner is a directory id; dependencies are tasks of the
+ * case without a cycle (400). `external` is set when the owner is outside the KOC unless given.
  */
 export const createTaskMutation = (options?: Partial<Options<CreateTaskData>>): UseMutationOptions<CreateTaskResponse, CreateTaskError, Options<CreateTaskData>> => {
     const mutationOptions: UseMutationOptions<CreateTaskResponse, CreateTaskError, Options<CreateTaskData>> = {
@@ -730,6 +747,9 @@ export const createTaskMutation = (options?: Partial<Options<CreateTaskData>>): 
 
 /**
  * Update Task
+ *
+ * Status, owner, date, place, priority, dependencies, the arrived result document. Omitted
+ * fields stay unchanged.
  */
 export const updateTaskMutation = (options?: Partial<Options<UpdateTaskData>>): UseMutationOptions<UpdateTaskResponse, UpdateTaskError, Options<UpdateTaskData>> => {
     const mutationOptions: UseMutationOptions<UpdateTaskResponse, UpdateTaskError, Options<UpdateTaskData>> = {
@@ -748,7 +768,9 @@ export const updateTaskMutation = (options?: Partial<Options<UpdateTaskData>>): 
 /**
  * Start Task Set
  *
- * 'Spustit sadu úkolů'.
+ * 'Spustit sadu úkolů'. `owners` maps each step's owner role to a directory id; the
+ * coordinator role defaults to the case's coordinator, any other missing role is 400. 409 if the
+ * set already runs on the case.
  */
 export const startTaskSetMutation = (options?: Partial<Options<StartTaskSetData>>): UseMutationOptions<StartTaskSetResponse, StartTaskSetError, Options<StartTaskSetData>> => {
     const mutationOptions: UseMutationOptions<StartTaskSetResponse, StartTaskSetError, Options<StartTaskSetData>> = {
@@ -768,6 +790,8 @@ export const listTaskSetsQueryKey = (options?: Options<ListTaskSetsData>) => cre
 
 /**
  * List Task Sets
+ *
+ * Task sets; `diagnosis_code` keeps those for the diagnosis (a `C25` set fits `C25.0`).
  */
 export const listTaskSetsOptions = (options?: Options<ListTaskSetsData>) => queryOptions<ListTaskSetsResponse, ListTaskSetsError, ListTaskSetsResponse, ReturnType<typeof listTaskSetsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -784,6 +808,9 @@ export const listTaskSetsOptions = (options?: Options<ListTaskSetsData>) => quer
 
 /**
  * Create Task Set
+ *
+ * A coordinator's new task set (Q-F2). Step keys are unique and dependencies name steps of
+ * the set without a cycle (400).
  */
 export const createTaskSetMutation = (options?: Partial<Options<CreateTaskSetData>>): UseMutationOptions<CreateTaskSetResponse, CreateTaskSetError, Options<CreateTaskSetData>> => {
     const mutationOptions: UseMutationOptions<CreateTaskSetResponse, CreateTaskSetError, Options<CreateTaskSetData>> = {
@@ -801,6 +828,8 @@ export const createTaskSetMutation = (options?: Partial<Options<CreateTaskSetDat
 
 /**
  * Update Task Set
+ *
+ * Replace a set's name, codes and steps. Tasks already started from it don't change.
  */
 export const updateTaskSetMutation = (options?: Partial<Options<UpdateTaskSetData>>): UseMutationOptions<UpdateTaskSetResponse, UpdateTaskSetError, Options<UpdateTaskSetData>> => {
     const mutationOptions: UseMutationOptions<UpdateTaskSetResponse, UpdateTaskSetError, Options<UpdateTaskSetData>> = {
@@ -821,7 +850,9 @@ export const listNotificationsQueryKey = (options: Options<ListNotificationsData
 /**
  * List Notifications
  *
- * In-app deadline notifications for the current user (Q-F17).
+ * In-app deadline notifications for the current user (Q-F17): open tasks due within
+ * `within_days` or overdue, that the user owns (as a person or through their organisation) or
+ * that belong to a case they coordinate. Earliest due first.
  */
 export const listNotificationsOptions = (options: Options<ListNotificationsData>) => queryOptions<ListNotificationsResponse, ListNotificationsError, ListNotificationsResponse, ReturnType<typeof listNotificationsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

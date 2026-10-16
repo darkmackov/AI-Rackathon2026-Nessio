@@ -73,7 +73,8 @@ DONE_BY_MDT = {"ct", "eus", "lab", "histo"}
 
 
 def load_directory(repo: CaseRepository) -> None:
-    """Organisations, actors and MDT boards from the demo directory (Q-A5, D-12)."""
+    """Organisations, actors and MDT boards from the demo directory (Q-A5, D-12), and the starter
+    task set (D-7), so every scenario can start it."""
     raw = json.loads(DIRECTORY.read_text(encoding="utf-8"))
     for organization in TypeAdapter(list[Organization]).validate_python(raw["organizations"]):
         repo.save_organization(organization)
@@ -81,6 +82,13 @@ def load_directory(repo: CaseRepository) -> None:
         repo.save_actor(actor)
     for board in TypeAdapter(list[MdtBoard]).validate_python(raw["mdt_boards"]):
         repo.save_mdt_board(board)
+    seed_task_sets(repo)
+
+
+def seed_task_sets(repo: CaseRepository) -> None:
+    """The starter task set as user data (Q-F2); a set coordinators edited keeps their edits."""
+    if repo.get_task_set(PANCREAS_TASK_SET.id) is None:
+        repo.save_task_set(PANCREAS_TASK_SET)
 
 
 def apply_scenario(repo: CaseRepository, clock: AppClock, scenario: DemoScenario) -> None:

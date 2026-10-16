@@ -102,6 +102,7 @@ flowchart LR
 
 ## S4: Coordinator workflow
 - **Goal:** pillar 03. Coordinate everything after the referral.
+- **Status:** backend done (all endpoints below work, plus `getTimeToTreatment` from S1); the UI is open. Rules decided for it: Q-F28–Q-F33.
 - **Endpoints:**
   - case: `takeOverCase`, `updateCase` (priority, coordinator, planned MDT), `transitionCase`, `returnCase`, `setHold`, `clearHold`, `updateMilestones`, `listAudit`
   - findings: `resolveFinding`, `requestFromFinding`

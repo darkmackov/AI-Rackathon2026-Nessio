@@ -16,7 +16,16 @@ from onko_contracts import (
     TimeToTreatment,
 )
 
-from .models import TransitionError
+from .models import CaseStateError, TransitionError
+
+HOLD_STATES = frozenset({
+    CaseState.TRIAGE,
+    CaseState.WAITING_FOR_DOCUMENTS,
+    CaseState.COMPLETE,
+    CaseState.READY_FOR_MDT,
+    CaseState.MDT_CONCLUSION,
+    CaseState.FEEDBACK_SENT,
+})
 
 
 def transition(case: Case, to: CaseState) -> Case:
@@ -45,6 +54,10 @@ def queue_column(case: Case) -> QueueColumn:
 
 
 def put_on_hold(case: Case, reason: str, by: str, now: datetime, until: date | None = None) -> Case:
+    """'Odložit' (Q-F9): from triage until feedback is sent; again replaces the hold. `until` is
+    information only, nothing resumes by itself."""
+    if case.state not in HOLD_STATES:
+        raise CaseStateError(f"a case can't be put on hold in state {case.state}")
     hold = OnHold(reason=reason, until=until, set_by=by, set_at=now)
     case = case.model_copy(update={"on_hold": hold})
     return case.model_copy(update={"queue": queue_column(case)})

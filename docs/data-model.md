@@ -231,6 +231,7 @@ Tables and columns missing on start are created (`ALTER TABLE … ADD COLUMN`), 
 | `app_document` | `DocumentMeta` | `id` | `case_id` | `doc_text` (parsed text, stream), `doc_data` (original bytes, stream) |
 | `app_finding` | `Finding` | `case_id`, `id` | | `case_id`, `seq` (order) |
 | `app_task` | `Task` | `id` | `case_id`, `owner`, `due` | |
+| `app_task_set` | `TaskSet` | `id` | | steps as JSON (always read with their set, Q-I26); user data, not projected to FHIR (S4) |
 | `app_message` | `Message` | `id` | `case_id` | |
 | `app_receipt` | `Receipt` | `message_id`, `recipient_id` | | |
 | `app_job` | `Job` | `id` | `case_id` | |

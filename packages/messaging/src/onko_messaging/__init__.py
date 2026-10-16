@@ -12,7 +12,7 @@ Public API: only what `__all__` lists. Layout: docs/conventions/implementation.m
 from __future__ import annotations
 
 from .adapters.in_app import InAppInbox
-from .ports import ChannelAdapter
+from .ports import ChannelAdapter, MessageStore
 from .service import confirm, send
 
-__all__ = ["ChannelAdapter", "InAppInbox", "confirm", "send"]
+__all__ = ["ChannelAdapter", "InAppInbox", "MessageStore", "confirm", "send"]

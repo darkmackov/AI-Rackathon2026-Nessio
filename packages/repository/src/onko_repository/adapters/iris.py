@@ -35,6 +35,7 @@ from onko_contracts import (
     Organization,
     Receipt,
     Task,
+    TaskSet,
 )
 from pydantic import BaseModel
 
@@ -66,6 +67,8 @@ DOCUMENTS = ModelTable("app_document", DocumentMeta, key=("id",),
 FINDINGS = ModelTable("app_finding", Finding, key=("case_id", "id"),
                       extra={"case_id": ID, "seq": "INTEGER NOT NULL"})
 TASKS = ModelTable("app_task", Task, key=("id",), indexes=("case_id", "owner", "due"))
+# User-defined task sets (Q-F2); steps stay JSON, always read with their set (Q-I26). Not projected.
+TASK_SETS = ModelTable("app_task_set", TaskSet, key=("id",))
 MESSAGES = ModelTable("app_message", Message, key=("id",), indexes=("case_id",))
 RECEIPTS = ModelTable("app_receipt", Receipt, key=("message_id", "recipient_id"))
 JOBS = ModelTable("app_job", Job, key=("id",), indexes=("case_id",))
@@ -76,8 +79,8 @@ MDT_CONCLUSIONS = ModelTable("app_mdt_conclusion", MdtConclusion, key=("case_id"
                              foreign_keys={"case_id": "app_case"})
 # Parents before children: created in this order, cleared and dropped in reverse.
 MODEL_TABLES: list[ModelTable[Any]] = [
-    ORGANIZATIONS, ACTORS, MDT_BOARDS, CASES, DOCUMENTS, FINDINGS, TASKS, MESSAGES, RECEIPTS, JOBS,
-    AUDIT, MDT_CONCLUSIONS,
+    ORGANIZATIONS, ACTORS, MDT_BOARDS, CASES, DOCUMENTS, FINDINGS, TASKS, TASK_SETS, MESSAGES,
+    RECEIPTS, JOBS, AUDIT, MDT_CONCLUSIONS,
 ]
 
 # The handover as one JSON document per (case, live | MDT snapshot). A plain string, not a stream,
@@ -480,8 +483,22 @@ class IrisRepository:
         self._write([self._upsert_sql(TASKS.name, TASKS.row(task))], case_id=task.case_id,
                     fhir=self._projection(build))
 
+    def get_task(self, task_id: str) -> Task | None:
+        found = self._select(TASKS, '"id" = ?', [task_id])
+        return found[0] if found else None
+
     def list_tasks(self, case_id: str) -> list[Task]:
         return self._select(TASKS, '"case_id" = ?', [case_id])
+
+    def save_task_set(self, task_set: TaskSet) -> None:
+        self._upsert(TASK_SETS.name, TASK_SETS.row(task_set))
+
+    def get_task_set(self, task_set_id: str) -> TaskSet | None:
+        found = self._select(TASK_SETS, '"id" = ?', [task_set_id])
+        return found[0] if found else None
+
+    def list_task_sets(self) -> list[TaskSet]:
+        return self._select(TASK_SETS)
 
     # --- messages ----------------------------------------------------------------------------
 
