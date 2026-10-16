@@ -30,7 +30,7 @@ Live docs while the API runs: `http://localhost:8000/docs`.
   |---|---|
   | 400 | Bad input |
   | 403 | Wrong role |
-  | 404 | Not found |
+  | 404 | Not found. Every `/cases/{case_id}/…` route answers `case not found` for an unknown case, lists included; `200 []` means the case exists and has nothing yet (API-7) |
   | 409 | Not allowed in the current state, e.g. a transition outside `ALLOWED_TRANSITIONS`, or an MDT snapshot while blockers remain |
   | 415 | Upload of a file type we cannot parse (supported: .docx, .pptx, .pdf) |
   | 422 | Validation (FastAPI default), or an uploaded file that cannot be read |

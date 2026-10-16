@@ -85,7 +85,7 @@ export function createHandlers(state = createDemoState()) {
       const item = state.getCases().find((item) => item.id === params.id)
       return item ? HttpResponse.json(item) : notFound()
     }),
-    http.get('*/api/cases/:id/tasks', ({ params }) => HttpResponse.json(state.getCases().some((item) => item.id === params.id) ? referenceTasks.filter((task) => task.case_id === params.id) : [])),
+    http.get('*/api/cases/:id/tasks', ({ params }) => state.getCases().some((item) => item.id === params.id) ? HttpResponse.json(referenceTasks.filter((task) => task.case_id === params.id)) : HttpResponse.json({ detail: 'case not found' }, { status: 404 })),
     http.get('*/api/cases/:id/time-to-treatment', ({ params }) => {
       const item = state.getCases().find((item) => item.id === params.id)
       return item ? HttpResponse.json(treatmentTime(item, state.clock().now)) : notFound()
