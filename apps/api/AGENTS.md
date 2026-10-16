@@ -4,7 +4,7 @@ Root rules: [AGENTS.md](../../AGENTS.md). Conventions: [docs/conventions/](../..
 
 **Owns:** FastAPI routes over the modules (`main.py` + `routes.py`), request bodies (`schemas.py`), reference-case seed.
 
-**May depend on:** contracts, cases, repository, documents, ai, messaging. Import other modules only through their package root (MOD-2).
+**May depend on:** contracts, cases, repository, documents, ai, llm_gateway, messaging. Import other modules only through their package root (MOD-2).
 
 **Rules:**
 - **Use the models that exist.** Responses are contract models from `onko_contracts`; request bodies are `Body` models in `schemas.py`, named `<Noun><Action>` (APIM-1 … APIM-3). Every route returns what api.md lists for it; new endpoints never return a `dict` or an ad-hoc model.

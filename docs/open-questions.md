@@ -10,7 +10,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 |---|---|---|---|
 | Q-F8 | **Repeated MDT:** slide 4's example has two MDTs, and the sample conclusion plans another one after neoadjuvant therapy. Can a case go back from *Závěr MDT*? | Not supported. `ALLOWED_TRANSITIONS` has no way back from `zaver_mdt` | VZP |
 | Q-K8 | **Time zones:** contracts use naive `datetime`s and api.md says ISO 8601. Store UTC, local time, or aware datetimes? | Unchanged (naive) | Team |
-| Q-K9 | **Id scheme** for new cases, tasks, findings, messages (api.md: string ids; today slugs and composite ids from seed and `start_task_set`) | Unchanged | Team |
+| Q-K9 | **Id scheme** for new cases, tasks, findings, messages (api.md: string ids; today slugs and composite ids from seed and `start_task_set`) | Seed ids unchanged. New documents and jobs: `doc-` / `job-` + 8 random hex chars. Check findings: deterministic `<check>:<field or document>` so a re-run keeps people's resolutions | Team |
 
 ## F: Product and flow
 

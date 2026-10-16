@@ -80,6 +80,7 @@ REQUIRED: list[tuple[str, Severity, SuggestedAction]] = [
     ("symptoms", Severity.WARNING, SuggestedAction.REQUEST),
 ]
 
+AUTO = "ai"  # `Resolution.by` of findings the pipeline itself closed; people's resolutions are kept
 STALE_AFTER = dt.timedelta(days=28)  # Q-C6
 WEIGHT_TREND = 0.05  # relative change worth showing
 LAB_TREND = 0.15
@@ -551,7 +552,7 @@ def reconcile_findings(
     out = []
     for f in current:
         old = before.get(f.id)
-        if old is not None and old.resolution is not None:
+        if old is not None and old.resolution is not None and old.resolution.by != AUTO:
             f = f.model_copy(update={"resolved": old.resolved, "resolution": old.resolution})
         out.append(f)
     ids = {f.id for f in current}
@@ -565,7 +566,7 @@ def reconcile_findings(
                     "resolution": Resolution(
                         kind=ResolutionKind.RESOLVED,
                         note="Po novém vytěžení podkladů již neplatí.",
-                        by="ai",
+                        by=AUTO,
                         at=now,
                     ),
                 }

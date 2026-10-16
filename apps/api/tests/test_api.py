@@ -18,7 +18,9 @@ def test_reference_case_is_served():
         assert handover["performance_status"]["status"] == "missing"
 
         docs = client.get("/cases/vzp-prochazkova/documents").json()
-        assert {d["id"] for d in docs} == {f"{i:02d}" for i in range(1, 12)}  # 12, 13 come after MDT
+        assert {d["id"] for d in docs} == {
+            f"{i:02d}" for i in range(1, 12)
+        }  # 12, 13 come after MDT
 
 
 def test_me_follows_the_role_switcher():
@@ -119,4 +121,6 @@ def test_committed_openapi_spec_is_current():
     from pathlib import Path
 
     spec = Path(__file__).resolve().parents[2] / "web" / "openapi.json"
-    assert json.loads(spec.read_text(encoding="utf-8")) == app.openapi(), "run scripts/export_openapi.py"
+    assert json.loads(spec.read_text(encoding="utf-8")) == app.openapi(), (
+        "run scripts/export_openapi.py"
+    )

@@ -23,6 +23,7 @@ flowchart TD
   web["web<br/>React SPA"] -->|REST / OpenAPI| api["api<br/>FastAPI"]
   api --> cases["cases<br/>states, tasks, task sets, audit"]
   api --> ai["ai<br/>extract, check, draft"]
+  api --> llm
   api --> documents["documents<br/>upload, parse, render PDF"]
   api --> messaging["messaging<br/>requests, delivery, receipts"]
   cases --> repo["repository"]

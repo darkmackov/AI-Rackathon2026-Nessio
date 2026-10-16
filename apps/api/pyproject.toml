@@ -12,6 +12,7 @@ dependencies = [
   "onko-repository",
   "onko-documents",
   "onko-ai",
+  "onko-llm-gateway",
   "onko-messaging",
 ]
 

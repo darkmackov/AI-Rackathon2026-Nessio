@@ -299,3 +299,12 @@ def test_clinical_review_field_paths_are_normalised():
     )
     review = [f for f in run([(doc, out())], gw) if f.advisory]
     assert review[0].fields == ["labs", "medications"]
+
+
+def test_a_finding_that_comes_back_is_open_again_after_an_automatic_resolution():
+    doc = make_doc("a", "nic", dt.date(2026, 10, 1))
+    first = run([(doc, out())])
+    gone = first[0]
+    closed = reconcile_findings(first, first[1:], NOW)
+    back = by_id(reconcile_findings(closed, first, NOW))
+    assert not back[gone.id].resolved and back[gone.id].resolution is None
