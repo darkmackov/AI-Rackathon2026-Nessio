@@ -27,7 +27,7 @@ Each module also has its own `AGENTS.md` with its boundaries. Read it before edi
 - **The API uses the models that exist** ([api.md](docs/api.md)): responses are contract models, request bodies are the `Body` models in `apps/api/src/onko_api/schemas.py`. Every route returns what api.md lists for it; new endpoints never return a `dict` or an ad-hoc model, and never add a near-duplicate of an existing model.
 - Implementing a 501 stub keeps its name, path and models. A response model changes only through a contract PR.
 - Handover values are `Sourced[T]`: `origin=ai` with verbatim `Evidence`, or `origin=manual` with `entered`. Never infer or fill in a missing value.
-- App state lives in IRIS as JSON documents, projected to FHIR only where data-model.md says (Q-A7).
+- App state lives in IRIS SQL tables generated from the contracts (the handover as one JSON document), projected to FHIR only where data-model.md says (Q-A7, Q-I14).
 - A change to `onko_contracts` is its own PR and updates the reference JSONs, tests and `data-model.md` as needed, then regenerates the client.
 
 **Web** (WEB-*, UX-*, A11Y-*)

@@ -8,3 +8,5 @@ node_modules/
 dist/
 bench-results/
 ~$*
+/.idea/fhir-packages/
+fhir-packages/

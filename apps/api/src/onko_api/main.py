@@ -1,8 +1,8 @@
 """FastAPI app. Thin layer over the modules; all models come from onko_contracts.
 
 Run:  uv run uvicorn onko_api.main:app --reload
-Data: in-memory fake seeded with the reference case until IrisRepository lands
-      (IRIS itself runs in Azure; connection string in .env).
+Data: IrisRepository when ONKO_IRIS_CONNECTION_STRING is set in .env (the shared IRIS in Azure),
+      otherwise the in-memory fake. Either way an empty store is seeded with the reference case.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from onko_contracts import Case, CaseState, DocumentMeta, Finding, Handover, QueueColumn, Task
-from onko_repository import CaseRepository, InMemoryRepository, IrisSettings
+from onko_repository import CaseRepository, InMemoryRepository, IrisRepository, IrisSettings
 
 from .routes import router
 from .seed import seed_reference_case
@@ -22,14 +22,25 @@ repo: CaseRepository = InMemoryRepository()
 
 
 def _iris_configured() -> bool:
-    return IrisSettings().iris_connection_string is not None
+    return IrisSettings().iris_configured
+
+
+def make_repository() -> CaseRepository:
+    """IRIS when it is configured in .env, otherwise the in-memory fake (S7)."""
+    settings = IrisSettings()
+    return IrisRepository(settings) if settings.iris_configured else InMemoryRepository()
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    if os.environ.get("ONKO_SEED_REFERENCE", "1") == "1":
+    global repo
+    repo = make_repository()
+    # Seed only an empty store: IRIS keeps the demo state across restarts.
+    if os.environ.get("ONKO_SEED_REFERENCE", "1") == "1" and not repo.list_cases():
         seed_reference_case(repo)
     yield
+    if isinstance(repo, IrisRepository):
+        repo.close()
 
 
 app = FastAPI(

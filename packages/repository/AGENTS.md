@@ -2,7 +2,7 @@
 
 Root rules: [AGENTS.md](../../AGENTS.md). Conventions: [docs/conventions/](../../docs/conventions).
 
-**Owns:** The only code that talks to IRIS: the `CaseRepository` port, the in-memory fake, and the IRIS adapter (app state as JSON documents in IRIS SQL, FHIR projection where needed, Q-A7).
+**Owns:** The only code that talks to IRIS: the `CaseRepository` port, the in-memory fake, and the IRIS adapter (app state in IRIS SQL tables generated from the contracts, the handover as a JSON document, FHIR projection where needed, Q-A7, Q-I14).
 
 **May depend on:** contracts. Import other modules only through their package root (MOD-2).
 

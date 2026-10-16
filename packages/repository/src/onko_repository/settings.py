@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from urllib.parse import unquote, urlsplit
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,10 +16,26 @@ class IrisSettings(BaseSettings):
     iris_connection_string: SecretStr | None = None
     # Optional TLS: passed to iris.connect(..., sslconfig=...) (Q-I4)
     iris_ssl_config: str | None = None
+    # SQL schema holding the app-state tables (data-model.md › Non-FHIR storage); default "onko"
+    iris_schema: str | None = None
     # FHIR REST endpoint on the same instance, e.g. https://host/fhir/r4 (basic auth, Q-I4/Q-I5)
     fhir_base_url: str | None = None
     fhir_username: str | None = None
     fhir_password: SecretStr | None = None
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        # .env.example ships `ONKO_X=` lines; an empty value means "not configured".
+        return None if value == "" else value
+
+    @property
+    def iris_configured(self) -> bool:
+        return self.iris_connection_string is not None
+
+    @property
+    def fhir_configured(self) -> bool:
+        return self.fhir_base_url is not None
 
 
 @dataclass(frozen=True)

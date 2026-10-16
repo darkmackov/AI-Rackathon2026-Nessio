@@ -114,7 +114,7 @@ flowchart LR
 - **Where it runs (Q-I8):** in development the API and web run on each dev's machine; for the demo they're deployed in Azure next to IRIS.
 - **One shared namespace (Q-I3):** day-to-day work uses the in-memory fake. Anything a dev writes to the shared IRIS uses ids prefixed with their name, so the demo data stay clean.
 - **TLS (Q-I4):** optional `ONKO_IRIS_SSL_CONFIG` is passed as `sslconfig` to `iris.connect`. The FHIR endpoint uses basic auth.
-- **FHIR server** is the system of record and the interop surface (InterSystems criterion: interoperability).
+- **Workflow state lives in IRIS SQL, clinical data in FHIR** (Q-A7, Q-I14): cases, tasks, findings, documents and messages are relational tables generated from the contracts; the handover's clinical content is projected to the **FHIR server** (CZ Core profiles + `Provenance`) on every save, which is the interop surface (InterSystems criterion: interoperability). Details: [data-model.md](data-model.md), [deploy.md](deploy.md).
 - **Vector Search (Phase 2):** document chunks + embeddings in an IRIS SQL `VECTOR` column, for evidence lookup and "ask the case" (criterion: GenAI + vector search).
 - **Agent (Phase 2):** a coordinator copilot with tools for FHIR search, vector search, create task, draft request (criterion: agent-based access).
 
