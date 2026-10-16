@@ -1,8 +1,10 @@
 import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
+import { s1Cs, s1En } from './s1-translations'
 
 export const resources = {
   cs: { translation: {
+    s1: s1Cs,
     appName: 'Onko-koordinace', skip: 'Přejít k obsahu', navigation: 'Hlavní navigace',
     language: 'Jazyk', demoData: 'Demo · fiktivní data', realApi: 'Režim skutečného API',
     selectTitle: 'Vyberte svou identitu', selectIntro: 'Zvolte roli a osobu, za kterou chcete pracovat.',
@@ -11,7 +13,7 @@ export const resources = {
     changeIdentity: 'Změnit osobu', workplace: 'Pracoviště', phone: 'Telefon', email: 'E-mail',
     unavailable: 'Není uvedeno', identityTitle: 'Moje identita',
     identityDescription: 'Údaje aktuálního uživatele. Příprava a odesílání žádanek přibude v další etapě.',
-    dashboardTitle: 'Pracovní fronta koordinátora', dashboardDescription: 'Přehled případů vašeho KOC. Podrobná práce s případem přibude v další etapě.',
+    dashboardTitle: 'Pracovní fronta koordinátora', dashboardDescription: 'Přehled případů vašeho KOC. Vyberte pacienta pro zobrazení podkladů a dalšího kroku.',
     loading: 'Načítám…', retry: 'Zkusit znovu', errorTitle: 'Data se nepodařilo načíst',
     errorNetwork: 'Spojení s API se nezdařilo. Ověřte připojení a zkuste to znovu.',
     error400: 'Požadavek obsahuje neplatné údaje. Zkontrolujte je a zkuste to znovu.',
@@ -41,6 +43,7 @@ export const resources = {
     notFound: 'Stránka nebyla nalezena', notFoundDescription: 'Tato adresa v aplikaci neexistuje.', home: 'Přejít na úvod',
   } },
   en: { translation: {
+    s1: s1En,
     appName: 'Oncology coordination', skip: 'Skip to content', navigation: 'Main navigation',
     language: 'Language', demoData: 'Demo · fictional data', realApi: 'Real API mode',
     selectTitle: 'Choose your identity', selectIntro: 'Choose the role and person you want to work as.',
@@ -49,7 +52,7 @@ export const resources = {
     changeIdentity: 'Change person', workplace: 'Organisation', phone: 'Phone', email: 'Email',
     unavailable: 'Not provided', identityTitle: 'My identity',
     identityDescription: 'Details of the current user. Referral preparation and submission will be added in a later stage.',
-    dashboardTitle: 'Coordinator work queue', dashboardDescription: 'Cases at your KOC. Detailed case management will be added in a later stage.',
+    dashboardTitle: 'Coordinator work queue', dashboardDescription: 'Cases at your KOC. Select a patient to view their documents and next step.',
     loading: 'Loading…', retry: 'Try again', errorTitle: 'Could not load the data',
     errorNetwork: 'Could not connect to the API. Check your connection and try again.',
     error400: 'The request contains invalid data. Check the values and try again.',

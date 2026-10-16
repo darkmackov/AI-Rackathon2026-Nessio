@@ -119,10 +119,10 @@ S0 supplies the shared shell and identity selection before these screens (Q-W9).
    - In-app notifications for upcoming and overdue tasks (Q-F17).
    - Done when: every patient shows their state, due date and who is on the move.
 3. **Case detail.**
-   - Tabs: *Handover · Dokumenty (documents) · Úkoly/cesta (tasks/journey) · Komunikace (communication) · Audit*.
+   - Tabs: *Přehled (overview) · Handover · Nálezy (findings) · Dokumenty (documents) · Úkoly/cesta (tasks/journey) · Komunikace (communication) · Audit*. The case opens on *Přehled*, which shows state, owner, next step, due date and time to treatment first.
    - Every handover value links to its source document with the quote highlighted.
    - **Dokumenty** lists every document of the case in one place. Each one opens as the **original file** and as its parsed text ("strukturovaná zpráva + originál", slide 9). The documents the GP handed over are marked as such (`uploaded_by`).
-   - Gaps and conflicts sit at the top, each with **Vyžádat** (creates a request task addressed to whoever holds the information, linked to the finding; the reply comes outside the app in the MVP) or **Doplnit** (fill in manually, or upload, and AI re-extracts).
+   - Gaps and conflicts have their own *Nálezy* tab (the tab shows how many are unresolved; in the handover, sections with a gap or conflict open first), each with **Vyžádat** (creates a request task addressed to whoever holds the information, linked to the finding; the reply comes outside the app in the MVP) or **Doplnit** (fill in manually, or upload, and AI re-extracts).
    - **Vrátit lékaři** (return to the GP, D-15): the coordinator writes what is missing, optionally pointing at a finding. The note goes to the GP's inbox and the case moves to *Vráceno lékaři*.
    - Every section is copy-ready (slide 8).
    - **Epikríza side by side** (Q-F15): the referring doctor's text verbatim next to the AI summary proposal; the coordinator writes or confirms the final version.

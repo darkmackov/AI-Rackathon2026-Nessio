@@ -71,7 +71,7 @@ flowchart LR
 - **Endpoints (already working on the seed):** `listCases`, `getCase`, `getHandover`, `listFindings`, `listTasks`, `listDocuments`, `documentText`, plus `getTimeToTreatment`. New here: `getDocumentFile`, so the coordinator opens the original of every document (slide 9: "strukturovaná zpráva + originál"). The seed stores the original `.docx` bytes from `data/cesta-pacienta-data/Pacient/`.
 - **UI:**
   - Kanban Nový / Aktivní / Odložený with cards showing patient, diagnosis, state, next step, owner, due date and time to treatment.
-  - Case detail tabs: Handover with click-through to the highlighted quote in the source document, Dokumenty (every document in one place, each opening as the original file and as text, the GP's ones marked), Findings panel, Úkoly.
+  - Case detail tabs: Přehled (default: state, owner, next step, due date, time to treatment, referring doctor, handover validation), Handover (sections collapse; those with gaps or conflicts open by default) with click-through to the highlighted quote in the source document, Nálezy (findings, with the unresolved count on the tab; each links to its handover field), Dokumenty (every document in one place, each opening as the original file and as text, the GP's ones marked), Úkoly.
 - **Done when:** demo steps 3 and 5 can be shown read-only on the seeded case, and every seeded document opens as its original.
 
 ## S2: Document ingest + AI extraction

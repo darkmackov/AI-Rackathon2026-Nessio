@@ -13,6 +13,7 @@ import DemoClock from './DemoClock'
 import { useDemoClock } from '../demo-clock'
 import { QueryError } from './DataState'
 import FormErrorSummary from './FormErrorSummary'
+import { isCaseQuery } from '../case-queries'
 
 function TimeForm({ initialNow, onStart, onSaved }: { initialNow: string; onStart: () => void; onSaved: () => void }) {
   const { t } = useTranslation()
@@ -32,6 +33,8 @@ function TimeForm({ initialNow, onStart, onSaved }: { initialNow: string; onStar
       await queryClient.invalidateQueries({ queryKey: getDemoClockQueryKey() })
       // Other time-sensitive queries must also observe the newly selected server time.
       await queryClient.invalidateQueries({ queryKey: listCasesQueryKey() })
+      await queryClient.cancelQueries({ predicate: isCaseQuery })
+      await queryClient.invalidateQueries({ predicate: isCaseQuery })
       onSaved()
     },
   })
@@ -72,6 +75,8 @@ export default function DemoPanel({ opened, onClose }: { opened: boolean; onClos
     ...resetDemoMutation(),
     onSuccess: async () => {
       await queryClient.cancelQueries()
+      if (actor) await navigate({ to: roleHome(actor.role), replace: true })
+      queryClient.removeQueries({ predicate: isCaseQuery })
       // These generated keys deliberately omit filters and cover all cached variants.
       await Promise.all([
         listCasesQueryKey(), getDemoClockQueryKey(), listActorsQueryKey(),
@@ -80,7 +85,6 @@ export default function DemoPanel({ opened, onClose }: { opened: boolean; onClos
       setScenario(null)
       setFeedback('resetSaved')
       setFormRevision((revision) => revision + 1)
-      if (actor) await navigate({ to: roleHome(actor.role), replace: true })
     },
   })
   const scenarioName = scenario === 'empty' ? t('emptyScenario') : t('referenceScenario')

@@ -3,6 +3,9 @@ import type { Case, DemoClock, DemoScenario, ValidationError } from '../client/t
 import { localDateTime } from '../time'
 import { actors, boards, organizations } from './directory'
 import { referenceCases } from './reference'
+import { referenceDocuments, referenceFindings, referenceHandover, referenceTexts } from './reference-data'
+import { referenceTasks } from './reference-tasks'
+import { treatmentTime } from './treatment-time'
 import { caseStates, enumError, extraFields, isApiDateTime, objectBody, organizationKinds, queryValue, queueColumns, validateEnumQuery, validationResponse } from './validation'
 
 // Mutable simulated server state is private to this tab (Q-W6, Q-W10).
@@ -33,6 +36,8 @@ export function createDemoState(readNow: () => number = Date.now) {
 }
 
 export function createHandlers(state = createDemoState()) {
+  const referenceAvailable = () => state.getCases().some((item) => item.id === referenceHandover.case_id)
+  const notFound = () => HttpResponse.json({ detail: 'not found' }, { status: 404 })
   return [
     http.get('*/api/me', ({ request }) => {
       const id = request.headers.get('X-Actor-Id')
@@ -72,6 +77,36 @@ export function createHandlers(state = createDemoState()) {
         (!query.has('koc_id') || item.koc_id === queryValue(query, 'koc_id')) &&
         (!query.has('state') || item.state === queryValue(query, 'state')) &&
         (!query.has('queue') || item.queue === queryValue(query, 'queue'))))
+    }),
+    http.get('*/api/cases/:id', ({ params }) => {
+      const item = state.getCases().find((item) => item.id === params.id)
+      return item ? HttpResponse.json(item) : notFound()
+    }),
+    http.get('*/api/cases/:id/handover', ({ params, request }) => {
+      const snapshot = queryValue(new URL(request.url).searchParams, 'snapshot')
+      if (snapshot !== null && !['true', 'false', '1', '0', 'yes', 'no', 'on', 'off'].includes(snapshot.toLowerCase())) {
+        return validationResponse([{ loc: ['query', 'snapshot'], type: 'bool_parsing', msg: 'Input should be a valid boolean', input: snapshot }])
+      }
+      if (!referenceAvailable() || params.id !== referenceHandover.case_id || ['true', '1', 'yes', 'on'].includes(snapshot?.toLowerCase() ?? '')) return notFound()
+      return HttpResponse.json(referenceHandover)
+    }),
+    http.get('*/api/cases/:id/findings', ({ params }) => HttpResponse.json(referenceAvailable() && params.id === referenceHandover.case_id ? referenceFindings : [])),
+    http.get('*/api/cases/:id/tasks', ({ params }) => HttpResponse.json(referenceAvailable() && params.id === referenceHandover.case_id ? referenceTasks : [])),
+    http.get('*/api/cases/:id/documents', ({ params }) => HttpResponse.json(referenceAvailable() && params.id === referenceHandover.case_id ? referenceDocuments : [])),
+    http.get('*/api/cases/:id/time-to-treatment', ({ params }) => {
+      const item = state.getCases().find((item) => item.id === params.id)
+      return item ? HttpResponse.json(treatmentTime(item, state.clock().now)) : notFound()
+    }),
+    http.get('*/api/documents/:id/text', ({ params }) => {
+      const id = String(params.id)
+      return referenceAvailable() && Object.hasOwn(referenceTexts, id) ? HttpResponse.json({ id, text: referenceTexts[id] }) : notFound()
+    }),
+    http.get('*/api/documents/:id/file', async ({ params }) => {
+      const document = referenceAvailable() && referenceDocuments.find((item) => item.id === params.id)
+      if (!document) return notFound()
+      const { originalFiles } = await import('./document-files')
+      const bytes = Uint8Array.from(atob(originalFiles[document.id]), (character) => character.charCodeAt(0))
+      return new HttpResponse(bytes, { headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${document.filename}"` } })
     }),
     http.get('*/api/demo/clock', () => HttpResponse.json(state.clock())),
     http.put('*/api/demo/clock', async ({ request }) => {
