@@ -37,7 +37,7 @@ The Vite dev server proxies `/api` to FastAPI at `http://localhost:8000`. Produc
 - `/coordinator`: the existing provisional S1 read-only queue filtered by the selected person's KOC. Completing the dashboard and case detail remains S1 work. S0 supplies the common shell and role-based destination.
 - Wrong-role addresses return to the current role's home; unidentified visitors return to selection. Unknown addresses have a not-found page.
 
-Identity, language and simulated data live **only in the current tab's memory**. Reloading starts in Czech, asks for a person again and restores the reference scenario. The actual `/me` response stays in Query. Identity-dependent requests explicitly include `X-Actor-Id` in their generated options and query keys. Switching identities aborts requests and removes the previous identity's cached data; writes block switching.
+Identity, language and simulated data live **only in the current tab's memory**. Reloading starts in Czech, asks for a person again (then reopens the reloaded page, or the role home if it belongs to the other role) and restores the reference scenario. The actual `/me` response stays in Query. Identity-dependent requests explicitly include `X-Actor-Id` in their generated options and query keys. Switching identities aborts requests and removes the previous identity's cached data; writes block switching.
 
 UI labels are Czech/English; clinical content, names and organisation names remain unchanged. Both translation dictionaries ship with the app; language switching needs no network requests or storage.
 
