@@ -64,6 +64,17 @@ class ConclusionSource(StrEnum):
     UPLOADED = "uploaded"  # the MDT's own report uploaded as a document
 
 
+class ConclusionPrefill(Model):
+    """The `mdt_conclusion` draft (S5, Q-F37): not AI, only the `MDT_zaver` parts that restate the
+    MDT record. The MDT's decision (assessment, conclusion, recommendations) is never prefilled."""
+
+    diagnosis_name: str | None = None
+    diagnosis_code: str | None = None
+    date: dt.date | None = Field(default=None, description="The MDT date")
+    place: str | None = Field(default=None, description="The KOC's town")
+    copy_to: list[str] = Field(default_factory=list, description="The referring doctor")
+
+
 class MdtConclusion(Model):
     """Závěr MDT (MDT_zaver layout), recorded by the coordinator (Q-F12, Q-F21)."""
 

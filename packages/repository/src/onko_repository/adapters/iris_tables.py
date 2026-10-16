@@ -209,6 +209,8 @@ class ModelTable(Generic[M]):
                 node = node.setdefault(key, {})
             node[column.path[-1]] = value
         for path in absent:
+            if any(path[:n] in absent for n in range(1, len(path))):
+                continue  # inside a nested model that is absent itself
             node = data
             for key in path[:-1]:
                 node = node.setdefault(key, {})

@@ -4173,6 +4173,69 @@
         "title": "CodeCandidate",
         "description": "An MKN-10 code proposed by vector search for a diagnosis without a code (Q-C11). Only a\nproposal: a person picks one. Candidates are listed best first; similarity scores are not shown,\nthey are not calibrated (Q-I19)."
       },
+      "ConclusionPrefill": {
+        "properties": {
+          "diagnosis_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Name"
+          },
+          "diagnosis_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Code"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date",
+            "description": "The MDT date"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place",
+            "description": "The KOC's town"
+          },
+          "copy_to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Copy To",
+            "description": "The referring doctor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ConclusionPrefill",
+        "description": "The `mdt_conclusion` draft (S5, Q-F37): not AI, only the `MDT_zaver` parts that restate the\nMDT record. The MDT's decision (assessment, conclusion, recommendations) is never prefilled."
+      },
       "ConclusionSource": {
         "type": "string",
         "enum": [
@@ -4538,6 +4601,51 @@
           "mdt_conclusion"
         ],
         "title": "DraftKind"
+      },
+      "DraftResult": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/DraftKind"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "epicrisis_summary, mdt_question: AI text; apply with updateHandoverField"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/MdtResultRow"
+            },
+            "type": "array",
+            "title": "Rows",
+            "description": "mdt_results: AI one-liners, date and examination as in the record; apply with updateMdtRecord"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConclusionPrefill"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "mdt_conclusion: not AI; apply with upsertMdtConclusion"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "DraftResult",
+        "description": "A draft for the coordinator to edit (S5, Q-F37). Nothing on the case changes until a person\napplies it. Exactly the part of its kind is set."
       },
       "DueNotice": {
         "properties": {
@@ -5143,7 +5251,7 @@
               }
             ],
             "title": "Result",
-            "description": "e.g. {'text': ...} for drafts"
+            "description": "Kind ingest_document: counts of the run"
           },
           "answer": {
             "anyOf": [
@@ -5155,6 +5263,17 @@
               }
             ],
             "description": "Kind ask_case, once done; the question is in `params`"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Kind draft, once done; the kind is also in `params.kind` (S5)"
           }
         },
         "additionalProperties": false,

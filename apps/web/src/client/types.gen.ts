@@ -312,6 +312,41 @@ export type CodeCandidate = {
 };
 
 /**
+ * ConclusionPrefill
+ *
+ * The `mdt_conclusion` draft (S5, Q-F37): not AI, only the `MDT_zaver` parts that restate the
+ * MDT record. The MDT's decision (assessment, conclusion, recommendations) is never prefilled.
+ */
+export type ConclusionPrefill = {
+    /**
+     * Diagnosis Name
+     */
+    diagnosis_name?: string | null;
+    /**
+     * Diagnosis Code
+     */
+    diagnosis_code?: string | null;
+    /**
+     * Date
+     *
+     * The MDT date
+     */
+    date?: string | null;
+    /**
+     * Place
+     *
+     * The KOC's town
+     */
+    place?: string | null;
+    /**
+     * Copy To
+     *
+     * The referring doctor
+     */
+    copy_to?: Array<string>;
+};
+
+/**
  * ConclusionSource
  */
 export type ConclusionSource = 'written' | 'uploaded';
@@ -502,6 +537,32 @@ export type DraftCreate = {
  * DraftKind
  */
 export type DraftKind = 'epicrisis_summary' | 'mdt_question' | 'mdt_results' | 'mdt_conclusion';
+
+/**
+ * DraftResult
+ *
+ * A draft for the coordinator to edit (S5, Q-F37). Nothing on the case changes until a person
+ * applies it. Exactly the part of its kind is set.
+ */
+export type DraftResult = {
+    kind: DraftKind;
+    /**
+     * Text
+     *
+     * epicrisis_summary, mdt_question: AI text; apply with updateHandoverField
+     */
+    text?: string | null;
+    /**
+     * Rows
+     *
+     * mdt_results: AI one-liners, date and examination as in the record; apply with updateMdtRecord
+     */
+    rows?: Array<MdtResultRow>;
+    /**
+     * mdt_conclusion: not AI; apply with upsertMdtConclusion
+     */
+    fields?: ConclusionPrefill | null;
+};
 
 /**
  * DueNotice
@@ -888,7 +949,7 @@ export type Job = {
     /**
      * Result
      *
-     * e.g. {'text': ...} for drafts
+     * Kind ingest_document: counts of the run
      */
     result?: {
         [key: string]: unknown;
@@ -897,6 +958,10 @@ export type Job = {
      * Kind ask_case, once done; the question is in `params`
      */
     answer?: CaseAnswer | null;
+    /**
+     * Kind draft, once done; the kind is also in `params.kind` (S5)
+     */
+    draft?: DraftResult | null;
 };
 
 /**
