@@ -8,6 +8,7 @@ from onko_contracts import (
     DocumentMeta,
     Finding,
     Handover,
+    Job,
     MdtBoard,
     Message,
     Organization,
@@ -33,6 +34,7 @@ class InMemoryRepository:
         self.tasks: dict[str, Task] = {}
         self.messages: dict[str, Message] = {}
         self.receipts: list[Receipt] = []
+        self.jobs: dict[str, Job] = {}
 
     def save_organization(self, organization: Organization) -> None:
         self.organizations[organization.id] = organization
@@ -76,6 +78,18 @@ class InMemoryRepository:
     def document_text(self, document_id: str) -> str:
         return self.documents[document_id][2]
 
+    def get_document(self, document_id: str) -> DocumentMeta | None:
+        stored = self.documents.get(document_id)
+        return None if stored is None else stored[0]
+
+    def document_data(self, document_id: str) -> bytes | None:
+        stored = self.documents.get(document_id)
+        return None if stored is None else stored[1]
+
+    def update_document(self, meta: DocumentMeta) -> None:
+        _, data, text = self.documents[meta.id]
+        self.documents[meta.id] = (meta, data, text)
+
     def save_handover(self, handover: Handover, *, snapshot: bool = False) -> None:
         self.handovers[(handover.case_id, snapshot)] = handover
 
@@ -102,3 +116,13 @@ class InMemoryRepository:
 
     def save_receipt(self, receipt: Receipt) -> None:
         self.receipts.append(receipt)
+
+    def save_job(self, job: Job) -> None:
+        self.jobs[job.id] = job
+
+    def get_job(self, job_id: str) -> Job | None:
+        return self.jobs.get(job_id)
+
+    def list_jobs(self, case_id: str) -> list[Job]:
+        return sorted((j for j in self.jobs.values() if j.case_id == case_id),
+                      key=lambda j: j.created_at)

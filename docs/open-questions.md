@@ -10,7 +10,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 |---|---|---|---|
 | Q-F8 | **Repeated MDT:** slide 4's example has two MDTs, and the sample conclusion plans another one after neoadjuvant therapy. Can a case go back from *Závěr MDT*? | Not supported. `ALLOWED_TRANSITIONS` has no way back from `zaver_mdt` | VZP |
 | Q-K8 | **Time zones:** contracts use naive `datetime`s and api.md says ISO 8601. Store UTC, local time, or aware datetimes? | Unchanged (naive) | Team |
-| Q-K9 | **Id scheme** for new cases, tasks, findings, messages (api.md: string ids; today slugs and composite ids from seed and `start_task_set`) | Unchanged | Team |
+| Q-K9 | **Id scheme** for new cases, tasks, findings, messages (api.md: string ids; today slugs and composite ids from seed and `start_task_set`) | Seed ids unchanged. New documents and jobs: `doc-` / `job-` + 8 random hex chars. Check findings: deterministic `<check>:<field or document>` so a re-run keeps people's resolutions | Team |
 | Q-I27 | **Bitmap indexes** (Q-I26): IRIS allows them only on tables with an integer row ID. Do our generated tables (string `id` as primary key) keep IRIS's default integer row ID? | Plan bitmap indexes, check on the instance before creating them; fall back to normal indexes | Team / ISC |
 | Q-K12 | **Where the shared text normalizer lives** (Q-C13): `documents` (duplicate check, Q-I22) and `ai` (quote check, chunking) both need it, and neither may depend on the other | Undecided. Options: a new `ai → documents` edge (updates the dependency table), or a pure function in `contracts` | Team |
 | Q-C12 | **MKN-10 code list** for code suggestions (Q-C11): which source and version? | The ÚZIS MKN-10 classification, which is published openly; not downloaded yet | Team |
@@ -108,7 +108,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 
 | ID | Question | Decision | Lands in |
 |---|---|---|---|
-| Q-M1 | Model capability differences? | **Pick one model** after the bench and build on its capabilities. It must be an EU Data Zone model (Q-M6) | `Gateway` (active model + embed), `.env.example` |
+| Q-M1 | Model capability differences? | **Pick one model** after the bench and build on its capabilities. It must be an EU Data Zone model (Q-M6). **Chosen: `gpt-6-1-sol-dz-eu`** (slot `sol`). Bench of 16. 10. 2026 on the two EU candidates and both reference cases: metadata, fields, evidence and in-scope finding recall 100 %, no false positives, ~2.5 min per case. `gpt-6-luna-dz-eu` is ~2.5× faster with the same finding recall, but misspelled Czech values ("negauje") and raised a false allergy conflict on case 1 in both runs. The Global reference models (Q-M5) have not been benched yet. Bench bar for S2: metadata ≥ 95 %, fields ≥ 90 %, evidence 100 %, in-scope finding recall 100 %, 0 false positives | `Gateway` (active model + embed), `.env.example` |
 | Q-M2 | Embeddings? | One embedding slot from our endpoints. None was deployed on 16. 10.; the team deploys one in Azure (Q-M7) | `ONKO_EMBED_MODEL` |
 | Q-M3 | Rate limits / cost? | No limits | gateway |
 | Q-M4 | Second test case? | **Now, in Phase 1** (synthetic, another diagnosis) | delivery.md |

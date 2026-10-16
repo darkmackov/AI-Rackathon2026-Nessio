@@ -32,7 +32,8 @@ Live docs while the API runs: `http://localhost:8000/docs`.
   | 403 | Wrong role |
   | 404 | Not found |
   | 409 | Not allowed in the current state, e.g. a transition outside `ALLOWED_TRANSITIONS`, or an MDT snapshot while blockers remain |
-  | 422 | Validation (FastAPI default) |
+  | 415 | Upload of a file type we cannot parse (supported: .docx, .pptx, .pdf) |
+  | 422 | Validation (FastAPI default), or an uploaded file that cannot be read |
   | 501 | Not implemented yet |
 
 - **Manual entries** (`PATCH /cases/{id}/handover`) produce `Sourced` values with `origin=manual` and `entered={by, at}`. AI values carry `origin=ai` and verbatim `evidence`. The contracts enforce both.
@@ -165,9 +166,9 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `POST` | `/cases/{case_id}/documents` | file (multipart) | `UploadResult` 201 | ✓ | `uploadDocument` | defined (501) |
+| `POST` | `/cases/{case_id}/documents` | file (multipart) | `UploadResult` 201 | ✓ | `uploadDocument` | **works** (S2) |
 | `GET` | `/cases/{case_id}/documents` | — | `list[DocumentMeta]` 200 |  | `listDocuments` | **works** (seeded) |
-| `PATCH` | `/documents/{document_id}` | `DocumentMetaUpdate` | `DocumentMeta` 200 | ✓ | `updateDocument` | defined (501) |
+| `PATCH` | `/documents/{document_id}` | `DocumentMetaUpdate` | `DocumentMeta` 200 | ✓ | `updateDocument` | **works** (S2) |
 | `GET` | `/documents/{document_id}/file` | — | application/octet-stream 200 |  | `getDocumentFile` | defined (501) |
 | `GET` | `/documents/{document_id}/text` | — | `object` 200 |  | `documentText` | **works** (seeded) |
 
@@ -184,9 +185,9 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `GET` | `/jobs/{job_id}` | — | `Job` 200 |  | `getJob` | defined (501) |
-| `GET` | `/cases/{case_id}/jobs` | — | `list[Job]` 200 |  | `listCaseJobs` | defined (501) |
-| `POST` | `/cases/{case_id}/extract` | — | `Job` 202 | ✓ | `reextractCase` | defined (501) |
+| `GET` | `/jobs/{job_id}` | — | `Job` 200 |  | `getJob` | **works** (S2) |
+| `GET` | `/cases/{case_id}/jobs` | — | `list[Job]` 200 |  | `listCaseJobs` | **works** (S2) |
+| `POST` | `/cases/{case_id}/extract` | — | `Job` 202 | ✓ | `reextractCase` | **works** (S2) |
 | `POST` | `/cases/{case_id}/drafts` | `DraftCreate` | `Job` 202 | ✓ | `createDraft` | defined (501) |
 | `POST` | `/cases/{case_id}/suggestions/tasks` | — | `Job` 202 | ✓ | `suggestTasks` | defined (501) |
 

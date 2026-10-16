@@ -1,0 +1,712 @@
+{
+  "schema_version": "1",
+  "case_id": "ref2-havlicek",
+  "as_of": "2026-10-22",
+  "patient": {
+    "first_name": {
+      "value": "Miroslav",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Pacient: Miroslav Havlíček"
+        }
+      ]
+    },
+    "last_name": {
+      "value": "Havlíček",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Pacient: Miroslav Havlíček"
+        }
+      ]
+    },
+    "birth_number": {
+      "value": "580314/2477",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Rodné číslo: 580314/2477"
+        }
+      ]
+    },
+    "birth_date": {
+      "value": "1958-03-14",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Datum narození: 14. 3. 1958 (68 let)"
+        },
+        {
+          "document_id": "03",
+          "quote": "Datum narození: 14. 3. 1958 (68 let)"
+        }
+      ],
+      "note": "Odpovídá RČ 580314/2477. Diabetologická zpráva (01) uvádí 14. 3. 1956 – překlep, viz nález identity."
+    },
+    "age": {
+      "value": 68,
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Datum narození: 14. 3. 1958 (68 let)"
+        }
+      ]
+    },
+    "sex": {
+      "value": "muž",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Pacient: Miroslav Havlíček"
+        }
+      ],
+      "note": "Odvozeno z označení 'Pacient' a RČ (měsíc bez +50); konzistentní."
+    },
+    "insurance_code": {
+      "value": "111",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Zdravotní pojišťovna: 111"
+        }
+      ]
+    },
+    "address": {
+      "value": "Komenského 412, 251 01 Říčany",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Bydliště: Komenského 412, 251 01 Říčany"
+        }
+      ]
+    }
+  },
+  "contacts": {
+    "patient_phone": {
+      "value": "+420 604 000 318",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Telefon: +420 604 000 318"
+        }
+      ]
+    },
+    "patient_email": {
+      "value": "m.havlicek@posta.example",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "E-mail: m.havlicek@posta.example"
+        }
+      ]
+    },
+    "contact_person": {
+      "value": "Jana Havlíčková (manželka)",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Kontaktní osoba: Jana Havlíčková (manželka), tel. +420 604 000 319"
+        }
+      ]
+    },
+    "contact_person_phone": {
+      "value": "+420 604 000 319",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Kontaktní osoba: Jana Havlíčková (manželka), tel. +420 604 000 319"
+        }
+      ]
+    }
+  },
+  "diagnosis": {
+    "value": "Adenokarcinom rekta, středně diferencovaný (G2), MMR proficientní (pMMR)",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "05",
+        "quote": "Adenokarcinom rekta, středně diferencovaný (G2), MMR proficientní (pMMR). MKN-O 8140/3."
+      },
+      {
+        "document_id": "05",
+        "quote": "Materiál: 1) tumor rekta 6–11 cm, 6 vzorků"
+      }
+    ]
+  },
+  "diagnosis_code": {
+    "value": "C20",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "Dg.: C20 – adenokarcinom rekta, histologicky verifikován"
+      },
+      {
+        "document_id": "05",
+        "quote": "MKN-O 8140/3"
+      }
+    ]
+  },
+  "epicrisis_source": {
+    "value": "EPIKRÍZA\n68letý pacient, diabetik 2. typu na metforminu, vyšetřován od srpna 2026 pro asi 2 měsíce trvající příměs čerstvé krve ve stolici, změnu defekačního stereotypu a tenesmy. Laboratorně 20. 8. 2026 mikrocytární sideropenická anémie (Hb 121 g/l, ferritin 18 µg/l), CEA 7,9 µg/l, FIT pozitivní.\nKoloskopie 24. 9. 2026 (MUDr. Pavel Vondráček, Gastroenterologie Říčany) prokázala semicirkulární tumor rekta 6–11 cm od anokutánní linie, z něhož byly odebrány biopsie; polyp sigmatu 8 mm snesen. Histologicky adenokarcinom rekta G2, pMMR, polyp sigmatu tubulární adenom s low-grade dysplazií.\nPři kontrole dnes pacient bez bolestí, krvácení ze stolice intermitentně přetrvává, tenesmy, únava. Hmotnost 84 kg, stabilní. Plně soběstačný, chodí na procházky, lehčí práce na zahradě zvládá, ECOG 1. Psychicky stabilní, diagnózu nese statečně.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "vyšetřován od srpna 2026 pro asi 2 měsíce trvající příměs čerstvé krve ve stolici"
+      }
+    ],
+    "note": "Epikríza referujícího lékaře doslovně; vedle ní návrh AI shrnutí (epicrisis), finální verzi píše/potvrzuje koordinátor(ka)."
+  },
+  "epicrisis": {
+    "value": "68letý diabetik 2. typu s enteroragií, změnou defekačního stereotypu a tenesmy od června 2026, mikrocytární sideropenickou anémií a pozitivním FIT. Koloskopie 24. 9. 2026: semicirkulární tumor rekta 6–11 cm od anokutánní linie, histologicky adenokarcinom G2, pMMR. CT 9. 10. 2026: tumor rekta se suspektními mezorektálními uzlinami, nejasné ložisko S7 jater 9 mm, nespecifický uzlík plic 4 mm. MR pánve 16. 10. 2026: mrT3c N1b, MRF ohrožena (1,5 mm), EMVI pozitivní. CEA 7,9 → 14,6 µg/l, Hb 121 → 104 g/l. ECOG 1.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "vyšetřován od srpna 2026 pro asi 2 měsíce trvající příměs čerstvé krve ve stolici"
+      },
+      {
+        "document_id": "04",
+        "quote": "Tumor rekta 6–11 cm od anokutánní linie, suspektní karcinom, biopsie odebrány."
+      },
+      {
+        "document_id": "05",
+        "quote": "Adenokarcinom rekta, středně diferencovaný (G2), MMR proficientní (pMMR). MKN-O 8140/3."
+      },
+      {
+        "document_id": "07",
+        "quote": "Ložisko S7 jater 9 mm nejasné povahy"
+      },
+      {
+        "document_id": "09",
+        "quote": "Karcinom středního rekta, mrT3c N1b (4 suspektní mezorektální uzliny), MRF ohrožena (1,5 mm), EMVI pozitivní."
+      }
+    ]
+  },
+  "mdt_question": {
+    "value": "Převzetí do péče KOC k dokončení stagingu (CT hrudníku a břicha, MR malé pánve) a stanovení léčebného postupu v rámci MDT; pacient si přeje vyhnout se trvalé stomii, pokud to bude možné.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "Žádám o převzetí pacienta do péče KOC k dokončení stagingu (CT hrudníku a břicha, MR malé pánve) a stanovení léčebného postupu v rámci MDT."
+      },
+      {
+        "document_id": "06",
+        "quote": "Pacient si přeje, pokud to bude možné, vyhnout se trvalé stomii."
+      }
+    ]
+  },
+  "comorbidities": {
+    "value": [
+      "Diabetes mellitus 2. typu na PAD od r. 2015",
+      "Arteriální hypertenze",
+      "Dyslipidémie",
+      "Benigní hyperplazie prostaty",
+      "St. p. appendektomii (1975)"
+    ],
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "OA: diabetes mellitus 2. typu na PAD od r. 2015 (diabetoložka MUDr. Hana Šindelářová, Říčany), arteriální hypertenze, dyslipidémie, benigní hyperplazie prostaty, st. p. appendektomii (1975)"
+      },
+      {
+        "document_id": "01",
+        "quote": "E11.9 Diabetes mellitus 2. typu bez komplikací, na perorálních antidiabeticích"
+      }
+    ]
+  },
+  "medications": {
+    "value": [
+      "metformin 1000 mg 1-0-1",
+      "ramipril 5 mg 1-0-0",
+      "amlodipin 5 mg 1-0-0",
+      "atorvastatin 20 mg 0-0-1",
+      "tamsulosin 0,4 mg 0-0-1"
+    ],
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "FA: metformin 1000 mg 1-0-1, ramipril 5 mg 1-0-0, amlodipin 5 mg 1-0-0, atorvastatin 20 mg 0-0-1, tamsulosin 0,4 mg 0-0-1"
+      }
+    ],
+    "note": "Metformin vysazovat v den vyšetření s jodovou k. l. a 48 h po něm (07)."
+  },
+  "allergies": {
+    "value": null,
+    "status": "conflict",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "AA: neguje"
+      },
+      {
+        "document_id": "03",
+        "quote": "AA: neguje"
+      },
+      {
+        "document_id": "01",
+        "quote": "AA: penicilin – exantém (v dětství)"
+      }
+    ],
+    "note": "PL (03, 06) uvádí 'neguje', diabetologická zpráva (01) alergii na penicilin s exantémem. Rozhodne člověk po ověření u pacienta / PL."
+  },
+  "performance_status": {
+    "value": "ECOG 1",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "lehčí práce na zahradě zvládá, ECOG 1."
+      }
+    ]
+  },
+  "weight_kg": {
+    "value": 84,
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "Hmotnost 84 kg, stabilní."
+      }
+    ],
+    "note": "Změřeno 1. 10. 2026; dříve 85 kg (24. 8., 03) a 86 kg (12. 5., 01) – bez významného úbytku."
+  },
+  "height_cm": {
+    "value": null,
+    "status": "missing",
+    "note": "Výška není v žádném podkladu. BMI 28,1 (01) neslouží k dopočtu – nedomýšlet."
+  },
+  "symptoms": {
+    "value": "Asi od června 2026 intermitentní příměs čerstvé krve ve stolici, změna defekačního stereotypu (střídání zácpy a řidší stolice), pocit nedokonalého vyprázdnění a tenesmy, únava. Bolesti břicha neguje, hmotnost stabilní.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "03",
+        "quote": "68letý pacient přichází pro asi 2 měsíce trvající intermitentní příměs čerstvé krve ve stolici a změnu defekačního stereotypu – střídání zácpy a řidší stolice, poslední týdny pocit nedokonalého vyprázdnění."
+      },
+      {
+        "document_id": "06",
+        "quote": "krvácení ze stolice intermitentně přetrvává, tenesmy, únava."
+      },
+      {
+        "document_id": "03",
+        "quote": "Bolesti břicha neguje, hmotnost stabilní."
+      }
+    ]
+  },
+  "examinations": [
+    {
+      "date": "2026-05-12",
+      "place": "Diabetologická ambulance Říčany",
+      "type": "Diabetologická kontrola",
+      "result_full_text": "DIAGNÓZY\nE11.9 Diabetes mellitus 2. typu bez komplikací, na perorálních antidiabeticích\nI10 Arteriální hypertenze\nE78.5 Dyslipidémie\nSUBJEKTIVNĚ\nPravidelná kontrola po 6 měsících. Cítí se dobře, hypoglykémie neguje, žízeň ani polyurii neguje. Dietu dodržuje s výkyvy, chodí na procházky se psem. Zažívací obtíže neguje. Parestezie dolních končetin neguje.\nOBJEKTIVNĚ\nTK 138/84 mmHg, TF 76/min. Hmotnost 86 kg, BMI 28,1. Plíce a srdce bez patologického nálezu. Dolní končetiny bez otoků, pulzace hmatné, monofilament bilaterálně citlivý, bez defektů.\nLaboratorně (odběr 5. 5. 2026): HbA1c 54 mmol/mol, glykémie nalačno 7,6 mmol/l, kreatinin 86 µmol/l, eGFR 1,31 ml/s/1,73 m², albumin/kreatinin v moči 1,8 g/mol.\nAA: penicilin – exantém (v dětství)\nMEDIKACE\nmetformin 1000 mg 1-0-1, ramipril 5 mg 1-0-0, amlodipin 5 mg 1-0-0, atorvastatin 20 mg 0-0-1\nZÁVĚR A DOPORUČENÍ\nDM 2. typu uspokojivě kompenzován na metforminu, bez známek mikrovaskulárních komplikací. Hypertenze kompenzována. Medikace beze změn. Doporučena redukce hmotnosti a pravidelná pohybová aktivita. Oční vyšetření 2025 bez diabetické retinopatie, další v roce 2027. Kontrola za 6 měsíců (listopad 2026) s odběry.",
+      "evidence": [
+        {
+          "document_id": "01",
+          "quote": "DM 2. typu uspokojivě kompenzován na metforminu, bez známek mikrovaskulárních komplikací."
+        }
+      ]
+    },
+    {
+      "date": "2026-08-24",
+      "place": "Praktický lékař Říčany",
+      "type": "Vyšetření praktickým lékařem (enteroragie), epikríza a odeslání ke koloskopii",
+      "result_full_text": "EPIKRÍZA\n68letý pacient přichází pro asi 2 měsíce trvající intermitentní příměs čerstvé krve ve stolici a změnu defekačního stereotypu – střídání zácpy a řidší stolice, poslední týdny pocit nedokonalého vyprázdnění. Bolesti břicha neguje, hmotnost stabilní. Pacient udává větší únavu při práci na zahradě.\nObjektivně TK 136/82 mmHg, TF 78/min pravidelná, afebrilní. Hmotnost 85 kg. Kůže a sliznice bledší. Břicho měkké, nebolestivé, bez hmatné rezistence. Per rectum: v dosahu prstu bez hmatné rezistence, na rukavici stopa krve.\nLaboratorně 20. 8. 2026 mikrocytární anémie (Hb 121 g/l, MCV 81 fl), snížený ferritin 18 µg/l, CEA 7,9 µg/l, test okultního krvácení (FIT) pozitivní.\nZávěr: enteroragie s mikrocytární sideropenickou anémií a pozitivním FIT, suspektní tumor tlustého střeva nebo rekta.\nANAMNÉZA\nRA: otec karcinom tlustého střeva v 75 letech, matka hypertenze\nOA: diabetes mellitus 2. typu na PAD od r. 2015 (sleduje diabetoložka MUDr. Hana Šindelářová, Říčany), arteriální hypertenze, dyslipidémie, benigní hyperplazie prostaty, st. p. appendektomii (1975)\nFA: metformin 1000 mg 1-0-1, ramipril 5 mg 1-0-0, amlodipin 5 mg 1-0-0, atorvastatin 20 mg 0-0-1, tamsulosin 0,4 mg 0-0-1\nAA: neguje\nAbusus: exkuřák (20 let nekouří), alkohol příležitostně\nSA: ženatý, žije s manželkou v rodinném domě\nPA: elektrotechnik, ve starobním důchodu\nDOPORUČENÍ\n1. Koloskopie s biopsií – objednán na 24. 9. 2026, Gastroenterologie Říčany s.r.o., MUDr. Pavel Vondráček.\n2. Před koloskopií metformin vynechat v den přípravy a v den výkonu, glykémie kontrolovat glukometrem.\n3. Při masivním krvácení nebo slabosti neprodleně kontaktovat lékaře nebo RZP.",
+      "evidence": [
+        {
+          "document_id": "03",
+          "quote": "Závěr: enteroragie s mikrocytární sideropenickou anémií a pozitivním FIT, suspektní tumor tlustého střeva nebo rekta."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-24",
+      "place": "Gastroenterologie Říčany s.r.o. – endoskopické pracoviště",
+      "type": "Totální koloskopie s biopsií tumoru rekta a polypektomií",
+      "result_full_text": "PŘÍPRAVA\nPříprava makrogolem dělenou dávkou, střevo dobře připraveno (BBPS 8). Metformin vynechán v den přípravy a v den výkonu. Informovaný souhlas podepsán.\nANESTEZIE\nAnalgosedace midazolam 3 mg i.v. a fentanyl 50 µg i.v., monitorace SpO₂ a TF.\nPOPIS VÝKONU\nKoloskop zaveden bez obtíží do céka, identifikováno ústí appendixu a Bauhinská chlopeň, terminální ileum v délce 5 cm bez patologie. Cékum, colon ascendens, transversum a descendens bez ložiskových změn, ojedinělé divertikly sigmatu bez zánětu. V sigmatu ve 30 cm stopkatý polyp 8 mm, snesen kličkou vcelku a vyzvednut (vzorek č. 2). V rektu 6–11 cm od anokutánní linie exofytický, semicirkulární, exulcerovaný tumor postihující asi 2/3 obvodu, kontaktně krvácivý, lumen průchodné pro endoskop. Z tumoru odebráno 6 vzorků (vzorek č. 1). Distální okraj tumoru označen tetováží. Výkon bez komplikací.\nZÁVĚR\nTumor rekta 6–11 cm od anokutánní linie, suspektní karcinom, biopsie odebrány. Polyp sigmatu 8 mm, polypektomie. Divertikulóza sigmatu.\nDOPORUČENÍ\nHistologie vzorků do 7 pracovních dnů, výsledek zašleme praktickému lékaři. Doporučeno doplnit CT hrudníku a břicha a MR malé pánve ke stagingu a odeslání do KOC. Metformin znovu od večera po výkonu.",
+      "evidence": [
+        {
+          "document_id": "04",
+          "quote": "Tumor rekta 6–11 cm od anokutánní linie, suspektní karcinom, biopsie odebrány."
+        }
+      ]
+    },
+    {
+      "date": "2026-10-01",
+      "place": "Praktický lékař Říčany",
+      "type": "Kontrola u praktického lékaře, epikríza a žádost o převzetí do KOC",
+      "result_full_text": "EPIKRÍZA\n68letý pacient, diabetik 2. typu na metforminu, vyšetřován od srpna 2026 pro asi 2 měsíce trvající příměs čerstvé krve ve stolici, změnu defekačního stereotypu a tenesmy. Laboratorně 20. 8. 2026 mikrocytární sideropenická anémie (Hb 121 g/l, ferritin 18 µg/l), CEA 7,9 µg/l, FIT pozitivní.\nKoloskopie 24. 9. 2026 (MUDr. Pavel Vondráček, Gastroenterologie Říčany) prokázala semicirkulární tumor rekta 6–11 cm od anokutánní linie, z něhož byly odebrány biopsie; polyp sigmatu 8 mm snesen. Histologicky adenokarcinom rekta G2, pMMR, polyp sigmatu tubulární adenom s low-grade dysplazií.\nPři kontrole dnes pacient bez bolestí, krvácení ze stolice intermitentně přetrvává, tenesmy, únava. Hmotnost 84 kg, stabilní. Plně soběstačný, chodí na procházky, lehčí práce na zahradě zvládá, ECOG 1. Psychicky stabilní, diagnózu nese statečně.\nANAMNÉZA\nRA: otec karcinom tlustého střeva v 75 letech, matka hypertenze\nOA: diabetes mellitus 2. typu na PAD od r. 2015 (diabetoložka MUDr. Hana Šindelářová, Říčany), arteriální hypertenze, dyslipidémie, benigní hyperplazie prostaty, st. p. appendektomii (1975)\nFA: metformin 1000 mg 1-0-1, ramipril 5 mg 1-0-0, amlodipin 5 mg 1-0-0, atorvastatin 20 mg 0-0-1, tamsulosin 0,4 mg 0-0-1\nAA: neguje\nAbusus: exkuřák (20 let nekouří), alkohol příležitostně\nSA: ženatý, žije s manželkou v rodinném domě\nPA: elektrotechnik, ve starobním důchodu",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Plně soběstačný, chodí na procházky, lehčí práce na zahradě zvládá, ECOG 1."
+        }
+      ]
+    },
+    {
+      "date": "2026-10-09",
+      "place": "KOC Nemocnice Severní – Radiologická klinika",
+      "type": "CT hrudníku a břicha s k. l.",
+      "result_full_text": "POPIS\nHrudník: v pravém dolním laloku subpleurálně solidní uzlík 4 mm, ostře ohraničený, nespecifický. Jinak plíce bez ložiskových změn, bez fluidothoraxu. Mediastinální a hilové uzliny nezvětšeny.\nBřicho: v segmentu S7 jater hypodenzní ložisko 9 mm, pro malou velikost nelze spolehlivě charakterizovat. Jinak játra bez ložiskových změn, žlučník bez konkrementů, žlučové cesty nedilatovány. Pankreas, slezina, nadledviny a ledviny bez patologie. Paraaortální a ilické uzliny nezvětšeny. Bez ascitu, peritoneum bez nodulací.\nPánev: cirkumferentní ztluštění stěny rekta v délce asi 5 cm se zvýšenou denzitou perirektálního tuku. V mezorektu 3 uzliny do 8 mm. Močový měchýř a prostata bez patologie, prostata zvětšená 45 ml. Skelet bez osteolytických či osteoplastických ložisek.\nZÁVĚR\nTumor rekta s perirektálním šířením a suspektními mezorektálními uzlinami. Nespecifický uzlík pravé plíce 4 mm. Ložisko S7 jater 9 mm nejasné povahy – k dořešení doporučena MR jater s hepatospecifickou kontrastní látkou. Bez jiných známek vzdálených metastáz.",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Tumor rekta s perirektálním šířením a suspektními mezorektálními uzlinami."
+        }
+      ]
+    },
+    {
+      "date": "2026-10-16",
+      "place": "KOC Nemocnice Severní – Radiologická klinika",
+      "type": "MR malé pánve, protokol pro karcinom rekta",
+      "result_full_text": "POPIS\nVe středním rektu tumor dlouhý 52 mm, dolní okraj 62 mm od anokutánní linie a 31 mm nad horním okrajem m. puborectalis, postihuje obvod rekta od 2 do 10 hodin. Tumor prorůstá muscularis propria do mezorektálního tuku do hloubky 7 mm (T3c). Nejkratší vzdálenost tumoru od mezorektální fascie (MRF) 1,5 mm vpravo dorzolaterálně – MRF ohrožena. Ve větvi v. rectalis superior expanzivní tumorózní signál – EMVI pozitivní. V mezorektu 4 uzliny 5–9 mm s nepravidelnou konturou a nehomogenním signálem, suspektní z metastatického postižení; laterální (obturatorní a interní ilické) uzliny nezvětšeny. Svěrače a levatory bez infiltrace. Prostata zvětšená, bez ložiskových změn, semenné váčky bez infiltrace.\nSoučasně provedena MR jater s hepatospecifickou kontrastní látkou – popis viz samostatná zpráva.\nZÁVĚR\nKarcinom středního rekta, mrT3c N1b (4 suspektní mezorektální uzliny), MRF ohrožena (1,5 mm), EMVI pozitivní. Laterální uzliny negativní, svěrače bez infiltrace.",
+      "evidence": [
+        {
+          "document_id": "09",
+          "quote": "Karcinom středního rekta, mrT3c N1b (4 suspektní mezorektální uzliny), MRF ohrožena (1,5 mm), EMVI pozitivní."
+        }
+      ]
+    }
+  ],
+  "labs": [
+    {
+      "date": "2026-08-20",
+      "place": "Laboratoř MedLab Říčany s.r.o.",
+      "values": [
+        {
+          "name": "Leukocyty",
+          "value": "7,4",
+          "unit": "10⁹/l",
+          "reference_range": "4,0–10,0"
+        },
+        {
+          "name": "Erytrocyty",
+          "value": "4,52",
+          "unit": "10¹²/l",
+          "reference_range": "4,00–5,80"
+        },
+        {
+          "name": "Hemoglobin",
+          "value": "121",
+          "unit": "g/l",
+          "reference_range": "135–175",
+          "flag": "L"
+        },
+        {
+          "name": "Hematokrit",
+          "value": "0,37",
+          "unit": "1",
+          "reference_range": "0,40–0,50",
+          "flag": "L"
+        },
+        {
+          "name": "MCV",
+          "value": "81",
+          "unit": "fl",
+          "reference_range": "82–98",
+          "flag": "L"
+        },
+        {
+          "name": "Trombocyty",
+          "value": "356",
+          "unit": "10⁹/l",
+          "reference_range": "150–400"
+        },
+        {
+          "name": "Sodík",
+          "value": "139",
+          "unit": "mmol/l",
+          "reference_range": "136–145"
+        },
+        {
+          "name": "Draslík",
+          "value": "4,4",
+          "unit": "mmol/l",
+          "reference_range": "3,5–5,1"
+        },
+        {
+          "name": "Urea",
+          "value": "5,8",
+          "unit": "mmol/l",
+          "reference_range": "2,8–8,1"
+        },
+        {
+          "name": "Kreatinin",
+          "value": "88",
+          "unit": "µmol/l",
+          "reference_range": "64–104"
+        },
+        {
+          "name": "eGFR (CKD-EPI)",
+          "value": "1,29",
+          "unit": "ml/s/1,73 m²",
+          "reference_range": "> 1,0"
+        },
+        {
+          "name": "Glukóza",
+          "value": "7,9",
+          "unit": "mmol/l",
+          "reference_range": "3,9–5,6",
+          "flag": "H"
+        },
+        {
+          "name": "ALT",
+          "value": "0,42",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,78"
+        },
+        {
+          "name": "AST",
+          "value": "0,38",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,72"
+        },
+        {
+          "name": "CRP",
+          "value": "4",
+          "unit": "mg/l",
+          "reference_range": "0–5"
+        },
+        {
+          "name": "Železo",
+          "value": "7,1",
+          "unit": "µmol/l",
+          "reference_range": "11,6–31,3",
+          "flag": "L"
+        },
+        {
+          "name": "Ferritin",
+          "value": "18",
+          "unit": "µg/l",
+          "reference_range": "30–400",
+          "flag": "L"
+        },
+        {
+          "name": "CEA",
+          "value": "7,9",
+          "unit": "µg/l",
+          "reference_range": "< 5,0",
+          "flag": "H"
+        },
+        {
+          "name": "Okultní krvácení ve stolici (FIT)",
+          "value": "pozitivní"
+        }
+      ],
+      "evidence": [
+        {
+          "document_id": "02",
+          "quote": "Odběr: 20. 8. 2026 7:30"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-14",
+      "place": "KOC Nemocnice Severní – ÚKBH",
+      "values": [
+        {
+          "name": "Leukocyty",
+          "value": "6,9",
+          "unit": "10⁹/l",
+          "reference_range": "4,0–10,0"
+        },
+        {
+          "name": "Erytrocyty",
+          "value": "4,21",
+          "unit": "10¹²/l",
+          "reference_range": "4,00–5,80"
+        },
+        {
+          "name": "Hemoglobin",
+          "value": "104",
+          "unit": "g/l",
+          "reference_range": "135–175",
+          "flag": "L"
+        },
+        {
+          "name": "Hematokrit",
+          "value": "0,33",
+          "unit": "1",
+          "reference_range": "0,40–0,50",
+          "flag": "L"
+        },
+        {
+          "name": "MCV",
+          "value": "77",
+          "unit": "fl",
+          "reference_range": "82–98",
+          "flag": "L"
+        },
+        {
+          "name": "Trombocyty",
+          "value": "402",
+          "unit": "10⁹/l",
+          "reference_range": "150–400",
+          "flag": "H"
+        },
+        {
+          "name": "Sodík",
+          "value": "140",
+          "unit": "mmol/l",
+          "reference_range": "136–145"
+        },
+        {
+          "name": "Draslík",
+          "value": "4,6",
+          "unit": "mmol/l",
+          "reference_range": "3,5–5,1"
+        },
+        {
+          "name": "Urea",
+          "value": "6,1",
+          "unit": "mmol/l",
+          "reference_range": "2,8–8,1"
+        },
+        {
+          "name": "Kreatinin",
+          "value": "92",
+          "unit": "µmol/l",
+          "reference_range": "64–104"
+        },
+        {
+          "name": "eGFR (CKD-EPI)",
+          "value": "1,22",
+          "unit": "ml/s/1,73 m²",
+          "reference_range": "> 1,0"
+        },
+        {
+          "name": "Glukóza",
+          "value": "8,4",
+          "unit": "mmol/l",
+          "reference_range": "3,9–5,6",
+          "flag": "H"
+        },
+        {
+          "name": "HbA1c",
+          "value": "56",
+          "unit": "mmol/mol",
+          "reference_range": "20–42",
+          "flag": "H"
+        },
+        {
+          "name": "Bilirubin celkový",
+          "value": "9",
+          "unit": "µmol/l",
+          "reference_range": "2–21"
+        },
+        {
+          "name": "ALT",
+          "value": "0,45",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,78"
+        },
+        {
+          "name": "AST",
+          "value": "0,40",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,72"
+        },
+        {
+          "name": "ALP",
+          "value": "1,10",
+          "unit": "µkat/l",
+          "reference_range": "0,67–2,15"
+        },
+        {
+          "name": "Albumin",
+          "value": "40",
+          "unit": "g/l",
+          "reference_range": "35–52"
+        },
+        {
+          "name": "CRP",
+          "value": "7",
+          "unit": "mg/l",
+          "reference_range": "0–5",
+          "flag": "H"
+        },
+        {
+          "name": "Ferritin",
+          "value": "9",
+          "unit": "µg/l",
+          "reference_range": "30–400",
+          "flag": "L"
+        },
+        {
+          "name": "CEA",
+          "value": "14,6",
+          "unit": "µg/l",
+          "reference_range": "< 5,0",
+          "flag": "H"
+        },
+        {
+          "name": "CA 19-9",
+          "value": "28",
+          "unit": "kU/l",
+          "reference_range": "< 37"
+        }
+      ],
+      "evidence": [
+        {
+          "document_id": "08",
+          "quote": "Odběr: 14. 10. 2026 7:20"
+        }
+      ]
+    }
+  ],
+  "histology": {
+    "value": "Adenokarcinom rekta, středně diferencovaný (G2), MMR proficientní (pMMR). MKN-O 8140/3. Imunohistochemicky (vzorek 1): exprese MLH1, PMS2, MSH2 a MSH6 zachována – MMR proficientní (pMMR). Polyp sigmatu: tubulární adenom s low-grade dysplazií, odstraněn v celku. (B-2026/08817)",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "05",
+        "quote": "Adenokarcinom rekta, středně diferencovaný (G2), MMR proficientní (pMMR). MKN-O 8140/3."
+      },
+      {
+        "document_id": "05",
+        "quote": "Imunohistochemicky (vzorek 1): exprese MLH1, PMS2, MSH2 a MSH6 zachována – MMR proficientní (pMMR)."
+      },
+      {
+        "document_id": "05",
+        "quote": "2) Tubulární adenom sigmatu s low-grade dysplazií, odstraněn v celku."
+      }
+    ]
+  },
+  "other": {
+    "value": "Pacient je o diagnóze informován a souhlasí se sdílením informací s manželkou. Přeje si, pokud to bude možné, vyhnout se trvalé stomii. Diabetik na metforminu: před vyšetřením s jodovou k. l. vysadit (v den vyšetření a 48 h po něm). Žije s manželkou, ve starobním důchodu.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "Pacient je o diagnóze informován a souhlasí se sdílením informací s manželkou."
+      },
+      {
+        "document_id": "06",
+        "quote": "Pacient si přeje, pokud to bude možné, vyhnout se trvalé stomii."
+      },
+      {
+        "document_id": "07",
+        "quote": "metformin vysazen v den vyšetření a 48 h po něm."
+      }
+    ]
+  },
+  "validated_by_referrer": null,
+  "confirmed_by_coordinator": null
+}

@@ -32,8 +32,13 @@ from onko_contracts import (
     TaskSet,
     TimeToTreatment,
 )
+from onko_documents import DOCX as DOCX_MIME
+from onko_documents import PARSERS, parse
+from onko_documents import PDF as PDF_MIME
+from onko_documents import PPTX as PPTX_MIME
 
-from .deps import ActorId, Clock, CurrentUser, Repo
+from .deps import ActorId, Clock, CurrentUser, Jobs, Llm, Repo
+from .jobs import new_id, queue_ingest, run_ingest
 from .schemas import (
     CaseReturn,
     CaseTransition,
@@ -135,18 +140,69 @@ def create_referral(body: ReferralCreate, actor_id: ActorId) -> Case:
 
 @router.post("/cases/{case_id}/documents", status_code=201, tags=["documents"])
 def upload_document(
-    case_id: str, actor_id: ActorId, file: Annotated[UploadFile, File()], received_at: ReceivedAt = None
+    case_id: str,
+    actor_id: ActorId,
+    file: Annotated[UploadFile, File()],
+    repo: Repo,
+    clock: Clock,
+    llm: Llm,
+    jobs: Jobs,
+    received_at: ReceivedAt = None,
 ) -> UploadResult:
     """Upload a report (GP while drafting or after a return, coordinator later). Stores it,
     parses the text and queues an `ingest_document` job: AI metadata + handover extraction +
     checks."""
-    _todo()
+    _case_or_404(repo, case_id)
+    mime = _mime_type(file)
+    data = file.file.read()
+    try:
+        text = parse(data, mime)
+    except Exception as e:  # noqa: BLE001 - a broken file is the client's problem
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"cannot read the file: {e}") from None
+    now = clock.now()
+    meta = DocumentMeta(
+        id=new_id("doc"),
+        case_id=case_id,
+        filename=file.filename or "dokument",
+        received_at=received_at or now,
+        uploaded_by=actor_id,
+        mime_type=mime,
+    )
+    repo.save_document(meta, data, text)
+    job = queue_ingest(repo, now, case_id, meta.id)
+    jobs.submit(run_ingest, job.id, repo, clock, llm)
+    return UploadResult(document=meta, job=job)
+
+
+def _case_or_404(repo: Repo, case_id: str) -> Case:
+    try:
+        return repo.get_case(case_id)
+    except KeyError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "case not found") from None
+
+
+_EXTENSIONS = {".docx": DOCX_MIME, ".pptx": PPTX_MIME, ".pdf": PDF_MIME}
+
+
+def _mime_type(file: UploadFile) -> str:
+    """The declared type if we can parse it, else the extension (browsers often send octet-stream)."""
+    if file.content_type in PARSERS:
+        return file.content_type
+    suffix = "." + (file.filename or "").rsplit(".", 1)[-1].lower()
+    if suffix in _EXTENSIONS:
+        return _EXTENSIONS[suffix]
+    raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "supported files: .docx, .pptx, .pdf")
 
 
 @router.patch("/documents/{document_id}", tags=["documents"])
-def update_document(document_id: str, body: DocumentMetaUpdate, actor_id: ActorId) -> DocumentMeta:
+def update_document(document_id: str, body: DocumentMetaUpdate, actor_id: ActorId, repo: Repo) -> DocumentMeta:
     """Correct AI-extracted metadata (type, date, facility, …)."""
-    _todo()
+    meta = repo.get_document(document_id)
+    if meta is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
+    meta = meta.model_copy(update=body.model_dump(exclude_unset=True))
+    repo.update_document(meta)
+    return meta
 
 
 @router.get("/documents/{document_id}/file", tags=["documents"], response_class=Response,
@@ -188,20 +244,27 @@ def send_referral(case_id: str, actor_id: ActorId) -> Case:
 
 
 @router.get("/jobs/{job_id}", tags=["jobs"])
-def get_job(job_id: str) -> Job:
+def get_job(job_id: str, repo: Repo) -> Job:
     """Poll a job until `done` / `failed`."""
-    _todo()
+    job = repo.get_job(job_id)
+    if job is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "job not found")
+    return job
 
 
 @router.get("/cases/{case_id}/jobs", tags=["jobs"])
-def list_case_jobs(case_id: str) -> list[Job]:
-    _todo()
+def list_case_jobs(case_id: str, repo: Repo) -> list[Job]:
+    _case_or_404(repo, case_id)
+    return repo.list_jobs(case_id)
 
 
 @router.post("/cases/{case_id}/extract", status_code=202, tags=["jobs"])
-def reextract_case(case_id: str, actor_id: ActorId) -> Job:
+def reextract_case(case_id: str, actor_id: ActorId, repo: Repo, clock: Clock, llm: Llm, jobs: Jobs) -> Job:
     """Re-run extraction + checks over all case documents (e.g. after the model choice)."""
-    _todo()
+    _case_or_404(repo, case_id)
+    job = queue_ingest(repo, clock.now(), case_id, None)
+    jobs.submit(run_ingest, job.id, repo, clock, llm)
+    return job
 
 
 @router.post("/cases/{case_id}/drafts", status_code=202, tags=["jobs"])

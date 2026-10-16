@@ -11,12 +11,23 @@ Configured via env (see `.env.example`):
     ONKO_MODEL_A_NAME=...
     ONKO_ACTIVE_MODEL=a                # the one the app uses
     ONKO_EMBED_MODEL=e                 # embedding slot
+`from_env()` also reads `.env`; the real environment wins. Endpoints sit behind Azure API
+Management, which takes the key in the `api-key` header.
 Public API: only what `__all__` lists. Layout: docs/conventions/implementation.md.
 """
 
 from __future__ import annotations
 
-from .models import ModelSlot
-from .service import Gateway, load_slots
+from .models import CallRecord, ChatResult, ModelSlot
+from .ports import ChatClient
+from .service import Gateway, load_slots, strict_schema
 
-__all__ = ["Gateway", "ModelSlot", "load_slots"]
+__all__ = [
+    "CallRecord",
+    "ChatClient",
+    "ChatResult",
+    "Gateway",
+    "ModelSlot",
+    "load_slots",
+    "strict_schema",
+]

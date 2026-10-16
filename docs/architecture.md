@@ -23,6 +23,7 @@ flowchart TD
   web["web<br/>React SPA"] -->|REST / OpenAPI| api["api<br/>FastAPI"]
   api --> cases["cases<br/>states, tasks, task sets, audit"]
   api --> ai["ai<br/>extract, check, draft"]
+  api --> llm
   api --> documents["documents<br/>upload, parse, render PDF"]
   api --> messaging["messaging<br/>requests, delivery, receipts"]
   cases --> repo["repository"]
@@ -43,8 +44,8 @@ flowchart TD
 |---|---|---|---|
 | contracts | `packages/contracts` | Shared Pydantic models, the handover schema, case states/transitions | is the contract |
 | documents | `packages/documents` | Upload, parsers by file type (docx, pptx, pdf; images through a vision model in Phase 2), PDF rendering of the MDT record/conclusion. Storage as `DocumentReference`/`Binary` goes through `repository` | `parse(data, mime_type) -> str`, `render_pdf(kind, html) -> bytes` |
-| ai | `packages/ai` | Per-document extraction into `Handover` with evidence; merge across documents; completeness and consistency checks → `Finding`s; drafts for the coordinator (epikríza summary, MDT question, MDT conclusion); document chunking + embeddings, "ask the case", MKN-10 code candidates (Q-I19, Q-C11); bonus: high-precision task suggestions | `Extractor.extract(case_id, documents, as_of) -> Handover`, `check(handover, documents) -> [Finding]`, `draft(kind, handover, findings) -> str` |
-| llm_gateway | `packages/llm-gateway` | OpenAI-compatible client. Candidate models from env for the bench; the app uses **one active model** chosen by the bench (Q-M1) + one embedding model (Q-M2), both EU Data Zone (Q-M6). Structured output per the chosen model's capabilities, cache, token/latency log, no rate limiting (Q-M3) | `complete(messages, schema)`, `embed(texts)` |
+| ai | `packages/ai` | Per-document extraction into `Handover` with evidence; merge across documents; completeness and consistency checks → `Finding`s; drafts for the coordinator (epikríza summary, MDT question, MDT conclusion); document chunking + embeddings, "ask the case", MKN-10 code candidates (Q-I19, Q-C11); bonus: high-precision task suggestions | `Extractor.extract(case_id, documents, as_of) -> Handover`, `analyse_case(case_id, documents, …) -> (Handover, [Finding], …)`, `check(ctx, checks) -> [Finding]`, `draft(kind, handover, findings) -> str` |
+| llm_gateway | `packages/llm-gateway` | OpenAI-compatible client. Candidate models from env for the bench; the app uses **one active model** chosen by the bench (Q-M1) + one embedding model (Q-M2), both EU Data Zone (Q-M6), behind Azure API Management (`api-key` header). Strict structured output with one repair round, cache, token/latency log, no rate limiting (Q-M3) | `complete(messages, schema)`, `embed(texts)` |
 | cases | `packages/cases` | State machine (`ALLOWED_TRANSITIONS`), queue column + manual on-hold, who is on the move, tasks with dependencies (incl. request tasks linked to findings), user-editable task sets, time to treatment, audit log | `transition`, `queue_column`, `put_on_hold` / `resume`, `start_task_set`, `next_step`, `time_to_treatment` |
 | messaging | `packages/messaging` | MDT result delivery to the GP's in-app inbox, receipts, in-app notifications, simulated patient notices. Phase 2: request/reply flows (Q-F23), reviewing-doctor feed (Q-F10), email/SMS adapters | `send(message, adapters, now) -> Message`, `confirm(message, recipient_id, now) -> Receipt` |
 | repository | `packages/repository` | Domain ↔ FHIR R4 mapping ([data-model.md](data-model.md)), IRIS FHIR client, IRIS SQL incl. the `VECTOR` chunk and code tables, FHIR exchange resources (Q-I20), in-memory fake, connection settings | `CaseRepository` protocol, `IrisSettings` |
