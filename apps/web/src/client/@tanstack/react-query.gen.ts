@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { addExamination, clearHold, confirmMdtConclusion, confirmReceipt, createDraft, createMdtSnapshot, createPatientNotice, createReferral, createTask, createTaskSet, documentText, getCase, getDemoClock, getDocumentFile, getHandover, getJob, getMdtBoard, getMdtConclusion, getMdtConclusionPdf, getMdtRecord, getMdtRecordPdf, getTimeToTreatment, health, listActors, listAudit, listCaseJobs, listCaseMessages, listCaseReceipts, listCases, listDocuments, listFindings, listInbox, listMdtBoards, listNotifications, listOrganizations, listTasks, listTaskSets, me, type Options, reextractCase, requestFromFinding, resetDemo, resolveFinding, sendFeedback, sendReferral, setDemoClock, setHold, startTaskSet, suggestTasks, takeOverCase, transitionCase, updateCase, updateDocument, updateHandoverField, updateMdtBoardMembers, updateMdtRecord, updateMilestones, updateTask, updateTaskSet, uploadDocument, uploadMdtConclusion, upsertMdtConclusion, validateHandover } from '../sdk.gen';
-import type { AddExaminationData, AddExaminationError, AddExaminationResponse, ClearHoldData, ClearHoldError, ClearHoldResponse, ConfirmMdtConclusionData, ConfirmMdtConclusionError, ConfirmMdtConclusionResponse, ConfirmReceiptData, ConfirmReceiptError, ConfirmReceiptResponse, CreateDraftData, CreateDraftError, CreateDraftResponse, CreateMdtSnapshotData, CreateMdtSnapshotError, CreateMdtSnapshotResponse, CreatePatientNoticeData, CreatePatientNoticeError, CreatePatientNoticeResponse, CreateReferralData, CreateReferralError, CreateReferralResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, CreateTaskSetData, CreateTaskSetError, CreateTaskSetResponse, DocumentTextData, DocumentTextError, DocumentTextResponse, GetCaseData, GetCaseError, GetCaseResponse, GetDemoClockData, GetDemoClockResponse, GetDocumentFileData, GetDocumentFileError, GetDocumentFileResponse, GetHandoverData, GetHandoverError, GetHandoverResponse, GetJobData, GetJobError, GetJobResponse, GetMdtBoardData, GetMdtBoardError, GetMdtBoardResponse, GetMdtConclusionData, GetMdtConclusionError, GetMdtConclusionPdfData, GetMdtConclusionPdfError, GetMdtConclusionPdfResponse, GetMdtConclusionResponse, GetMdtRecordData, GetMdtRecordError, GetMdtRecordPdfData, GetMdtRecordPdfError, GetMdtRecordPdfResponse, GetMdtRecordResponse, GetTimeToTreatmentData, GetTimeToTreatmentError, GetTimeToTreatmentResponse, HealthData, HealthResponse, ListActorsData, ListActorsError, ListActorsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListCaseJobsData, ListCaseJobsError, ListCaseJobsResponse, ListCaseMessagesData, ListCaseMessagesError, ListCaseMessagesResponse, ListCaseReceiptsData, ListCaseReceiptsError, ListCaseReceiptsResponse, ListCasesData, ListCasesError, ListCasesResponse, ListDocumentsData, ListDocumentsError, ListDocumentsResponse, ListFindingsData, ListFindingsError, ListFindingsResponse, ListInboxData, ListInboxError, ListInboxResponse, ListMdtBoardsData, ListMdtBoardsResponse, ListNotificationsData, ListNotificationsError, ListNotificationsResponse, ListOrganizationsData, ListOrganizationsError, ListOrganizationsResponse, ListTasksData, ListTasksError, ListTaskSetsData, ListTaskSetsError, ListTaskSetsResponse, ListTasksResponse, MeData, MeError, MeResponse, ReextractCaseData, ReextractCaseError, ReextractCaseResponse, RequestFromFindingData, RequestFromFindingError, RequestFromFindingResponse, ResetDemoData, ResetDemoError, ResetDemoResponse, ResolveFindingData, ResolveFindingError, ResolveFindingResponse, SendFeedbackData, SendFeedbackError, SendFeedbackResponse, SendReferralData, SendReferralError, SendReferralResponse, SetDemoClockData, SetDemoClockError, SetDemoClockResponse, SetHoldData, SetHoldError, SetHoldResponse, StartTaskSetData, StartTaskSetError, StartTaskSetResponse, SuggestTasksData, SuggestTasksError, SuggestTasksResponse, TakeOverCaseData, TakeOverCaseError, TakeOverCaseResponse, TransitionCaseData, TransitionCaseError, TransitionCaseResponse, UpdateCaseData, UpdateCaseError, UpdateCaseResponse, UpdateDocumentData, UpdateDocumentError, UpdateDocumentResponse, UpdateHandoverFieldData, UpdateHandoverFieldError, UpdateHandoverFieldResponse, UpdateMdtBoardMembersData, UpdateMdtBoardMembersError, UpdateMdtBoardMembersResponse, UpdateMdtRecordData, UpdateMdtRecordError, UpdateMdtRecordResponse, UpdateMilestonesData, UpdateMilestonesError, UpdateMilestonesResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpdateTaskSetData, UpdateTaskSetError, UpdateTaskSetResponse, UploadDocumentData, UploadDocumentError, UploadDocumentResponse, UploadMdtConclusionData, UploadMdtConclusionError, UploadMdtConclusionResponse, UpsertMdtConclusionData, UpsertMdtConclusionError, UpsertMdtConclusionResponse, ValidateHandoverData, ValidateHandoverError, ValidateHandoverResponse } from '../types.gen';
+import { addExamination, clearHold, confirmMdtConclusion, confirmReceipt, createDraft, createMdtSnapshot, createPatientNotice, createReferral, createTask, createTaskSet, documentText, getCase, getDemoClock, getDocumentFile, getHandover, getJob, getMdtBoard, getMdtConclusion, getMdtConclusionPdf, getMdtRecord, getMdtRecordPdf, getTimeToTreatment, health, listActors, listAudit, listCaseJobs, listCaseMessages, listCaseReceipts, listCases, listDocuments, listFindings, listInbox, listMdtBoards, listNotifications, listOrganizations, listTasks, listTaskSets, me, type Options, reextractCase, requestFromFinding, resetDemo, resolveFinding, returnCase, sendFeedback, sendReferral, setDemoClock, setHold, startTaskSet, suggestTasks, takeOverCase, transitionCase, updateCase, updateDocument, updateHandoverField, updateMdtBoardMembers, updateMdtRecord, updateMilestones, updateTask, updateTaskSet, uploadDocument, uploadMdtConclusion, upsertMdtConclusion, validateHandover } from '../sdk.gen';
+import type { AddExaminationData, AddExaminationError, AddExaminationResponse, ClearHoldData, ClearHoldError, ClearHoldResponse, ConfirmMdtConclusionData, ConfirmMdtConclusionError, ConfirmMdtConclusionResponse, ConfirmReceiptData, ConfirmReceiptError, ConfirmReceiptResponse, CreateDraftData, CreateDraftError, CreateDraftResponse, CreateMdtSnapshotData, CreateMdtSnapshotError, CreateMdtSnapshotResponse, CreatePatientNoticeData, CreatePatientNoticeError, CreatePatientNoticeResponse, CreateReferralData, CreateReferralError, CreateReferralResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, CreateTaskSetData, CreateTaskSetError, CreateTaskSetResponse, DocumentTextData, DocumentTextError, DocumentTextResponse, GetCaseData, GetCaseError, GetCaseResponse, GetDemoClockData, GetDemoClockResponse, GetDocumentFileData, GetDocumentFileError, GetDocumentFileResponse, GetHandoverData, GetHandoverError, GetHandoverResponse, GetJobData, GetJobError, GetJobResponse, GetMdtBoardData, GetMdtBoardError, GetMdtBoardResponse, GetMdtConclusionData, GetMdtConclusionError, GetMdtConclusionPdfData, GetMdtConclusionPdfError, GetMdtConclusionPdfResponse, GetMdtConclusionResponse, GetMdtRecordData, GetMdtRecordError, GetMdtRecordPdfData, GetMdtRecordPdfError, GetMdtRecordPdfResponse, GetMdtRecordResponse, GetTimeToTreatmentData, GetTimeToTreatmentError, GetTimeToTreatmentResponse, HealthData, HealthResponse, ListActorsData, ListActorsError, ListActorsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListCaseJobsData, ListCaseJobsError, ListCaseJobsResponse, ListCaseMessagesData, ListCaseMessagesError, ListCaseMessagesResponse, ListCaseReceiptsData, ListCaseReceiptsError, ListCaseReceiptsResponse, ListCasesData, ListCasesError, ListCasesResponse, ListDocumentsData, ListDocumentsError, ListDocumentsResponse, ListFindingsData, ListFindingsError, ListFindingsResponse, ListInboxData, ListInboxError, ListInboxResponse, ListMdtBoardsData, ListMdtBoardsResponse, ListNotificationsData, ListNotificationsError, ListNotificationsResponse, ListOrganizationsData, ListOrganizationsError, ListOrganizationsResponse, ListTasksData, ListTasksError, ListTaskSetsData, ListTaskSetsError, ListTaskSetsResponse, ListTasksResponse, MeData, MeError, MeResponse, ReextractCaseData, ReextractCaseError, ReextractCaseResponse, RequestFromFindingData, RequestFromFindingError, RequestFromFindingResponse, ResetDemoData, ResetDemoError, ResetDemoResponse, ResolveFindingData, ResolveFindingError, ResolveFindingResponse, ReturnCaseData, ReturnCaseError, ReturnCaseResponse, SendFeedbackData, SendFeedbackError, SendFeedbackResponse, SendReferralData, SendReferralError, SendReferralResponse, SetDemoClockData, SetDemoClockError, SetDemoClockResponse, SetHoldData, SetHoldError, SetHoldResponse, StartTaskSetData, StartTaskSetError, StartTaskSetResponse, SuggestTasksData, SuggestTasksError, SuggestTasksResponse, TakeOverCaseData, TakeOverCaseError, TakeOverCaseResponse, TransitionCaseData, TransitionCaseError, TransitionCaseResponse, UpdateCaseData, UpdateCaseError, UpdateCaseResponse, UpdateDocumentData, UpdateDocumentError, UpdateDocumentResponse, UpdateHandoverFieldData, UpdateHandoverFieldError, UpdateHandoverFieldResponse, UpdateMdtBoardMembersData, UpdateMdtBoardMembersError, UpdateMdtBoardMembersResponse, UpdateMdtRecordData, UpdateMdtRecordError, UpdateMdtRecordResponse, UpdateMilestonesData, UpdateMilestonesError, UpdateMilestonesResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpdateTaskSetData, UpdateTaskSetError, UpdateTaskSetResponse, UploadDocumentData, UploadDocumentError, UploadDocumentResponse, UploadMdtConclusionData, UploadMdtConclusionError, UploadMdtConclusionResponse, UpsertMdtConclusionData, UpsertMdtConclusionError, UpsertMdtConclusionResponse, ValidateHandoverData, ValidateHandoverError, ValidateHandoverResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -194,8 +194,9 @@ export const listDocumentsOptions = (options: Options<ListDocumentsData>) => que
 /**
  * Upload Document
  *
- * Upload a report (GP while drafting, coordinator later). Stores it, parses the text and
- * queues an `ingest_document` job: AI metadata + handover extraction + checks.
+ * Upload a report (GP while drafting or after a return, coordinator later). Stores it,
+ * parses the text and queues an `ingest_document` job: AI metadata + handover extraction +
+ * checks.
  */
 export const uploadDocumentMutation = (options?: Partial<Options<UploadDocumentData>>): UseMutationOptions<UploadDocumentResponse, UploadDocumentError, Options<UploadDocumentData>> => {
     const mutationOptions: UseMutationOptions<UploadDocumentResponse, UploadDocumentError, Options<UploadDocumentData>> = {
@@ -235,7 +236,8 @@ export const getDocumentFileQueryKey = (options: Options<GetDocumentFileData>) =
 /**
  * Get Document File
  *
- * The original uploaded file.
+ * The original uploaded file, e.g. the GP's reports opened by the coordinator next to the
+ * structured handover (slide 9: 'strukturovaná zpráva + originál').
  */
 export const getDocumentFileOptions = (options: Options<GetDocumentFileData>) => queryOptions<GetDocumentFileResponse, GetDocumentFileError, GetDocumentFileResponse, ReturnType<typeof getDocumentFileQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -272,7 +274,8 @@ export const getHandoverOptions = (options: Options<GetHandoverData>) => queryOp
  * Update Handover Field
  *
  * 'Doplnit' / 'Není k dispozici' on one field (origin=manual). Used by the GP's soft
- * 'fill in if you know' prompts and by the coordinator (final epikríza, MDT question, …).
+ * 'fill in if you know' prompts (case `koncept` or `vraceno_lekari`) and by the coordinator
+ * (final epikríza, MDT question, …).
  */
 export const updateHandoverFieldMutation = (options?: Partial<Options<UpdateHandoverFieldData>>): UseMutationOptions<UpdateHandoverFieldResponse, UpdateHandoverFieldError, Options<UpdateHandoverFieldData>> => {
     const mutationOptions: UseMutationOptions<UpdateHandoverFieldResponse, UpdateHandoverFieldError, Options<UpdateHandoverFieldData>> = {
@@ -329,7 +332,8 @@ export const validateHandoverMutation = (options?: Partial<Options<ValidateHando
 /**
  * Send Referral
  *
- * 'Validovat a odeslat': koncept → odeslano. Requires a validated handover.
+ * 'Validovat a odeslat': koncept → odeslano, or vraceno_lekari → v_triage after a return
+ * (D-15). Requires a validated handover.
  */
 export const sendReferralMutation = (options?: Partial<Options<SendReferralData>>): UseMutationOptions<SendReferralResponse, SendReferralError, Options<SendReferralData>> => {
     const mutationOptions: UseMutationOptions<SendReferralResponse, SendReferralError, Options<SendReferralData>> = {
@@ -501,11 +505,32 @@ export const updateCaseMutation = (options?: Partial<Options<UpdateCaseData>>): 
  * Transition Case
  *
  * Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).
+ * `vraceno_lekari` only through `return_case`, which requires a note.
  */
 export const transitionCaseMutation = (options?: Partial<Options<TransitionCaseData>>): UseMutationOptions<TransitionCaseResponse, TransitionCaseError, Options<TransitionCaseData>> => {
     const mutationOptions: UseMutationOptions<TransitionCaseResponse, TransitionCaseError, Options<TransitionCaseData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await transitionCase({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Return Case
+ *
+ * 'Vrátit lékaři': → vraceno_lekari; the note goes to the GP's inbox as a `case_returned`
+ * Message (D-15). 409 outside v_triage / ceka_na_podklady / kompletni.
+ */
+export const returnCaseMutation = (options?: Partial<Options<ReturnCaseData>>): UseMutationOptions<ReturnCaseResponse, ReturnCaseError, Options<ReturnCaseData>> => {
+    const mutationOptions: UseMutationOptions<ReturnCaseResponse, ReturnCaseError, Options<ReturnCaseData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await returnCase({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -1039,7 +1064,7 @@ export const listInboxQueryKey = (options: Options<ListInboxData>) => createQuer
 /**
  * List Inbox
  *
- * The current user's in-app inbox (MVP: the GP's MDT results).
+ * The current user's in-app inbox (MVP: the GP's MDT results and returned referrals).
  */
 export const listInboxOptions = (options: Options<ListInboxData>) => queryOptions<ListInboxResponse, ListInboxError, ListInboxResponse, ReturnType<typeof listInboxQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

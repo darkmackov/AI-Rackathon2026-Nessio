@@ -52,15 +52,15 @@ flowchart LR
 
 ## S1: Coordinator dashboard + case detail (read-only)
 - **Goal:** slide 9. Every case shows its state, due date and who is on the move.
-- **Endpoints (already working on the seed):** `listCases`, `getCase`, `getHandover`, `listFindings`, `listTasks`, `listDocuments`, `documentText`, plus `getTimeToTreatment`.
+- **Endpoints (already working on the seed):** `listCases`, `getCase`, `getHandover`, `listFindings`, `listTasks`, `listDocuments`, `documentText`, plus `getTimeToTreatment`. New here: `getDocumentFile`, so the coordinator opens the original of every document (slide 9: "strukturovaná zpráva + originál"). The seed stores the original `.docx` bytes from `data/cesta-pacienta-data/Pacient/`.
 - **UI:**
   - Kanban Nový / Aktivní / Odložený with cards showing patient, diagnosis, state, next step, owner, due date and time to treatment.
-  - Case detail tabs: Handover with click-through to the highlighted quote in the source document, Dokumenty, Findings panel, Úkoly.
-- **Done when:** demo steps 3 and 5 can be shown read-only on the seeded case.
+  - Case detail tabs: Handover with click-through to the highlighted quote in the source document, Dokumenty (every document in one place, each opening as the original file and as text, the GP's ones marked), Findings panel, Úkoly.
+- **Done when:** demo steps 3 and 5 can be shown read-only on the seeded case, and every seeded document opens as its original.
 
 ## S2: Document ingest + AI extraction
 - **Goal:** pillar 02. Uploaded reports turn into a handover with verbatim evidence, plus findings.
-- **Endpoints:** `uploadDocument` (with `received_at`), `getJob`, `listCaseJobs`, `getDocumentFile`, `updateDocument` (correct AI metadata), `reextractCase`.
+- **Endpoints:** `uploadDocument` (with `received_at`), `getJob`, `listCaseJobs`, `updateDocument` (correct AI metadata), `reextractCase`.
 - **Modules:**
   - `documents`: parse.
   - `ai`: extraction (map per document, then merge), quote verification, AI document metadata, generic checks.
@@ -80,16 +80,18 @@ flowchart LR
   - Handover review with sources.
   - Soft "fill in if you know" prompts, with *Doplnit* / *Není k dispozici*.
   - *Validovat a odeslat*.
-- **Done when:** demo steps 1–2; the case appears in the coordinator's **Nový** column.
+  - **Returned referrals** (D-15): the coordinator's note (from `listInbox`), editing and uploading while the case is `vraceno_lekari`, then resending (`sendReferral`: `vraceno_lekari → v_triage`).
+- **Done when:** demo steps 1–2; the case appears in the coordinator's **Nový** column. A returned case can be fixed and resent, and it comes back in *V triage*.
 
 ## S4: Coordinator workflow
 - **Goal:** pillar 03. Coordinate everything after the referral.
 - **Endpoints:**
-  - case: `takeOverCase`, `updateCase` (priority, coordinator, planned MDT), `transitionCase`, `setHold`, `clearHold`, `updateMilestones`, `listAudit`
+  - case: `takeOverCase`, `updateCase` (priority, coordinator, planned MDT), `transitionCase`, `returnCase`, `setHold`, `clearHold`, `updateMilestones`, `listAudit`
   - findings: `resolveFinding`, `requestFromFinding`
   - tasks: `createTask`, `updateTask`, `startTaskSet`, `listTaskSets`, `createTaskSet`, `updateTaskSet`, `listNotifications`
 - **UI:**
   - *Převzít* (take over, V triage), case and task priorities.
+  - *Vrátit lékaři* (D-15): return the referral to the GP with a note, optionally linked to a finding.
   - *Vyžádat* (request task) and *Doplnit* on findings; override with a note (e.g. ECOG).
   - Task list and task-set editor, *Spustit sadu úkolů*, *Odložit*.
   - Coordinator upload of arriving reports (reuses S2).

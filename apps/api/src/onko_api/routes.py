@@ -35,6 +35,7 @@ from onko_contracts import (
 
 from .deps import ActorId, Clock, CurrentUser, Repo
 from .schemas import (
+    CaseReturn,
     CaseTransition,
     CaseUpdate,
     DemoClock,
@@ -136,8 +137,9 @@ def create_referral(body: ReferralCreate, actor_id: ActorId) -> Case:
 def upload_document(
     case_id: str, actor_id: ActorId, file: Annotated[UploadFile, File()], received_at: ReceivedAt = None
 ) -> UploadResult:
-    """Upload a report (GP while drafting, coordinator later). Stores it, parses the text and
-    queues an `ingest_document` job: AI metadata + handover extraction + checks."""
+    """Upload a report (GP while drafting or after a return, coordinator later). Stores it,
+    parses the text and queues an `ingest_document` job: AI metadata + handover extraction +
+    checks."""
     _todo()
 
 
@@ -150,14 +152,16 @@ def update_document(document_id: str, body: DocumentMetaUpdate, actor_id: ActorI
 @router.get("/documents/{document_id}/file", tags=["documents"], response_class=Response,
             responses={200: {"content": {"application/octet-stream": {}}, "description": "Original file"}})
 def get_document_file(document_id: str) -> Response:
-    """The original uploaded file."""
+    """The original uploaded file, e.g. the GP's reports opened by the coordinator next to the
+    structured handover (slide 9: 'strukturovaná zpráva + originál')."""
     _todo()
 
 
 @router.patch("/cases/{case_id}/handover", tags=["handover"])
 def update_handover_field(case_id: str, body: HandoverFieldUpdate, actor_id: ActorId) -> Handover:
     """'Doplnit' / 'Není k dispozici' on one field (origin=manual). Used by the GP's soft
-    'fill in if you know' prompts and by the coordinator (final epikríza, MDT question, …)."""
+    'fill in if you know' prompts (case `koncept` or `vraceno_lekari`) and by the coordinator
+    (final epikríza, MDT question, …)."""
     _todo()
 
 
@@ -175,7 +179,8 @@ def validate_handover(case_id: str, actor_id: ActorId) -> Handover:
 
 @router.post("/cases/{case_id}/send", tags=["referral"])
 def send_referral(case_id: str, actor_id: ActorId) -> Case:
-    """'Validovat a odeslat': koncept → odeslano. Requires a validated handover."""
+    """'Validovat a odeslat': koncept → odeslano, or vraceno_lekari → v_triage after a return
+    (D-15). Requires a validated handover."""
     _todo()
 
 
@@ -229,7 +234,15 @@ def update_case(case_id: str, body: CaseUpdate, actor_id: ActorId) -> Case:
 
 @router.post("/cases/{case_id}/transition", tags=["cases"])
 def transition_case(case_id: str, body: CaseTransition, actor_id: ActorId) -> Case:
-    """Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS)."""
+    """Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).
+    `vraceno_lekari` only through `return_case`, which requires a note."""
+    _todo()
+
+
+@router.post("/cases/{case_id}/return", tags=["cases"])
+def return_case(case_id: str, body: CaseReturn, actor_id: ActorId) -> Case:
+    """'Vrátit lékaři': → vraceno_lekari; the note goes to the GP's inbox as a `case_returned`
+    Message (D-15). 409 outside v_triage / ceka_na_podklady / kompletni."""
     _todo()
 
 
@@ -400,7 +413,7 @@ def list_case_receipts(case_id: str) -> list[Receipt]:
 
 @router.get("/inbox", tags=["feedback"])
 def list_inbox(actor_id: ActorId) -> list[Message]:
-    """The current user's in-app inbox (MVP: the GP's MDT results)."""
+    """The current user's in-app inbox (MVP: the GP's MDT results and returned referrals)."""
     _todo()
 
 

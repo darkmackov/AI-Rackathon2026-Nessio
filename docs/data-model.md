@@ -154,7 +154,7 @@ Package ids, versions, profile names and identifier systems below were **checked
 | Contact person (daughter) | `RelatedPerson` | `cz-relatedPerson-core` (cz.core) |
 | Doctors, coordinator, MDT members, authors | `Practitioner`, `PractitionerRole` | `cz-practitioner-core`, `cz-practitionerrole-core` (cz.core); identifier systems `…/sid/krzp`, `…/sid/clk` exist in cz.core |
 | Facilities (KOC 1, KOC 2, labs, clinics, GP) | `Organization`, `Location` | `cz-organization-core`, `cz-location-core` (cz.core). Identifier slices KRPZS, IČO, IČZ, **IČP** (`https://ncez.mzcr.cz/fhir/sid/icp`; the GP's IČP 72045318 is in report 07), KP |
-| Case | `EpisodeOfCare` + `CarePlan` | `carePlan-cz-core` (cz.core); EpisodeOfCare base R4 + extensions for the 8 states, the on-hold flag and the time-to-treatment milestones |
+| Case | `EpisodeOfCare` + `CarePlan` | `carePlan-cz-core` (cz.core); EpisodeOfCare base R4 + extensions for the case states (the brief's 8 plus `koncept` and `vraceno_lekari`), the on-hold flag and the time-to-treatment milestones |
 | Referral (request to take over) | `ServiceRequest` | base R4 (cz.lab/cz.img only have lab/imaging order profiles) |
 | Each uploaded report | `DocumentReference` + `Binary` | base R4 (cz.core has only attachment/logo/presented-form helpers) |
 | Labs incl. tumour markers | `DiagnosticReport` + `Observation` | `diagnosticReport-cz-lab`, `observation-resultlab-cz-lab` (cz.lab 1.0.0, built on eu.laboratory 2.0.0) |
@@ -171,7 +171,7 @@ Package ids, versions, profile names and identifier systems below were **checked
 | Findings (gaps/conflicts) | `DetectedIssue` | base R4 |
 | Journey steps (incl. request tasks) / task sets | `Task` / `PlanDefinition` | base R4 |
 | MDT meeting | `Appointment`, `Encounter` | `appointment-cz-core`, `encounter-cz-core` (cz.core) |
-| MDT result delivery, receipts, patient notices (simulated) | `Communication` | base R4. `CommunicationRequest` for request/reply flows is Phase 2 (Q-F23) |
+| MDT result delivery, returned referrals (`case_returned`), receipts, patient notices (simulated) | `Communication` | base R4. `CommunicationRequest` for request/reply flows is Phase 2 (Q-F23) |
 | Consent to share with the daughter | `Consent` | base R4 |
 | Audit | `AuditEvent` | base R4 |
 

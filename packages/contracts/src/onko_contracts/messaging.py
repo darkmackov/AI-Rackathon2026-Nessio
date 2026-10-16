@@ -19,6 +19,7 @@ class Channel(StrEnum):
 class MessageKind(StrEnum):
     DOCUMENT_REQUEST = "document_request"  # Phase 2 (Q-F23); in the MVP a request is a Task
     INFO_REQUEST = "info_request"  # Phase 2 (Q-F23)
+    CASE_RETURNED = "case_returned"  # coordinator returns the referral to the GP with a note (D-15)
     MDT_RESULT = "mdt_result"  # závěr MDT pro referujícího lékaře
     REVIEW_FEED = "review_feed"  # reviewing doctor of the patient's insurer (not in MVP, Q-F10)
     PATIENT_NOTICE = "patient_notice"  # button + logic, never actually sent in the demo (Q-F16)

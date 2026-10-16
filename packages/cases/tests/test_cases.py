@@ -48,6 +48,13 @@ def test_illegal_transition_rejected():
         transition(_case(CaseState.SENT), CaseState.CLOSED)
 
 
+def test_returned_case_goes_back_to_triage():
+    returned = transition(_case(CaseState.TRIAGE), CaseState.RETURNED_TO_REFERRER)
+    assert transition(returned, CaseState.TRIAGE).state is CaseState.TRIAGE
+    with pytest.raises(TransitionError):
+        transition(_case(CaseState.READY_FOR_MDT), CaseState.RETURNED_TO_REFERRER)
+
+
 def test_task_set_respects_dependencies():
     tasks = start_task_set(_case(), PANCREAS, {"coordinator": "lucie"}, NOW)
     assert next_step(tasks).title.startswith("CT")
