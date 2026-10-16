@@ -11,7 +11,7 @@ Every endpoint already has its request and response shape in the OpenAPI spec ([
 - **Status `works (seeded)`:** the endpoint already serves the reference case from the in-memory repository.
 - **Status `works`:** implemented by its slice.
 
-63 operations in total.
+64 operations in total.
 
 **S0 web demo (Q-W6):** the standalone web simulates the eight S0 directory/identity and demo clock/reset operations, plus `/cases` for the existing provisional S1 queue, using MSW and these existing models. Contract tests check the implemented success responses and `HTTPValidationError` response shapes against the committed OpenAPI. This does not implement or change backend endpoints; the statuses below still describe the actual API. The simulation does not cover the full API or every undocumented backend coercion. `VITE_API_MODE=real` disables it without falling back on errors. See [web README](../apps/web/README.md).
 
@@ -37,8 +37,8 @@ Live docs while the API runs: `http://localhost:8000/docs`.
   | 501 | Not implemented yet |
 
 - **Manual entries** (`PATCH /cases/{id}/handover`) produce `Sourced` values with `origin=manual` and `entered={by, at}`. AI values carry `origin=ai` and verbatim `evidence`. The contracts enforce both.
-- **Storage:** app state is kept in IRIS, projected to FHIR only where needed (decision 16. 10.). Nothing in the API exposes FHIR directly.
-- **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23; `/api/mcp` in production). It is not part of the 63 REST operations or the OpenAPI spec. Its tools (`search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`) call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check; errors come back as MCP tool errors with the same `detail` text. "Ask the case" joins with S8.
+- **Storage:** app state is kept in IRIS, projected to FHIR only where needed (decision 16. 10.). Nothing in the API exposes FHIR directly; the one FHIR input is `createReferralFromBundle`, a referral Bundle uploaded as a file (S9, Q-I20).
+- **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23; `/api/mcp` in production). It is not part of the 64 REST operations or the OpenAPI spec. Its tools (`search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`) call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check; errors come back as MCP tool errors with the same `detail` text. "Ask the case" joins with S8.
 
 ## The flows through the API
 
@@ -78,7 +78,7 @@ Checked against [Zadani_ulohy](../data/vzp-structured/brief/Zadani_ulohy.md), th
 
 | Requirement | Endpoints | Slice |
 |---|---|---|
-| **Převzít** (take over): accept the GP's request and the documents they hand over | `createReferral`, `uploadDocument`, `updateHandoverField`, `validateHandover`, `sendReferral`, then `takeOverCase`; the GP's documents stay available as originals (`listDocuments`, `getDocumentFile`) | S1, S3, S4 |
+| **Převzít** (take over): accept the GP's request and the documents they hand over | `createReferral` (or `createReferralFromBundle` from the GP's system, S9), `uploadDocument`, `updateHandoverField`, `validateHandover`, `sendReferral`, then `takeOverCase`; the GP's documents stay available as originals (`listDocuments`, `getDocumentFile`) | S1, S3, S4 |
 | **Vyžádat a shromáždit** (request and collect): request missing reports from other facilities; all documents in one place | `requestFromFinding`, `createTask` (`kind=request_documents`), `uploadDocument` (+ `received_at`), `updateTask` (`result_document_id`), `listDocuments`, `getDocumentFile`, `documentText`, `updateDocument` | S1, S2, S4 |
 | **Vytěžit** (extract): AI fills `Handover_obsah`, flags missing and conflicting values | `uploadDocument` → `Job` (`ingest_document`), `getJob`, `reextractCase`, `getHandover`, `listFindings`, `updateHandoverField`, `resolveFinding` | S2 |
 | **Koordinovat** (coordinate): plan and track journey steps with date, place and status | `startTaskSet`, `createTask`, `updateTask`, `listTasks`, `listTaskSets` / `createTaskSet` / `updateTaskSet`, `setHold` / `clearHold`, `transitionCase`, `listNotifications` | S4 |
@@ -161,6 +161,7 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 |---|---|---|---|---|---|---|
 | `POST` | `/referrals` | `ReferralCreate` | `Case` 201 | ✓ | `createReferral` | **works** (S3) |
 | `POST` | `/cases/{case_id}/send` | — | `Case` 200 | ✓ | `sendReferral` | **works** (S3) |
+| `POST` | `/referrals/fhir` | file (multipart, FHIR `Bundle` JSON) + form `koc_id` | `Case` 201 | ✓ | `createReferralFromBundle` | **works** (S9) |
 
 ### documents
 

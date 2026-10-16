@@ -55,6 +55,20 @@ def new_referral(
     return case, Handover(case_id=case_id, as_of=now.date())
 
 
+def receive_referral(
+    case_id: str, koc_id: str, referring_doctor_id: str, now: dt.datetime
+) -> tuple[Case, Handover]:
+    """A referral that arrives already sent, as a FHIR Bundle from the GP's system (S9, Q-I20):
+    `odeslano` in Nový, referred now. The handover is empty until its documents are extracted and
+    carries no validation stamp, because the GP never validated it in the app (never inferred)."""
+    draft, handover = new_referral(case_id, koc_id, referring_doctor_id, now)
+    sent = transition(draft, CaseState.SENT)
+    sent = sent.model_copy(update={
+        "milestones": sent.milestones.model_copy(update={"referred_at": now}),
+    })
+    return sent.model_copy(update={"queue": queue_column(sent)}), handover
+
+
 def require_editable(case: Case, role: str) -> None:
     """`HandoverLockedError` unless `role` may change the handover in the case's state."""
     if case.state not in EDITABLE_STATES.get(role, frozenset()):

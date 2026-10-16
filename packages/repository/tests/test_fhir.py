@@ -310,3 +310,46 @@ def test_live_validate_every_projected_resource(handover, case):
     failures = {f"{r['resourceType']}/{r['id']}": errors for r in resources
                 if (errors := _errors(projector.client.validate(r)))}
     assert failures == {}
+
+
+def _b64(data: bytes) -> str:
+    return base64.b64encode(data).decode("ascii")
+
+
+def test_referral_attachments_inline_and_binary_in_the_bundle():
+    from onko_repository import ReferralAttachment, referral_attachments
+
+    bundle = {"resourceType": "Bundle", "type": "collection", "entry": [
+        {"resource": {"resourceType": "Patient", "id": "p"}},  # structured: not mapped (Q-I21)
+        {"resource": {"resourceType": "DocumentReference", "status": "current", "content": [
+            {"attachment": {"contentType": "application/pdf", "title": "zadost.pdf",
+                            "data": _b64(b"%PDF-1")}}]}},
+        {"resource": {"resourceType": "DiagnosticReport", "status": "final", "code": {},
+                      "presentedForm": [{"url": "urn:uuid:bin-1", "title": "ct.docx"}]}},
+        {"fullUrl": "urn:uuid:bin-1", "resource": {
+            "resourceType": "Binary", "id": "b1", "contentType": "application/octet-stream",
+            "data": _b64(b"PK\x03\x04")}},
+    ]}
+
+    assert referral_attachments(bundle) == [
+        ReferralAttachment(filename="zadost.pdf", mime_type="application/pdf", data=b"%PDF-1"),
+        ReferralAttachment(filename="ct.docx", mime_type="application/octet-stream",
+                           data=b"PK\x03\x04"),
+    ]
+
+
+@pytest.mark.parametrize("bundle", [
+    {"resourceType": "Patient"},
+    [],
+    {"resourceType": "Bundle", "entry": [{"resource": {"resourceType": "DocumentReference",
+                                                       "content": [{"attachment": {
+                                                           "url": "https://elsewhere/x.pdf"}}]}}]},
+    {"resourceType": "Bundle", "entry": [{"resource": {"resourceType": "DocumentReference",
+                                                       "content": [{"attachment": {
+                                                           "data": "not base64!"}}]}}]},
+])
+def test_unusable_referral_bundles_are_rejected(bundle):
+    from onko_repository import BundleError, referral_attachments
+
+    with pytest.raises(BundleError):
+        referral_attachments(bundle)

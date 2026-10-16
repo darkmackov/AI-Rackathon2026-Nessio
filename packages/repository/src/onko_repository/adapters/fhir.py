@@ -33,6 +33,7 @@ from onko_contracts import (
     TaskStatus,
 )
 
+from ..models import BundleError, ReferralAttachment
 from ..settings import IrisSettings
 
 Resource = dict[str, Any]
@@ -802,3 +803,67 @@ def mdt_conclusion_resources(
         "content": attachments,
     }
     return [bundle, reference]
+
+
+# --- referral in (S9, Q-I20, Q-I21) ----------------------------------------------------------
+
+# Resources whose attachments are documents of the referral.
+_ATTACHMENT_PATHS = {"DocumentReference": "content", "DiagnosticReport": "presentedForm"}
+
+
+def referral_attachments(bundle: Any) -> list[ReferralAttachment]:
+    """The documents of a referral `Bundle`: attachments of `DocumentReference.content` and
+    `DiagnosticReport.presentedForm`, inline (`data`) or as a `Binary` inside the Bundle (`url` =
+    its `fullUrl` or `Binary/{id}`). External URLs are never fetched. Structured resources are not
+    mapped (Q-I21). `BundleError` if it is not a Bundle or an attachment can't be read."""
+    if not isinstance(bundle, dict) or bundle.get("resourceType") != "Bundle":
+        raise BundleError("not a FHIR Bundle")
+    entries = bundle.get("entry") or []
+    if not isinstance(entries, list):
+        raise BundleError("Bundle.entry must be a list")
+    binaries: dict[str, Resource] = {}
+    for entry in entries:
+        resource = entry.get("resource") if isinstance(entry, dict) else None
+        if isinstance(resource, dict) and resource.get("resourceType") == "Binary":
+            if entry.get("fullUrl"):
+                binaries[entry["fullUrl"]] = resource
+            if resource.get("id"):
+                binaries[f"Binary/{resource['id']}"] = resource
+
+    found: list[ReferralAttachment] = []
+    for entry in entries:
+        resource = entry.get("resource") if isinstance(entry, dict) else None
+        if not isinstance(resource, dict):
+            continue
+        path = _ATTACHMENT_PATHS.get(resource.get("resourceType", ""))
+        if path is None:
+            continue
+        items = resource.get(path) or []
+        for item in items if isinstance(items, list) else []:
+            attachment = item.get("attachment", item) if path == "content" else item
+            if isinstance(attachment, dict):
+                found.append(_attachment(attachment, binaries, resource, len(found) + 1))
+    return found
+
+
+def _attachment(
+    attachment: dict[str, Any], binaries: dict[str, Resource], owner: Resource, n: int
+) -> ReferralAttachment:
+    encoded = attachment.get("data")
+    mime = attachment.get("contentType")
+    if encoded is None:
+        url = attachment.get("url")
+        binary = binaries.get(url) if isinstance(url, str) else None
+        if binary is None:
+            raise BundleError(f"attachment {n}: no inline data and no Binary in the Bundle "
+                              f"for url {url!r}")
+        encoded = binary.get("data")
+        mime = mime or binary.get("contentType")
+    try:
+        data = base64.b64decode(encoded or "", validate=True)
+    except (ValueError, TypeError):
+        raise BundleError(f"attachment {n}: data is not base64") from None
+    if not data:
+        raise BundleError(f"attachment {n} is empty")
+    title = attachment.get("title") or owner.get("description") or f"priloha-{n}"
+    return ReferralAttachment(filename=str(title), mime_type=mime, data=data)
