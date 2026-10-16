@@ -3,6 +3,7 @@ import type { PropsWithChildren, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Actor, Case, Handover } from '../../client/types.gen'
 import CaseTime, { DueDate } from '../../components/CaseTime'
+import PersonChip from '../../components/PersonChip'
 import { formatDate } from '../../time'
 import { StampView } from './ClinicalValue'
 
@@ -14,7 +15,6 @@ export default function OverviewTab({ item, names, referrer, handover, handoverS
   item: Case; names: Record<string, string>; referrer?: Actor; handover?: Handover; handoverState: ReactNode; directoryState: ReactNode;
 }) {
   const { t, i18n } = useTranslation()
-  const name = (id?: string | null) => (id ? names[id] : undefined) ?? t('unavailable')
   return <Stack gap="md">
     {directoryState}
     <Paper withBorder p="md" component="section" aria-labelledby="overview-case"><Stack gap="md">
@@ -28,11 +28,11 @@ export default function OverviewTab({ item, names, referrer, handover, handoverS
       </Group>
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md" verticalSpacing="sm">
         <Info label={t('nextStep')}><Text size="sm">{item.next_step ?? t('unavailable')}</Text></Info>
-        <Info label={t('owner')}><Text size="sm">{name(item.on_move)}</Text></Info>
+        <Info label={t('owner')}><PersonChip id={item.on_move} /></Info>
         <Info label={t('nextDue')}><DueDate value={item.next_due} /></Info>
         <Info label={t('caseDetail.plannedMdt')}><Text size="sm">{item.mdt_date ? formatDate(item.mdt_date, i18n.language) : t('unavailable')}</Text></Info>
-        <Info label={t('workplace')}><Text size="sm">{name(item.koc_id)}</Text></Info>
-        <Info label={t('caseDetail.assigned')}><Text size="sm">{name(item.coordinator_id)}</Text></Info>
+        <Info label={t('workplace')}><PersonChip id={item.koc_id} /></Info>
+        <Info label={t('caseDetail.assigned')}><PersonChip id={item.coordinator_id} /></Info>
       </SimpleGrid>
       {item.on_hold && <Alert color="gray" title={t('caseDetail.onHold')}>
         <Text size="sm">{item.on_hold.reason}</Text>
@@ -43,9 +43,7 @@ export default function OverviewTab({ item, names, referrer, handover, handoverS
     <SimpleGrid cols={{ base: 1, md: 2 }}>
       <Paper withBorder p="md" component="section" aria-labelledby="overview-referrer"><Stack gap="xs">
         <Title order={2} size="h4" id="overview-referrer">{t('referring_doctor')}</Title>
-        <Text size="sm" fw={600}>{referrer?.name ?? t('unavailable')}</Text>
-        <Text size="sm">{t('phone')}: {referrer?.phone ?? t('unavailable')}</Text>
-        <Text size="sm">{t('email')}: {referrer?.email ?? t('unavailable')}</Text>
+        <PersonChip id={referrer?.id} size="md" />
       </Stack></Paper>
       <Paper withBorder p="md" component="section" aria-labelledby="overview-handover"><Stack gap="xs">
         <Title order={2} size="h4" id="overview-handover">{t('caseDetail.handoverStatus')}</Title>

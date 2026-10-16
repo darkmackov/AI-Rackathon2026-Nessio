@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { getDocumentFileOptions, listDocumentsOptions } from '../../client/@tanstack/react-query.gen'
 import type { Case, DocumentMeta } from '../../client/types.gen'
-import { apiMode } from '../../config'
 import LoadingState, { EmptyState, QueryError } from '../../components/DataState'
 import DocumentJobs from '../../components/documents/DocumentJobs'
 import DocumentMetadataForm from '../../components/documents/DocumentMetadataForm'
@@ -64,7 +63,9 @@ function DocumentTable({ item, documents, names, openSource, onEdit, editDisable
         <Text size="xs" c="dimmed">{t('documents.receivedAt')}: {document.received_at ? formatDateTime(document.received_at, i18n.language) : t('unavailable')}</Text>
       </Table.Td>
       <Table.Td>
-        <Text size="sm">{[document.facility, document.department].filter(Boolean).join(' · ') || t('unavailable')}</Text>
+        {document.facility || document.department
+          ? <>{document.facility && <Text size="sm">{document.facility}</Text>}{document.department && <Text size="xs" c="dimmed">{document.department}</Text>}</>
+          : <Text size="sm">{t('unavailable')}</Text>}
         {([['metadata.author', document.author], ['metadata.ordered_by', document.ordered_by], ['uploadedBy', document.uploaded_by ? names[document.uploaded_by] : null]] as const)
           .filter(([, value]) => value).map(([label, value]) => <Text size="xs" c="dimmed" key={label}>{t(`documents.${label}`)}: {value}</Text>)}
       </Table.Td>
@@ -88,7 +89,6 @@ export default function DocumentsTab({ item, names, openSource }: { item: Case; 
   const documents = useQuery(listDocumentsOptions({ path: { case_id: item.id }, headers: actorHeaders(actor) }))
   const editing = documents.data?.find((document) => document.id === editingId)
   return <Stack gap="lg">
-    {apiMode === 'mock' && <Alert color="blue" role="status" title={t('demoData')}>{t('documents.demoHelp')}</Alert>}
     <Stack component="section" aria-labelledby={uploadHeading} gap="sm">
       <Title order={2} size="h4" id={uploadHeading}>{t('documents.uploadTitle')}</Title>
       <DocumentUploader caseId={item.id} actorId={actor} />

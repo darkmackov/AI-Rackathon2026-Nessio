@@ -6,6 +6,7 @@ import { listCasesQueryKey, meQueryKey } from '../client/@tanstack/react-query.g
 import { actorHeaders } from '../api'
 import { referenceCases } from '../mocks/reference'
 import { renderApp } from './renderApp'
+import { changeIdentity, openUserMenu, setLanguage } from './shell'
 import { demoState, server } from './setup'
 
 async function choosePerson(user: ReturnType<typeof userEvent.setup>, role = 'coordinator', id = role === 'coordinator' ? 'koordinator' : 'pl-reznicek') {
@@ -13,7 +14,7 @@ async function choosePerson(user: ReturnType<typeof userEvent.setup>, role = 'co
   await screen.findByRole('option', { name: role === 'coordinator' ? 'Bc. Lucie Dvořáková' : 'MUDr. Tomáš Řezníček' })
   await user.selectOptions(screen.getByLabelText('Osoba'), id)
   await user.click(screen.getByRole('button', { name: 'Pokračovat' }))
-  await screen.findByRole('heading', { level: 1, name: role === 'coordinator' ? 'Pracovní fronta koordinátora' : 'Moje identita' })
+  await screen.findByRole('heading', { level: 1, name: role === 'coordinator' ? 'Pracovní fronta koordinátora' : 'Vítejte, MUDr. Tomáš Řezníček' })
 }
 
 describe('S0 app', () => {
@@ -37,7 +38,7 @@ describe('S0 app', () => {
     const user = userEvent.setup()
     await choosePerson(user)
     await screen.findByText('Alena Procházková')
-    await user.click(screen.getByRole('button', { name: 'Změnit osobu' }))
+    await changeIdentity(user)
     expect(screen.queryByText('Alena Procházková')).not.toBeInTheDocument()
     expect(queryClient.getQueriesData({ queryKey: listCasesQueryKey() })).toEqual([])
     await choosePerson(user, 'coordinator', 'koord-severni')
@@ -51,7 +52,7 @@ describe('S0 app', () => {
     const user = userEvent.setup()
     await choosePerson(user)
     await screen.findByText('Alena Procházková')
-    await user.selectOptions(screen.getByLabelText('Jazyk'), 'en')
+    await setLanguage(user, 'English')
     expect(await screen.findByRole('heading', { name: 'Coordinator work queue' })).toBeVisible()
     expect(screen.getByText('C25.0 Duktální adenokarcinom hlavy pankreatu')).toBeVisible()
     expect(within(screen.getByRole('banner')).getByText('Bc. Lucie Dvořáková')).toBeVisible()
@@ -76,7 +77,7 @@ describe('S0 app', () => {
     const user = userEvent.setup()
     await choosePerson(user)
     await started
-    await user.click(screen.getByRole('button', { name: 'Změnit osobu' }))
+    await changeIdentity(user)
     await choosePerson(user, 'coordinator', 'koord-severni')
     await screen.findByText('Vaše KOC zatím nemá žádné případy.')
     await act(async () => { finish?.() })
@@ -84,12 +85,14 @@ describe('S0 app', () => {
     expect(queryClient.getQueryData(listCasesQueryKey({ headers: actorHeaders('koordinator'), query: { koc_id: 'koc2-lipova' } }))).toBeUndefined()
   })
 
-  it('shows the referrer identity, redirects a wrong-role route, and offers no referral controls', async () => {
+  it('shows the referrer identity in the user menu, redirects a wrong-role route, and offers no referral controls', async () => {
     const { router } = renderApp()
     const user = userEvent.setup()
     await choosePerson(user, 'referring_doctor', 'pl-reznicek')
-    expect(await screen.findByText('Ordinace praktického lékaře pro dospělé, MUDr. Tomáš Řezníček', { selector: 'p' })).toBeVisible()
-    expect(screen.getByText('Není uvedeno')).toBeVisible()
+    const menu = await openUserMenu(user)
+    expect(await within(menu).findByText('Ordinace praktického lékaře pro dospělé, MUDr. Tomáš Řezníček')).toBeVisible()
+    expect(within(menu).getByText('Odesílající lékař')).toBeVisible()
+    await user.keyboard('{Escape}')
     await act(async () => { await router.navigate({ to: '/coordinator' }) })
     await waitFor(() => expect(router.state.location.pathname).toBe('/referrer'))
     expect(screen.queryByRole('button', { name: 'Validovat a odeslat' })).not.toBeInTheDocument()
@@ -112,7 +115,7 @@ describe('S0 app', () => {
     await user.selectOptions(await screen.findByLabelText('Osoba'), 'pl-reznicek')
     await user.click(screen.getByRole('button', { name: 'Pokračovat' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Požadované údaje nebyly nalezeny.')
-    expect(screen.queryByRole('button', { name: 'Změnit osobu' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Uživatel / })).not.toBeInTheDocument()
   })
 
   it('sets time, switches to real time, confirms reset, and preserves identity and language', async () => {
@@ -130,7 +133,7 @@ describe('S0 app', () => {
     expect(demoState.clock().now).toMatch(/^2026-10-27T15:30/)
     await user.click(within(drawer).getByRole('button', { name: 'Použít skutečný čas' }))
     await waitFor(() => expect(demoState.clock().simulated).toBe(false))
-    await user.selectOptions(screen.getByLabelText('Jazyk'), 'en')
+    await setLanguage(user, 'English')
     await user.click(within(drawer).getByRole('button', { name: 'Restore empty demo' }))
     const confirmation = await screen.findByRole('dialog', { name: 'Restore the demo?' })
     expect(demoState.getCases()).toHaveLength(1)
@@ -143,7 +146,7 @@ describe('S0 app', () => {
     if (resetTime instanceof HTMLInputElement) expect(resetTime.value).toMatch(/^2026-10-02T14:00/)
     await user.click(within(drawer).getByRole('button', { name: 'Close' }))
     expect(await screen.findByRole('heading', { name: 'Coordinator work queue' })).toBeVisible()
-    expect(screen.getByText('Bc. Lucie Dvořáková')).toBeVisible()
+    expect(within(screen.getByRole('banner')).getByText('Bc. Lucie Dvořáková')).toBeVisible()
     expect(await screen.findByText('There are no cases at your KOC yet.')).toBeVisible()
   })
 
@@ -187,7 +190,7 @@ describe('S0 app', () => {
     expect(demoState.clock().now).toMatch(/^2026-10-21T09:00/)
   })
 
-  it('blocks overlapping writes and identity changes until a pending clock update finishes', async () => {
+  it('blocks overlapping writes and closing the Demo panel until a pending clock update finishes', async () => {
     let finish: (() => void) | undefined
     const held = new Promise<void>((resolve) => { finish = resolve })
     server.use(http.put('*/api/demo/clock', async () => { await held; return HttpResponse.json(demoState.clock()) }))
@@ -199,7 +202,7 @@ describe('S0 app', () => {
     await user.click(within(drawer).getByRole('button', { name: 'Nastavit čas' }))
     expect(within(drawer).getByLabelText('Datum a čas')).toBeDisabled()
     expect(within(drawer).getByRole('button', { name: 'Obnovit prázdné demo' })).toBeDisabled()
-    expect(screen.getByText('Změnit osobu').closest('button')).toBeDisabled()
+    expect(within(drawer).getByRole('button', { name: 'Zavřít' })).toBeDisabled()
     await act(async () => { finish?.() })
     await screen.findByText('Čas aplikace byl změněn.')
     expect(within(drawer).getByLabelText('Datum a čas')).toBeEnabled()

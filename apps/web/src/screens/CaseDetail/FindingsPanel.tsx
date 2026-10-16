@@ -1,4 +1,6 @@
 import { Accordion, Anchor, Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core'
+import { IconArrowRight } from '@tabler/icons-react'
+import { SeverityBadge } from '../../components/Severity'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
@@ -24,7 +26,7 @@ export default function FindingsPanel({ caseId, names, documentNames, handover, 
   const card = (finding: Finding) => <Paper withBorder p="sm" key={finding.id} id={`finding-${finding.id}`} style={{ scrollMarginTop: 80 }}>
     <Stack gap={6}>
       <Group gap="xs">
-        <Badge variant="light" c="dark.9" color={finding.severity === 'blocker' ? 'red' : finding.severity === 'warning' ? 'orange' : 'blue'}>{t(`caseDetail.severity.${finding.severity}`)}</Badge>
+        <SeverityBadge severity={finding.severity} />
         <Badge color="gray" variant="outline">{t(`caseDetail.findingKinds.${finding.kind}`)}</Badge>
         {finding.advisory && <Badge color="gray" variant="light" c="dark.9">{t('caseDetail.advisory')}</Badge>}
         <Text size="xs" c="dimmed">{finding.id}</Text>
@@ -33,10 +35,10 @@ export default function FindingsPanel({ caseId, names, documentNames, handover, 
       {finding.severity === 'blocker' && finding.overridable && <Text size="xs" c="dimmed">{t('caseDetail.overridable')}</Text>}
       <Group gap="xs" wrap="wrap">
         {finding.fields?.filter((path) => fields[path] && fieldLabel(path)).map((path) => <Anchor key={path} href={`#field-${path}`} size="sm"
-          onClick={(event) => { event.preventDefault(); showField(path) }}>→ {t(`caseDetail.${fieldLabel(path)}`)}</Anchor>)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={(event) => { event.preventDefault(); showField(path) }}><IconArrowRight size={14} aria-hidden />{t(`caseDetail.${fieldLabel(path)}`)}</Anchor>)}
         <EvidenceLinks evidence={finding.evidence} select={(index) => ({ kind: 'finding', id: finding.id, index })} openSource={openSource} documentNames={documentNames} />
       </Group>
-      {finding.resolution && <Text size="sm">{t('caseDetail.resolution')}: {t(`caseDetail.resolutions.${finding.resolution.kind}`)}{finding.resolution.note ? ` · ${finding.resolution.note}` : ''}</Text>}
+      {finding.resolution && <div><Text size="sm">{t('caseDetail.resolution')}: {t(`caseDetail.resolutions.${finding.resolution.kind}`)}</Text>{finding.resolution.note && <Text size="sm" c="dimmed">{finding.resolution.note}</Text>}</div>}
       {finding.resolution && <StampView stamp={finding.resolution} names={names} size="xs" />}
       {!finding.resolved && finding.suggested_action && <Group gap="xs">
         {finding.suggested_action === 'request' && <Button disabled size="compact-sm">{t('caseDetail.request')}</Button>}

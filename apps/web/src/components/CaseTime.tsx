@@ -1,5 +1,6 @@
 import { Badge, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
+import { IconAlertTriangle } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../api'
 import { getTimeToTreatmentOptions } from '../client/@tanstack/react-query.gen'
@@ -13,7 +14,7 @@ export function DueDate({ value, active = true }: { value?: string | null; activ
   const { t, i18n } = useTranslation()
   const clock = useDemoClock()
   const overdue = active && value && clock.data && new Date(value).getTime() < new Date(clock.data.now).getTime()
-  return <Group gap="xs"><Text size="sm">{value ? formatDateTime(value, i18n.language) : t('unavailable')}</Text>{overdue && <Badge color="red" variant="light">{t('caseDetail.overdue')}</Badge>}</Group>
+  return <Group gap="xs"><Text size="sm">{value ? formatDateTime(value, i18n.language) : t('unavailable')}</Text>{overdue && <Badge color="red" variant="light" c="red.9" leftSection={<IconAlertTriangle size={12} aria-hidden />}>{t('caseDetail.overdue')}</Badge>}</Group>
 }
 
 export default function CaseTime({ item, compact = false }: { item: Case; compact?: boolean }) {

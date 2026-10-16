@@ -303,7 +303,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
     expect(screen.queryByText('private error')).not.toBeInTheDocument()
   })
 
-  it('shows manual provenance, zero and empty contract values explicitly without inventing clinical data', () => {
+  it('shows manual provenance, zero and empty contract values explicitly without inventing clinical data', async () => {
     const entered = { by: actorId, at: '2026-10-16T09:00:00' }
     const handover: Handover = {
       ...demoExtraction(caseId, 'source-a', '2026-10-16T09:00:00').handover,
@@ -316,7 +316,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
     expect(screen.getAllByText('Prázdná hodnota.')).toHaveLength(2)
     expect(screen.getByText('0', { selector: 'p' })).toBeVisible()
     expect(screen.getAllByText('Ruční zadání')).toHaveLength(3)
-    expect(screen.getAllByText(/Bc\. Lucie Dvořáková/)).toHaveLength(3)
+    expect(await screen.findAllByText('Bc. Lucie Dvořáková')).toHaveLength(3)
   })
 
   it('uploads from the case detail Documents tab, the only document entry point, and clears drafts on reset', async () => {

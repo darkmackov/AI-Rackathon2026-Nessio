@@ -2,6 +2,7 @@ import { Anchor, Badge, Grid, Stack, Tabs, Text } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { IconArrowLeft } from '@tabler/icons-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, actorHeaders } from '../../api'
@@ -57,7 +58,7 @@ function DetailContent({ caseId }: { caseId: string }) {
     if (section && !openSections.includes(section)) setChosenSections([...openSections, section])
     void navigate({ search: { tab: 'handover' }, hash: `field-${path}` })
   }
-  const back = <Anchor component={Link} to="/coordinator">← {t('caseDetail.back')}</Anchor>
+  const back = <Anchor component={Link} to="/coordinator" size="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}><IconArrowLeft size={16} aria-hidden />{t('caseDetail.back')}</Anchor>
   if (item.isPending) return <Stack>{back}<LoadingState /></Stack>
   if (item.isError) return <Stack>{back}<PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><QueryError error={item.error} pending={item.isFetching} retry={() => { void item.refetch() }} /></Stack>
   if (!allowed || !item.data) return <Stack>{back}<PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><EmptyState title={t('caseDetail.unavailableCase')} /></Stack>
@@ -93,7 +94,7 @@ function DetailContent({ caseId }: { caseId: string }) {
             <FindingsPanel caseId={caseId} handover={handover.data} names={names} documentNames={documentNames} openSource={openSource} showField={showField} />
           </Tabs.Panel>
           <Tabs.Panel value="documents" pt="lg"><DocumentsTab item={current} names={names} openSource={openSource} /></Tabs.Panel>
-          <Tabs.Panel value="tasks" pt="lg"><TasksTab caseId={caseId} names={names} openSource={openSource} showFinding={(id) => { void navigate({ search: { tab: 'findings' }, hash: `finding-${id}` }) }} /></Tabs.Panel>
+          <Tabs.Panel value="tasks" pt="lg"><TasksTab caseId={caseId} openSource={openSource} showFinding={(id) => { void navigate({ search: { tab: 'findings' }, hash: `finding-${id}` }) }} /></Tabs.Panel>
         </Tabs>
       </Grid.Col>
       {selection && <Grid.Col span={wide ? 5 : 12}>

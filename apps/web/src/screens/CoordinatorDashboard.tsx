@@ -9,10 +9,11 @@ import LoadingState, { EmptyState, QueryError } from '../components/DataState'
 import PageHeading from '../components/PageHeading'
 import { useSession } from '../session'
 import CaseTime, { DueDate } from '../components/CaseTime'
+import PersonChip from '../components/PersonChip'
 
 const columns: QueueColumn[] = ['novy', 'aktivni', 'odlozeny']
 
-function CaseCard({ item, owner }: { item: Case; owner: string }) {
+function CaseCard({ item }: { item: Case }) {
   const { t } = useTranslation()
   return <Paper component="article" withBorder p="md">
     <Stack gap="sm">
@@ -22,7 +23,7 @@ function CaseCard({ item, owner }: { item: Case; owner: string }) {
         <Badge variant="outline" color={item.priority === 'urgent' ? 'red' : 'gray'}>{t('priority')}: {item.priority ? t(`priorities.${item.priority}`) : t('unavailable')}</Badge>
       </Group>
       <div><Text size="xs" c="dimmed">{t('nextStep')}</Text><Text size="sm">{item.next_step ?? t('unavailable')}</Text></div>
-      <div><Text size="xs" c="dimmed">{t('owner')}</Text><Text size="sm">{owner}</Text></div>
+      <div><Text size="xs" c="dimmed" mb={4}>{t('owner')}</Text><PersonChip id={item.on_move} size="xs" /></div>
       <div><Text size="xs" c="dimmed">{t('nextDue')}</Text><DueDate value={item.next_due} /></div>
       <CaseTime item={item} compact />
     </Stack>
@@ -51,8 +52,7 @@ export default function CoordinatorDashboard() {
       : <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
         {columns.map((column) => <Stack component="section" key={column} gap="sm" aria-labelledby={`queue-${column}`}>
           <Group justify="space-between"><Title order={2} size="h4" id={`queue-${column}`}>{t(`queue.${column}`)}</Title><Badge variant="light" color="gray">{cases.data.filter((item) => item.queue === column).length}</Badge></Group>
-          {cases.data.filter((item) => item.queue === column).map((item) => <CaseCard key={item.id} item={item}
-            owner={actors.data?.find((person) => person.id === item.on_move)?.name ?? organizations.data?.find((org) => org.id === item.on_move)?.name ?? t('unavailable')} />)}
+          {cases.data.filter((item) => item.queue === column).map((item) => <CaseCard key={item.id} item={item} />)}
           {!cases.data.some((item) => item.queue === column) && <Text size="sm" c="dimmed">{t('emptyColumn')}</Text>}
         </Stack>)}
       </SimpleGrid>)}

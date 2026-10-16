@@ -8,6 +8,7 @@ import { isCaseQuery } from '../case-queries'
 import { referenceCases } from '../mocks/reference'
 import { referenceFindings, referenceHandover } from '../mocks/reference-data'
 import { renderApp } from './renderApp'
+import { changeIdentity, setLanguage } from './shell'
 import { demoState, server } from './setup'
 
 beforeEach(() => {
@@ -190,7 +191,7 @@ describe('S1 read-only coordinator UI', () => {
     expect(await screen.findByText('67 dní')).toBeVisible()
     expect(screen.getByText('48 dní')).toBeVisible()
     expect(screen.getByText('19 dní')).toBeVisible()
-    expect(screen.getAllByText('dosud · probíhá')).toHaveLength(2)
+    expect(screen.getAllByText('probíhá')).toHaveLength(2)
     for (const name of ['Převzít', 'Vrátit lékaři', 'Odložit']) expect(screen.getByRole('button', { name })).toBeDisabled()
     expect(screen.getAllByText('Zatím nepotvrzeno')).toHaveLength(2)
     await findings(user)
@@ -241,9 +242,9 @@ describe('S1 read-only coordinator UI', () => {
     expect(rows).toHaveLength(7)
     expect(screen.getByRole('button', { name: 'Spustit sadu úkolů' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Přidat úkol' })).toBeDisabled()
-    expect(rows.filter((row) => within(row).queryByText('Dokončeno')).every((row) => !within(row).queryByText(/Po termínu/))).toBe(true)
+    expect(rows.filter((row) => within(within(row).getAllByRole('cell')[1]).queryByText('Dokončeno')).every((row) => !within(row).queryByText(/Po termínu/))).toBe(true)
     expect(rows.filter((row) => within(row).queryByText(/Po termínu/))).toHaveLength(3)
-    expect(screen.getAllByRole('link', { name: /CT břicha a hrudníku.*Dokončeno/ }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: /CT břicha a hrudníku/ }).length).toBeGreaterThan(0)
   })
 
   it('shows all conflict evidence and manual provenance without inferring confirmation', async () => {
@@ -354,7 +355,7 @@ describe('S1 read-only coordinator UI', () => {
     const section = screen.getByRole('region', { name: /^Nacionále pacienta/ })
     await user.click(within(section).getByRole('button', { name: 'Kopírovat sekci' }))
     expect(copy).toHaveBeenCalledWith(expect.stringContaining('Jméno: Alena [Nalezeno; AI návrh]'))
-    await user.selectOptions(screen.getByLabelText('Jazyk'), 'en')
+    await setLanguage(user, 'English')
     expect(await screen.findByRole('heading', { name: /^Patient details/ })).toBeVisible()
     expect(screen.getByRole('heading', { level: 1, name: 'Alena Procházková' })).toBeVisible()
     expect(screen.getByText('C25.0 Duktální adenokarcinom hlavy pankreatu')).toBeVisible()
@@ -366,7 +367,7 @@ describe('S1 read-only coordinator UI', () => {
     const { router, queryClient } = renderApp()
     const user = userEvent.setup()
     await detail(user)
-    await user.selectOptions(screen.getByLabelText('Jazyk'), 'en')
+    await setLanguage(user, 'English')
     await user.click(screen.getByRole('button', { name: 'Demo' }))
     const panel = await screen.findByRole('dialog', { name: 'Demo controls' })
     await user.click(within(panel).getByRole('button', { name: 'Restore empty demo' }))
@@ -396,7 +397,7 @@ describe('S1 read-only coordinator UI', () => {
     await requested
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Zdrojový dokument' })).not.toBeInTheDocument())
-    await user.click(screen.getByRole('button', { name: 'Změnit osobu' }))
+    await changeIdentity(user)
     await coordinator(user, 'koord-severni')
     await act(async () => { finish?.() })
     expect(await screen.findByText('Vaše KOC zatím nemá žádné případy.')).toBeVisible()

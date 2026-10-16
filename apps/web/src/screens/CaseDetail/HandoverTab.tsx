@@ -1,4 +1,5 @@
 import { Accordion, Badge, Box, Button, Group, Spoiler, Stack, Table, Text, Title } from '@mantine/core'
+import { IconAlertTriangle } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import type { Handover } from '../../client/types.gen'
 import { EmptyState } from '../../components/DataState'
@@ -32,13 +33,13 @@ export default function HandoverTab({ handover, names, documentNames, openSource
       return <Badge size="sm" variant="light" color="gray" c="dark.9">{t('caseDetail.records', { count: rows })}</Badge>
     }
     const problems = problemCount(fields, section)
-    return problems > 0 && <Badge size="sm" variant="light" color="orange" c="dark.9">⚠ {t('caseDetail.problems', { count: problems })}</Badge>
+    return problems > 0 && <Badge size="sm" variant="light" color="orange" c="dark.9" leftSection={<IconAlertTriangle size={12} aria-hidden />}>{t('caseDetail.problems', { count: problems })}</Badge>
   }
   const examinations = <>
     {!handover.examinations?.length && <EmptyState title={t('caseDetail.emptySection')} />}
     {handover.examinations?.map((row, index) => <Box key={index} py="sm" style={rowStyle}><Stack gap={6}>
       <Group justify="space-between" align="flex-start" gap="xs">
-        <div><Title order={3} size="h5">{row.type}</Title><Text size="xs" c="dimmed">{formatDate(row.date, i18n.language)} · {row.place}</Text></div>
+        <div><Title order={3} size="h5">{row.type}</Title><Group gap="sm"><Text size="xs" c="dimmed" component="time" dateTime={row.date}>{formatDate(row.date, i18n.language)}</Text><Text size="xs" c="dimmed">{row.place}</Text></Group></div>
         <Provenance value={row} names={names} />
       </Group>
       <Spoiler maxHeight={96} showLabel={t('caseDetail.showMore')} hideLabel={t('caseDetail.showLess')}>
@@ -51,7 +52,7 @@ export default function HandoverTab({ handover, names, documentNames, openSource
     {!handover.labs?.length && <EmptyState title={t('caseDetail.emptySection')} />}
     {handover.labs?.map((row, index) => <Box key={index} py="sm" style={rowStyle}><Stack gap={6}>
       <Group justify="space-between" align="flex-start" gap="xs">
-        <Title order={3} size="h5">{formatDate(row.date, i18n.language)} · {row.place}</Title>
+        <div><Title order={3} size="h5">{row.place}</Title><Text size="xs" c="dimmed" component="time" dateTime={row.date}>{formatDate(row.date, i18n.language)}</Text></div>
         <Provenance value={row} names={names} />
       </Group>
       <Table.ScrollContainer minWidth={440}><Table withRowBorders verticalSpacing={4} fz="sm"><Table.Thead><Table.Tr>{['result', 'unit', 'reference', 'flag'].map((label) => <Table.Th key={label}>{t(`caseDetail.${label}`)}</Table.Th>)}</Table.Tr></Table.Thead><Table.Tbody>

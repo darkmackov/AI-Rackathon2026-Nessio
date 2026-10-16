@@ -1,5 +1,6 @@
 import { Alert, Badge, Box, Button, Grid, Group, Stack, Text, type MantineSize } from '@mantine/core'
 import { useState } from 'react'
+import PersonChip from '../../components/PersonChip'
 import { useTranslation } from 'react-i18next'
 import type { Evidence, SourcedStr, Stamp } from '../../client/types.gen'
 import { formatDateTime } from '../../time'
@@ -15,9 +16,10 @@ export function CopySection({ text }: { text: () => string }) {
   }}>{t('caseDetail.copy')}</Button>{feedback && <Text size="sm" c={feedback === 'copyError' ? 'red.9' : undefined} role={feedback === 'copyError' ? 'alert' : 'status'}>{t(`caseDetail.${feedback}`)}</Text>}</Stack>
 }
 
-export function StampView({ stamp, names, size = 'sm' }: { stamp?: Stamp | null; names: Record<string, string>; size?: MantineSize }) {
+export function StampView({ stamp, size = 'sm' }: { stamp?: Stamp | null; names?: Record<string, string>; size?: MantineSize }) {
   const { t, i18n } = useTranslation()
-  return <Text size={size}>{stamp ? `${names[stamp.by] ?? t('unavailable')} · ${formatDateTime(stamp.at, i18n.language)}` : t('caseDetail.notConfirmed')}</Text>
+  if (!stamp) return <Text size={size} c="dimmed">{t('caseDetail.notConfirmed')}</Text>
+  return <PersonChip id={stamp.by} size={size === 'xs' ? 'xs' : 'sm'} secondary={<time dateTime={stamp.at}>{formatDateTime(stamp.at, i18n.language)}</time>} />
 }
 
 export function Provenance({ value, names }: { value: Pick<SourcedStr, 'origin' | 'entered'>; names: Record<string, string> }) {
@@ -25,7 +27,7 @@ export function Provenance({ value, names }: { value: Pick<SourcedStr, 'origin' 
   const origin = value.origin ?? 'ai'
   return <Group gap="xs" wrap="wrap">
     <Badge size="sm" variant="outline" color={origin === 'ai' ? 'violet' : 'gray'} c="dark.9">{t(`caseDetail.${origin}`)}</Badge>
-    {origin === 'manual' && <Group gap={4}><Text size="xs">{t('caseDetail.enteredBy')}:</Text><StampView stamp={value.entered} names={names} size="xs" /></Group>}
+    {origin === 'manual' && <Group gap={6}><Text size="xs">{t('caseDetail.enteredBy')}</Text><StampView stamp={value.entered} names={names} size="xs" /></Group>}
   </Group>
 }
 
