@@ -20,10 +20,19 @@ flowchart LR
   S5 --> S6["S6 Feedback loop"]
   S6 --> MVP(["MVP demo"])
   S7 --> MVP
+  S2 --> S8["S8 Vector search<br/>+ code suggestions"]
+  S7 --> S8
+  S7 --> S9["S9 FHIR exchange"]
+  S8 --> MVP
+  S9 --> MVP
+  S1 --> S10["S10 MCP server<br/>(read-only)"]
+  S8 --> S10
+  S10 --> MVP
 ```
 
 - **Critical path:** S0 → S2 → S3 → S5 → S6. S2 is the riskiest slice (AI quality, model choice), so it starts on day one.
 - **In parallel from the start:** S1 (frontend on the seeded data, which works today) and S7 (behind the repository port).
+- **InterSystems features (Q-I17):** S8, S9 and S10 are MVP slices, built next to the critical path once S2 and S7 land. They need new contract models and endpoints first (a contract PR, then api.md).
 
 | # | Slice | Depends on | Can start |
 |---|---|---|---|
@@ -35,6 +44,9 @@ flowchart LR
 | S4 | Coordinator workflow | S1, S2 | after S1 |
 | S5 | MDT | S3, S4 | after S4 |
 | S6 | Feedback loop | S5 | after S5 |
+| S8 | Vector search + MKN-10 code suggestions | S2, S7; an embedding model (Q-M7) | after S2 and S7 |
+| S9 | FHIR exchange in and out | S7; the MDT Bundle needs S5, request tasks need S4, referral intake needs S3 | after S7 |
+| S10 | Read-only MCP server | S1 (read endpoints); "ask the case" needs S8 | after S1 |
 
 ## S0: Directory + role switcher
 - **Goal:** the app knows who is using it and which KOCs, people and MDT boards exist.
@@ -62,7 +74,7 @@ flowchart LR
 - **Goal:** pillar 02. Uploaded reports turn into a handover with verbatim evidence, plus findings.
 - **Endpoints:** `uploadDocument` (with `received_at`), `getJob`, `listCaseJobs`, `getDocumentFile`, `updateDocument` (correct AI metadata), `reextractCase`.
 - **Modules:**
-  - `documents`: parse.
+  - `documents`: parse; duplicate check on upload, a warning only: SHA-256 for exact copies, word-shingle overlap for near copies (Q-I22).
   - `ai`: extraction (map per document, then merge), quote verification, AI document metadata, generic checks.
   - `llm_gateway`: the model client.
   - `bench`: compare the candidates and **pick one model** (Q-M1).
@@ -128,8 +140,44 @@ flowchart LR
   - Deployment of API + web to Azure.
 - **Done when:** the API runs with `IrisRepository` and passes the same tests as the in-memory fake; demo step 16; the demo runs from Azure.
 
+## S8: Vector search + MKN-10 code suggestions
+- **Goal:** InterSystems criterion GenAI + vector search, used inside the evidence model (Q-I19), not as a side feature.
+- **Endpoints:** new ones for "ask the case" and code candidates, added to api.md by a contract PR first (new models: document chunk, answer with quotes, code candidate).
+- **Modules:**
+  - `repository`: the `doc_chunk` table with a `VECTOR` column, filtered by `case_id` with an exact scan, no approximate index ([data-model.md](data-model.md) › Non-FHIR storage); the MKN-10 code table with embeddings (Q-C12).
+  - `ai`: chunk every parsed document along its sections (document id + character offsets) and embed it; a quote not found verbatim is flagged and shown with the nearest chunk (D-2 unchanged); "ask the case" retrieves the top chunks, answers only with quotes and checks each verbatim, else "not found" (no similarity cut-off); MKN-10 candidates.
+  - `llm_gateway`: `embed` on the EU Data Zone embedding model (Q-M6, Q-M7).
+- **UI:**
+  - "Ask the case" in case detail, every answer with click-through quotes.
+  - On a diagnosis without a code: the top MKN-10 candidates labelled as AI; the pick is stored as `origin=manual` and the AI suggestion is kept in the audit log until the contract records it (Q-C11, Q-I21).
+- **Done when:** demo step 16 shows "ask the case" and a code suggestion on the reference case, and the same works on reference case 2.
+
+## S9: FHIR exchange in and out
+- **Goal:** InterSystems criterion interoperability. The IRIS FHIR server is the exchange surface, not only storage (Q-I20). FHIR REST only, no ObjectScript (Q-I18).
+- **Modules:** `repository` (projection, outbox), `api` (referral intake). New resources are added to [data-model.md](data-model.md) first.
+- **Scope:**
+  - **MDT conclusion out:** when the conclusion is sent (S6), a FHIR document `Bundle` (`Composition` first, then only the resources it references; unique identifier and timestamp; never changed, a correction is a new Bundle) plus a `DocumentReference` indexing it, with the Bundle and the PDF as attachments (Q-I20).
+  - **`$validate` (Q-I25):** the opt-in IRIS tests validate every projected resource on the server against its declared profile.
+  - **`Patient/$everything` (Q-I25):** the whole case as one Bundle, read straight from the IRIS FHIR server, not through the API.
+  - **Outbox (D-14):** every FHIR write is stored in the same IRIS SQL transaction as the app-state save and retried until it succeeds; pending writes are visible.
+  - **Tasks out:** every `Task`, including request tasks, projected as FHIR `Task` (requester = KOC, owner = whoever holds the report).
+  - **Referral in:** a referral accepted as a FHIR `Bundle` next to file upload; attached documents go through extraction (S2). How structured values enter the handover is open (Q-I21, a contract change).
+- **Done when:** demo step 16 reads the MDT Bundle and the request `Task`s from the FHIR server, `Patient/$everything` returns the whole reference case, the IRIS tests pass `$validate` for every projected resource, a referral Bundle creates a case in **Nový**, and a FHIR write that fails once is retried from the outbox.
+
+## S10: Read-only MCP server
+- **Goal:** InterSystems criterion agents. Any agent can read KOC data through MCP (Q-I23).
+- **Where:** inside `apps/api`, mounted under `/mcp` (streamable HTTP), no new module. Library: Q-I24.
+- **Tools** (read-only, the same services and contract models as the REST endpoints, same `X-Actor-Id` role check):
+  - case search (by KOC, state, queue, overdue)
+  - case summary: state, who is on the move, next step, due date, time to treatment
+  - findings of a case
+  - handover with sources (values with their quotes)
+  - "ask the case" (from S8)
+- **Not included:** write tools (AI proposes, a human confirms), FHIR tools (agents read the IRIS FHIR server directly).
+- **Done when:** demo step 16: Claude Desktop connected to the deployed `/mcp` answers "which cases at KOC 2 are overdue and what's missing?" with quotes; tests call every tool against the in-memory fake.
+
 ## After the MVP (Phase 2)
-Bonus AI task suggestions (`suggestTasks`), then the Phase 2 list in [delivery.md](delivery.md): additional document handovers (flow 2), repeated MDT, vector search + "ask the case", the copilot agent, and the rest.
+Bonus AI task suggestions (`suggestTasks`), then the Phase 2 list in [delivery.md](delivery.md): additional document handovers (flow 2), repeated MDT, and the rest.
 
 ## Notes for slice owners
 - The seed puts the reference case at *Připraveno k MDT*. S3–S6 start from `resetDemo {scenario: empty}`, which S0 implements.

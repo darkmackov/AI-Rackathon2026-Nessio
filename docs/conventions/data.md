@@ -59,12 +59,12 @@ flowchart LR
 | PER-1 | Only `onko_repository` talks to IRIS (SQL and FHIR REST). Every other module receives a `CaseRepository` (the port) and never imports an adapter. |
 | PER-2 | The port speaks domain models only. SQL rows and FHIR JSON never leave the repository. |
 | PER-3 | One adapter per backend in `adapters/` (`memory.py`, `iris.py`). `InMemoryRepository` is the behavioural reference, and every adapter passes the same tests. |
-| PER-4 | **App state is stored in IRIS SQL tables generated from the contract models** (a typed column per field; the handover as one JSON document), and **projected to FHIR only where needed**: the showcase resources listed in slices.md S7 (Q-A7, Q-I14). |
+| PER-4 | **App state is stored in IRIS SQL tables generated from the contract models** (a typed column per field; the handover as one JSON document), and **projected to FHIR only where needed**: the showcase resources listed in slices.md S7 and the exchange resources in S9 (Q-A7, Q-I14, Q-I20). |
 | PER-5 | [data-model.md](../data-model.md) is the source of truth for that FHIR projection. A newly projected domain model or field gets its row in the table in the same PR. Projected resources declare `meta.profile` with the CZ/EU profile from that table, or base R4 where the table says so (Q-I6, Q-I7). |
 | PER-6 | Use the identifier systems listed in data-model.md verbatim (RC, CPOJ, KP, IČP, …). Add any new system to data-model.md first. |
 | PER-7 | A missing value is never persisted as a placeholder. It is a `Finding`, as with ECOG: no fake `Observation`. |
 | PER-8 | An AI-proposed value is projected with `Provenance` (agent = AI, with the evidence). A human validation or confirmation is its own `Provenance`. |
 | PER-9 | The MDT snapshot (`snapshot=True`) is stored separately from the live handover and never overwritten by live updates. It only uses documents with `received_at <= as_of` (D-3). |
 | PER-10 | Anything a dev writes to the shared IRIS namespace has an id prefixed with that dev's name (Q-I3). Demo data is unprefixed. |
-| PER-11 | Non-FHIR SQL tables are listed under *Non-FHIR storage* in data-model.md. Table names are `snake_case` singular (`llm_call`, Phase 2 `doc_chunk`). |
+| PER-11 | Non-FHIR SQL tables are listed under *Non-FHIR storage* in data-model.md. Table names are `snake_case` singular (`llm_call`, `doc_chunk`). |
 | PER-12 | Connection details and secrets come only from `.env` through `IrisSettings` (`ONKO_` prefix, `SecretStr`). Never log them, put them in docs, or commit them (Q-I2). |

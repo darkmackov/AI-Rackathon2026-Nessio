@@ -14,10 +14,11 @@
 - [x] Typed web client generated from the API's OpenAPI spec (`@hey-api/openapi-ts`), drift guarded by a test
 - [x] `apps/web` scaffold (Vite + React + TS), placeholder kanban fed by `/cases`
 - [ ] `.env` with at least one working model endpoint
+- [ ] An embedding model deployed in Azure, EU Data Zone (Q-M2, Q-M7)
 
 ## Phase 1: MVP, built in vertical slices
 
-The build order is [slices.md](slices.md): S0 directory → S1 dashboard / S2 AI ingest / S7 IRIS in parallel → S3 GP handover → S4 coordinator workflow → S5 MDT → S6 feedback. The full API is defined in [api.md](api.md); every endpoint returns 501 until its slice implements it.
+The build order is [slices.md](slices.md): S0 directory → S1 dashboard / S2 AI ingest / S7 IRIS in parallel → S3 GP handover → S4 coordinator workflow → S5 MDT → S6 feedback. The InterSystems features are in the MVP too (Q-I17): S8 vector search + MKN-10 code suggestions after S2 and S7, S9 FHIR exchange after S7, S10 read-only MCP server after S1. The full API is defined in [api.md](api.md); every endpoint returns 501 until its slice implements it.
 
 **Exit criterion:** the [demo script](demo-script.md) runs end to end for the reference case.
 
@@ -28,8 +29,8 @@ Module owners review changes to their module across slices:
 | A | documents, ai |
 | B | llm_gateway, bench (model choice, second reference case) |
 | C | cases, messaging |
-| D | repository, IRIS, Azure deploy |
-| E | api, web |
+| D | repository, IRIS, Azure deploy, vector store (S8), FHIR exchange (S9) |
+| E | api (incl. the MCP server, S10), web |
 
 Integration rules (full list in [conventions](conventions/)):
 - Change `contracts` first, in its own PR, then regenerate the spec and client.
@@ -39,10 +40,8 @@ Integration rules (full list in [conventions](conventions/)):
 ## Phase 2: extensions (priority order, each behind an existing interface)
 1. **Additional document handovers** (Q-F23): KOC requests reach the GP's / facility's inbox, they upload, the GP re-confirms the handover.
 2. **Repeated MDT rounds** if Q-F8 is answered "yes".
-3. **Vector search evidence + "ask the case":** IRIS `VECTOR` (InterSystems: GenAI + vector search).
-4. **Coordinator copilot agent:** tools for FHIR search, vector search, create task, draft request (InterSystems: agents).
-5. **Deadline notifications:** email/SMS channel adapters.
-6. **Reviewing-doctor feed** (the patient's insurer, Q-F10).
-7. **Embedded Python:** move hot paths into IRIS (Q-I1).
-8. **Image/scan parser** through a vision model.
-9. **IRIS Interoperability production trace** for intake → extract → store (a visual showcase).
+3. **Deadline notifications:** email/SMS channel adapters.
+4. **Reviewing-doctor feed** (the patient's insurer, Q-F10).
+5. **Image/scan parser** through a vision model.
+
+Moved into the MVP on 16. 10. (Q-I17): vector search + "ask the case" (S8), FHIR exchange (S9), a read-only MCP server for agents (S10, Q-I23). Dropped: an in-app copilot chat and agent write tools (Q-I17, Q-I23), Embedded Python and the IRIS Interoperability production (no ObjectScript or Management Portal work, Q-I18).
