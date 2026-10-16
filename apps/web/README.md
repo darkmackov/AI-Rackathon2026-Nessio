@@ -11,7 +11,7 @@ npm --prefix apps/web run dev
 
 Open the displayed local address. Choose a role and one of five doctors or five coordinators. The Lipová coordinator, Bc. Lucie Dvořáková, has the reference case; the other KOCs have an empty queue.
 
-Mock Service Worker intercepts `/api` calls before React starts. Responses use the existing generated contract models. The **Demo · fictional data** label stays visible. Mock mode is the default in both development and built demos:
+Mock Service Worker intercepts `/api` calls before React starts. Responses use the existing generated contract models. The **Demo · fictional data** label stays visible. Mock mode is the default in development and in plain `npm run build` output. The Docker image (the Azure demo) builds with `VITE_API_MODE=real`, because it serves the API next to the web app:
 
 ```bash
 npm --prefix apps/web run build

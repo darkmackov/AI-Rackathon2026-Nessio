@@ -78,6 +78,6 @@ apps/web/src/
 
 - Session selection is ephemeral React UI state; the actor returned by `/me` remains in Query, never a copied object in state (Q-W8).
 - An identity-dependent query passes `headers: { 'X-Actor-Id': id }` to the generated options so the header is included in its generated key. Global client headers alone do not partition Query caches.
-- Mock mode is intentionally available in built demos. It starts before React, preserves contract shapes and is isolated per tab. Reloading restores the reference scenario. Keep fixture data out of screens.
+- Mock mode is intentionally available in built demos (the Docker image builds `real`, Q-W6). It starts before React, preserves contract shapes and is isolated per tab. Reloading restores the reference scenario. Keep fixture data out of screens.
 - The mock clock is the simulated server's responsibility and ticks from an anchor. Read it through Query with `refetchInterval`; no component timers. This demo-local computer timezone choice does not resolve backend Q-K8.
 - Run `npm --prefix apps/web test` for S0 behavior changes. See the web README for demo and real-API modes.

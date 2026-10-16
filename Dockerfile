@@ -5,7 +5,9 @@ WORKDIR /web
 COPY apps/web/package.json apps/web/package-lock.json ./
 RUN npm ci
 COPY apps/web/ ./
-RUN npm run build
+# The image serves the real API next to the web app, so the web talks to it (Q-W6); mock for a standalone demo
+ARG VITE_API_MODE=real
+RUN VITE_API_MODE=$VITE_API_MODE npm run build
 
 FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:0.12.20 /uv /bin/uv
