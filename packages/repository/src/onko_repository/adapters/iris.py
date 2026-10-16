@@ -22,6 +22,7 @@ from onko_contracts import (
     DocumentMeta,
     Finding,
     Handover,
+    Job,
     MdtBoard,
     Message,
     Organization,
@@ -50,8 +51,9 @@ FINDINGS = ModelTable("app_finding", Finding, key=("case_id", "id"),
 TASKS = ModelTable("app_task", Task, key=("id",), indexes=("case_id", "owner", "due"))
 MESSAGES = ModelTable("app_message", Message, key=("id",), indexes=("case_id",))
 RECEIPTS = ModelTable("app_receipt", Receipt, key=("message_id", "recipient_id"))
+JOBS = ModelTable("app_job", Job, key=("id",), indexes=("case_id",))
 MODEL_TABLES: list[ModelTable[Any]] = [
-    ORGANIZATIONS, ACTORS, MDT_BOARDS, CASES, DOCUMENTS, FINDINGS, TASKS, MESSAGES, RECEIPTS,
+    ORGANIZATIONS, ACTORS, MDT_BOARDS, CASES, DOCUMENTS, FINDINGS, TASKS, MESSAGES, RECEIPTS, JOBS,
 ]
 
 # The handover as one JSON document per (case, live | MDT snapshot). A plain string, not a stream,
@@ -283,6 +285,7 @@ class IrisRepository:
         return self._select(DOCUMENTS, '"case_id" = ?', [case_id])
 
     def _document_column(self, column: str, document_id: str) -> Any:
+        """The column's value, or `KeyError` if the document is unknown."""
         with self._cursor() as cur:
             cur.execute(f"SELECT {quote(column)} FROM {self._t(DOCUMENTS.name)} WHERE \"id\" = ?",
                         [document_id])
@@ -294,9 +297,30 @@ class IrisRepository:
     def document_text(self, document_id: str) -> str:
         return self._document_column("doc_text", document_id)
 
-    def document_data(self, document_id: str) -> bytes:
-        """The original file. Not on the port yet: `getDocumentFile` (S2) adds it there."""
-        return self._document_column("doc_data", document_id)
+    def get_document(self, document_id: str) -> DocumentMeta | None:
+        found = self._select(DOCUMENTS, '"id" = ?', [document_id])
+        return found[0] if found else None
+
+    def document_data(self, document_id: str) -> bytes | None:
+        try:
+            return self._document_column("doc_data", document_id)
+        except KeyError:
+            return None
+
+    def update_document(self, meta: DocumentMeta) -> None:
+        """Rewrites the metadata columns only; `doc_text` and `doc_data` stay."""
+        values = DOCUMENTS.row(meta)
+        assignments = ", ".join(f"{quote(c)} = ?" for c in values)
+        with self._cursor() as cur:
+            cur.execute(f'SELECT COUNT(*) FROM {self._t(DOCUMENTS.name)} WHERE "id" = ?', [meta.id])
+            if not cur.fetchone()[0]:
+                raise KeyError(meta.id)
+            cur.execute(f'UPDATE {self._t(DOCUMENTS.name)} SET {assignments} WHERE "id" = ?',
+                        [*values.values(), meta.id])
+        if self.projector is not None:
+            data = self._document_column("doc_data", meta.id)
+            text = self._document_column("doc_text", meta.id)
+            self._project(lambda p: p.project_document(meta, data, text))
 
     # --- handover ----------------------------------------------------------------------------
 
@@ -361,3 +385,15 @@ class IrisRepository:
 
     def save_receipt(self, receipt: Receipt) -> None:
         self._upsert(RECEIPTS.name, RECEIPTS.row(receipt))
+
+    # --- jobs --------------------------------------------------------------------------------
+
+    def save_job(self, job: Job) -> None:
+        self._upsert(JOBS.name, JOBS.row(job))
+
+    def get_job(self, job_id: str) -> Job | None:
+        found = self._select(JOBS, '"id" = ?', [job_id])
+        return found[0] if found else None
+
+    def list_jobs(self, case_id: str) -> list[Job]:
+        return self._select(JOBS, '"case_id" = ?', [case_id], order='"created_at", %ID')

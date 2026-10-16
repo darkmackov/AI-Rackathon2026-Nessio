@@ -18,7 +18,7 @@ The architecture is modular: each package owns one capability and exposes it thr
 | messaging | `onko_messaging` | contracts, repository |
 | repository | `onko_repository` | contracts |
 | bench | `onko_bench` | contracts, ai, llm_gateway |
-| api | `onko_api` | contracts, cases, repository, documents, ai, messaging |
+| api | `onko_api` | contracts, cases, repository, documents, ai, llm_gateway (builds the gateway for AI jobs), messaging |
 | web | `apps/web` | the API over HTTP, through the generated client only |
 
 The `repository` edges come from the architecture diagram. Add `onko-repository` to a module's `pyproject.toml` when that module first uses it, and depend only on the `CaseRepository` port, never on an adapter (PER-1).

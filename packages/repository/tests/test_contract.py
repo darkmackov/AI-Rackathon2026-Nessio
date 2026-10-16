@@ -11,7 +11,7 @@ import getpass
 import os
 import re
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 from onko_contracts import (
@@ -24,6 +24,9 @@ from onko_contracts import (
     Finding,
     FindingKind,
     Handover,
+    Job,
+    JobKind,
+    JobStatus,
     MdtBoard,
     MdtMember,
     Message,
@@ -108,6 +111,63 @@ def test_documents_by_case_with_text(repo):
     assert repo.document_text("d2") == "druhá"
     with pytest.raises(KeyError):
         repo.document_text("missing")
+
+
+def test_single_document_and_its_bytes(repo):
+    meta = DocumentMeta(id="doc-0a1b2c3d", case_id="c1", filename="01.docx")
+    repo.save_document(meta, b"\x00\x01PK\xff", "text")
+
+    assert repo.get_document("doc-0a1b2c3d") == meta
+    assert repo.document_data("doc-0a1b2c3d") == b"\x00\x01PK\xff"
+    assert repo.get_document("missing") is None
+    assert repo.document_data("missing") is None
+
+
+def test_update_document_replaces_meta_and_keeps_content(repo):
+    meta = DocumentMeta(id="d1", case_id="c1", filename="01.docx")
+    repo.save_document(meta, b"\x00\x01PK", "původní text")
+    updated = meta.model_copy(update={"title": "CT hrudníku", "document_date": date(2026, 10, 1)})
+
+    repo.update_document(updated)
+
+    assert repo.get_document("d1") == updated
+    assert repo.list_documents("c1") == [updated]
+    assert repo.document_data("d1") == b"\x00\x01PK"
+    assert repo.document_text("d1") == "původní text"
+    with pytest.raises(KeyError):
+        repo.update_document(DocumentMeta(id="missing", case_id="c1", filename="x.docx"))
+
+
+def _job(job_id: str, case_id: str = "c1", minutes: int = 0, **update) -> Job:
+    job = Job(id=job_id, kind=JobKind.INGEST_DOCUMENT, case_id=case_id, document_id="d1",
+              created_at=NOW + timedelta(minutes=minutes))
+    return job.model_copy(update=update)
+
+
+def test_job_round_trip_and_upsert(repo):
+    queued = _job("job-0a1b2c3d", params={"lang": "cs"})
+    repo.save_job(queued)
+    assert repo.get_job("job-0a1b2c3d") == queued
+    assert repo.get_job("missing") is None
+
+    done = queued.model_copy(update={
+        "status": JobStatus.DONE, "started_at": NOW, "finished_at": NOW + timedelta(seconds=5),
+        "result": {"fields": 3},
+    })
+    repo.save_job(done)
+    assert repo.get_job("job-0a1b2c3d") == done
+    assert repo.list_jobs("c1") == [done]
+
+
+def test_jobs_by_case_ordered_by_created_at(repo):
+    repo.save_job(_job("job-late", minutes=10))
+    repo.save_job(_job("job-early", minutes=0))
+    repo.save_job(_job("job-other", case_id="c2", minutes=5))
+    repo.save_job(_job("job-mid", minutes=5, status=JobStatus.FAILED, error="timeout"))
+
+    assert [j.id for j in repo.list_jobs("c1")] == ["job-early", "job-mid", "job-late"]
+    assert [j.id for j in repo.list_jobs("c2")] == ["job-other"]
+    assert repo.list_jobs("c3") == []
 
 
 def test_live_handover_and_snapshot_are_separate(repo):
@@ -203,6 +263,7 @@ def test_clear_removes_everything(repo):
     repo.save_case(_case("c1"))
     repo.save_document(DocumentMeta(id="d1", case_id="c1", filename="01.docx"), b"", "text")
     repo.save_handover(Handover(case_id="c1", as_of=date(2026, 10, 16)))
+    repo.save_job(_job("job-1"))
 
     repo.clear()
 
@@ -212,3 +273,4 @@ def test_clear_removes_everything(repo):
     assert repo.list_cases() == []
     assert repo.list_documents("c1") == []
     assert repo.get_handover("c1") is None
+    assert repo.list_jobs("c1") == []

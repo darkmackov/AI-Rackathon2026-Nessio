@@ -339,6 +339,7 @@ dependencies = [
     { name = "onko-cases" },
     { name = "onko-contracts" },
     { name = "onko-documents" },
+    { name = "onko-llm-gateway" },
     { name = "onko-messaging" },
     { name = "onko-repository" },
     { name = "python-multipart" },
@@ -357,6 +358,7 @@ requires-dist = [
     { name = "onko-cases", editable = "packages/cases" },
     { name = "onko-contracts", editable = "packages/contracts" },
     { name = "onko-documents", editable = "packages/documents" },
+    { name = "onko-llm-gateway", editable = "packages/llm-gateway" },
     { name = "onko-messaging", editable = "packages/messaging" },
     { name = "onko-repository", editable = "packages/repository" },
     { name = "python-multipart", specifier = ">=0.0.32" },
@@ -454,14 +456,18 @@ name = "onko-llm-gateway"
 version = "0.1.0"
 source = { editable = "packages/llm-gateway" }
 dependencies = [
+    { name = "httpx" },
     { name = "onko-contracts" },
     { name = "openai" },
+    { name = "python-dotenv" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "onko-contracts", editable = "packages/contracts" },
     { name = "openai", specifier = ">=3.31.0" },
+    { name = "python-dotenv", specifier = ">=1.2.4" },
 ]
 
 [[package]]

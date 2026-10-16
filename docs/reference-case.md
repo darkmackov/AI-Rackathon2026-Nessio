@@ -1,6 +1,6 @@
 # Reference case: Alena Procházková (fictional)
 
-This is the challenge's test patient. **It is test and demo data, not logic.** The app must find everything below by itself, using generic extraction and checks. The bench scores models against these files:
+This is the challenge's test patient. A second, synthetic case with a different diagnosis and gap mix is in [reference-case-2.md](reference-case-2.md). **It is test and demo data, not logic.** The app must find everything below by itself, using generic extraction and checks. The bench scores models against these files:
 
 | File | Contents |
 |---|---|

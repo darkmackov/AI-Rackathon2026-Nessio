@@ -8,11 +8,13 @@ Data: IrisRepository when ONKO_IRIS_CONNECTION_STRING is set in .env (the shared
 from __future__ import annotations
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from onko_contracts import Case, CaseState, DocumentMeta, Finding, Handover, QueueColumn, Task
+from onko_llm_gateway import Gateway
 from onko_repository import CaseRepository, InMemoryRepository, IrisRepository, IrisSettings
 
 from .clock import AppClock
@@ -23,6 +25,14 @@ from .seed import load_directory, seed_reference_case
 
 def _iris_configured() -> bool:
     return IrisSettings().iris_configured
+
+
+def make_gateway() -> Gateway | None:
+    """The active model from .env (Q-M1); None when no model is configured (AI jobs then fail)."""
+    try:
+        return Gateway.from_env()
+    except (KeyError, ValueError):
+        return None
 
 
 def make_repository() -> CaseRepository:
@@ -42,7 +52,10 @@ async def lifespan(_: FastAPI):
         seed_reference_case(repo)
     app.state.repo = repo
     app.state.clock = AppClock()  # wall clock until /demo/clock or /demo/reset moves it
+    app.state.gateway = make_gateway()
+    app.state.jobs = ThreadPoolExecutor(max_workers=1, thread_name_prefix="onko-job")
     yield
+    app.state.jobs.shutdown(wait=False, cancel_futures=True)
     if isinstance(repo, IrisRepository):
         repo.close()
 

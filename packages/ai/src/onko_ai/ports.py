@@ -7,6 +7,8 @@ from typing import Protocol
 
 from onko_contracts import Finding, Handover, ParsedDocument
 
+from .models import CheckContext
+
 
 class Extractor(Protocol):
     def extract(self, case_id: str, documents: list[ParsedDocument], as_of: date) -> Handover:
@@ -17,8 +19,8 @@ class Extractor(Protocol):
 
 
 class Check(Protocol):
-    """One generic consistency/completeness check. Register in CHECKS."""
+    """One generic consistency/completeness check. Register in `build_checks`."""
 
     id: str
 
-    def run(self, handover: Handover, documents: list[ParsedDocument]) -> list[Finding]: ...
+    def run(self, ctx: CheckContext) -> list[Finding]: ...

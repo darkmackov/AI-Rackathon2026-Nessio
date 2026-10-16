@@ -224,6 +224,7 @@ Tables and columns missing on start are created (`ALTER TABLE … ADD COLUMN`), 
 | `app_task` | `Task` | `id` | `case_id`, `owner`, `due` | |
 | `app_message` | `Message` | `id` | `case_id` | |
 | `app_receipt` | `Receipt` | `message_id`, `recipient_id` | | |
+| `app_job` | `Job` | `id` | `case_id` | |
 | `app_handover` | `Handover` | `case_id`, `is_snapshot` | | `body`: the handover as **one JSON document** (live and the frozen MDT snapshot, PER-9) |
 
 The handover is the one document: 26 `Sourced` values with evidence, read and written whole. It is stored as a plain string, so IRIS SQL can query inside it with `JSON_TABLE`; its clinical content is what the FHIR projection carries.
