@@ -14,6 +14,7 @@ from onko_contracts import (
     Job,
     MdtBoard,
     MdtConclusion,
+    MdtRecord,
     Message,
     Organization,
     Receipt,
@@ -93,9 +94,17 @@ class CaseRepository(Protocol):
         """The case's audit trail, oldest `at` first."""
         ...
 
-    def save_mdt_conclusion(self, conclusion: MdtConclusion) -> None:
+    def save_mdt_record(self, record: MdtRecord) -> None:
+        """Store the case's MDT record (one per case, replaced on save). `KeyError` if the case is
+        unknown."""
+        ...
+
+    def get_mdt_record(self, case_id: str) -> MdtRecord | None: ...
+
+    def save_mdt_conclusion(self, conclusion: MdtConclusion, *, pdf: bytes | None = None) -> None:
         """Store the case's MDT conclusion (one per case, replaced on save). `KeyError` if the case
-        is unknown."""
+        is unknown. `pdf` is the rendered conclusion; a FHIR projection attaches it to a confirmed
+        written conclusion (Q-I20). It is not stored as app state."""
         ...
 
     def get_mdt_conclusion(self, case_id: str) -> MdtConclusion | None: ...

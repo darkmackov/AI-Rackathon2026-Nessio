@@ -247,7 +247,7 @@
           "directory"
         ],
         "summary": "Update Mdt Board Members",
-        "description": "Edit the roster (Q-F13).",
+        "description": "Edit the roster (Q-F13): a coordinator of the board's KOC. MDT records already prepared\nkeep the members they were prepared with.",
         "operationId": "update_mdt_board_members",
         "parameters": [
           {
@@ -1061,7 +1061,7 @@
           "jobs"
         ],
         "summary": "Create Draft",
-        "description": "AI draft for the coordinator to edit: epikríza summary, MDT question, MDT result rows,\nMDT conclusion. Text arrives in `job.result.text` (`job.result.rows` for mdt_results).",
+        "description": "A draft of what the MDT receives, for a coordinator of the case's KOC to edit and apply\n(Q-F37). Nothing on the case changes; the result arrives in the job:\n- `epicrisis_summary`, `mdt_question`: AI text from the live handover in `job.result.text`;\n  apply it with `updateHandoverField` (`epicrisis`, `mdt_question`).\n- `mdt_results`: AI one-liners for the MDT record's results in `job.result.rows`; apply with\n  `updateMdtRecord`.\n- `mdt_conclusion`: no AI, only the parts of `MDT_zaver` that restate the record (diagnosis,\n  date, place, copy to the referring doctor) in `job.result.fields`; apply with\n  `upsertMdtConclusion`. The MDT's decision is never drafted.\n\nThe last two need the MDT record (409 before *Připravit podklad pro MDT*).",
         "operationId": "create_draft",
         "parameters": [
           {
@@ -2352,7 +2352,7 @@
           "mdt"
         ],
         "summary": "Create Mdt Snapshot",
-        "description": "Freeze the handover (as_of = mdt_date), coordinator confirms it, build the MDT record,\nkompletni → pripraveno_k_mdt. 409 while non-overridden blockers remain.",
+        "description": "'Připravit podklad pro MDT', a coordinator of the case's KOC: kompletni → pripraveno_k_mdt.\nFreezes a copy of the live handover (`as_of` = `mdt_date`, confirmed by the coordinator; read it\nwith `getHandover?snapshot=true`) and builds the MDT record from it, with the board's members\nand the referring doctor from the directory. 409 in another state, while blockers are\nunresolved (resolve or override them first), or when the handover uses a document received\nafter `mdt_date`; 400 for a board that isn't the KOC's.",
         "operationId": "create_mdt_snapshot",
         "parameters": [
           {
@@ -2416,6 +2416,7 @@
           "mdt"
         ],
         "summary": "Get Mdt Record",
+        "description": "The MDT record (`MDT_zapis` sections 1–5); 404 before the snapshot.",
         "operationId": "get_mdt_record",
         "parameters": [
           {
@@ -2456,7 +2457,7 @@
           "mdt"
         ],
         "summary": "Update Mdt Record",
-        "description": "Edit the record before the meeting (e.g. apply an `mdt_results` draft).",
+        "description": "Edit the record before the meeting (e.g. apply an `mdt_results` draft), a coordinator of the\ncase's KOC. Omitted fields stay unchanged. Only in pripraveno_k_mdt (409 otherwise).",
         "operationId": "update_mdt_record",
         "parameters": [
           {
@@ -2520,6 +2521,7 @@
           "mdt"
         ],
         "summary": "Get Mdt Record Pdf",
+        "description": "The MDT record as PDF in the `MDT_zapis` layout; sections 6–7 from a confirmed\nconclusion.",
         "operationId": "get_mdt_record_pdf",
         "parameters": [
           {
@@ -2558,7 +2560,7 @@
           "mdt"
         ],
         "summary": "Upsert Mdt Conclusion",
-        "description": "Write / edit the conclusion (optionally starting from a `mdt_conclusion` draft).",
+        "description": "Write / edit the conclusion (optionally starting from a `mdt_conclusion` draft), a\ncoordinator of the case's KOC, in pripraveno_k_mdt or zaver_mdt (409 otherwise). Replaces\nevery written field. After an upload the report stays the source and these are its structured\nfields (e.g. the definitive MKN-10). A confirmed conclusion loses its confirmation and needs a\nnew one.",
         "operationId": "upsert_mdt_conclusion",
         "parameters": [
           {
@@ -2620,6 +2622,7 @@
           "mdt"
         ],
         "summary": "Get Mdt Conclusion",
+        "description": "The MDT conclusion (`MDT_zaver`); 404 until one is written or uploaded.",
         "operationId": "get_mdt_conclusion",
         "parameters": [
           {
@@ -2662,7 +2665,7 @@
           "mdt"
         ],
         "summary": "Upload Mdt Conclusion",
-        "description": "Upload the MDT's own report instead of writing it (source=uploaded).",
+        "description": "Upload the MDT's own report instead of writing it (source=uploaded), a coordinator of the\ncase's KOC, in pripraveno_k_mdt or zaver_mdt (409 otherwise). It becomes a case document and is\ningested like any upload; fields typed in earlier stay and a confirmation is dropped.",
         "operationId": "upload_mdt_conclusion",
         "parameters": [
           {
@@ -2726,7 +2729,7 @@
           "mdt"
         ],
         "summary": "Confirm Mdt Conclusion",
-        "description": "Coordinator confirms; pripraveno_k_mdt → zaver_mdt. Required before sending.",
+        "description": "A coordinator of the case's KOC confirms; pripraveno_k_mdt → zaver_mdt, or a correction is\nconfirmed again in zaver_mdt. Required before sending. The definitive diagnosis and MKN-10\ncode go into the live handover as manual values, and the MDT counts as held on the\nconclusion's date (T2); findings such as a provisional code stay until resolved (Q-F36). 409\nin another state or without the text (written) or the report (uploaded).",
         "operationId": "confirm_mdt_conclusion",
         "parameters": [
           {
@@ -2780,6 +2783,7 @@
           "mdt"
         ],
         "summary": "Get Mdt Conclusion Pdf",
+        "description": "The conclusion as PDF: an uploaded PDF report as it is, otherwise rendered in the\n`MDT_zaver` layout from the conclusion and the MDT record.",
         "operationId": "get_mdt_conclusion_pdf",
         "parameters": [
           {

@@ -39,8 +39,9 @@ Live docs while the API runs: `http://localhost:8000/docs`.
   | 501 | Not implemented yet |
 
 - **Manual entries** (`PATCH /cases/{id}/handover`) produce `Sourced` values with `origin=manual` and `entered={by, at}`. AI values carry `origin=ai` and verbatim `evidence`. The contracts enforce both.
-- **Audit:** every write that changes a case appends an `AuditEvent` (`listAudit`, append-only, PER-13): `referral_created`, `document_uploaded`, `document_updated`, `handover_field_updated`, `examination_added`, `handover_validated`, `referral_sent`, `reextraction_started`, `case_taken_over`, `case_updated`, `case_transitioned`, `case_returned`, `hold_set`, `hold_cleared`, `milestones_updated`, `finding_resolved`, `finding_requested`, `task_created`, `task_updated`, `task_set_started`. `detail` is Czech text; notes without a home on the models (`CaseTransition.note`, `RequestTaskCreate.note`) go there. Task sets belong to no case and are not audited.
+- **Audit:** every write that changes a case appends an `AuditEvent` (`listAudit`, append-only, PER-13): `referral_created`, `document_uploaded`, `document_updated`, `handover_field_updated`, `examination_added`, `handover_validated`, `referral_sent`, `reextraction_started`, `case_taken_over`, `case_updated`, `case_transitioned`, `case_returned`, `hold_set`, `hold_cleared`, `milestones_updated`, `finding_resolved`, `finding_requested`, `task_created`, `task_updated`, `task_set_started`, `mdt_snapshot_created`, `mdt_record_updated`, `mdt_conclusion_saved`, `mdt_conclusion_uploaded`, `mdt_conclusion_confirmed`. `detail` is Czech text; notes without a home on the models (`CaseTransition.note`, `RequestTaskCreate.note`) go there. Task sets and MDT board rosters belong to no case and are not audited; drafts change nothing and are not audited either.
 - **Who is on the move** (`Case.on_move`, `next_step`, `next_due`) is recomputed after every task change, take-over, return and resend: the earliest ready task (owner, title, due); without one the coordinator, with no step; while the case is `vraceno_lekari` the referring doctor.
+- **MDT (S5):** *Připravit podklad pro MDT* (`createMdtSnapshot`) freezes a copy of the live handover (`getHandover?snapshot=true`, `as_of` = MDT date) and builds the `MdtRecord`. It is 409 while blockers are unresolved or when the handover quotes a document received after the MDT date (Q-F39). The record is edited only before the meeting; the conclusion until the feedback is sent, and an edit needs a new confirmation (Q-F34). Confirming writes the definitive diagnosis into the live handover as a manual value and sets `milestones.mdt_held`; findings are resolved explicitly (Q-F36). Drafts (`createDraft`) cover what the MDT receives; `mdt_conclusion` is a non-AI prefill (Q-F37). PDFs follow the `MDT_zapis` / `MDT_zaver` layouts.
 - **Storage:** app state is kept in IRIS, projected to FHIR only where needed (decision 16. 10.). Nothing in the API exposes FHIR directly; the one FHIR input is `createReferralFromBundle`, a referral Bundle uploaded as a file (S9, Q-I20).
 - **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23; `/api/mcp` in production). It is not part of the 64 REST operations or the OpenAPI spec. Its tools (`search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`) call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check; errors come back as MCP tool errors with the same `detail` text. "Ask the case" joins with S8.
 
@@ -174,7 +175,7 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 | `GET` | `/directory/actors` | — · query `role`, `organization_id` | `list[Actor]` 200 |  | `listActors` | **works** |
 | `GET` | `/mdt-boards` | — | `list[MdtBoard]` 200 |  | `listMdtBoards` | **works** |
 | `GET` | `/mdt-boards/{board_id}` | — | `MdtBoard` 200 |  | `getMdtBoard` | **works** |
-| `PUT` | `/mdt-boards/{board_id}/members` | `MdtBoardMembersUpdate` | `MdtBoard` 200 | ✓ | `updateMdtBoardMembers` | defined (501) |
+| `PUT` | `/mdt-boards/{board_id}/members` | `MdtBoardMembersUpdate` | `MdtBoard` 200 | ✓ | `updateMdtBoardMembers` | **works** (S5) |
 
 ### referral
 
@@ -210,7 +211,7 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 | `GET` | `/jobs/{job_id}` | — | `Job` 200 |  | `getJob` | **works** (S2) |
 | `GET` | `/cases/{case_id}/jobs` | — | `list[Job]` 200 |  | `listCaseJobs` | **works** (S2) |
 | `POST` | `/cases/{case_id}/extract` | — | `Job` 202 | ✓ | `reextractCase` | **works** (S2) |
-| `POST` | `/cases/{case_id}/drafts` | `DraftCreate` | `Job` 202 | ✓ | `createDraft` | defined (501) |
+| `POST` | `/cases/{case_id}/drafts` | `DraftCreate` | `Job` 202 | ✓ | `createDraft` | **works** (S5) |
 | `POST` | `/cases/{case_id}/suggestions/tasks` | — | `Job` 202 | ✓ | `suggestTasks` | defined (501) |
 
 ### cases
@@ -254,15 +255,15 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `POST` | `/cases/{case_id}/mdt/snapshot` | `MdtSnapshotCreate` | `MdtRecord` 201 | ✓ | `createMdtSnapshot` | defined (501) |
-| `GET` | `/cases/{case_id}/mdt/record` | — | `MdtRecord` 200 |  | `getMdtRecord` | defined (501) |
-| `PATCH` | `/cases/{case_id}/mdt/record` | `MdtRecordUpdate` | `MdtRecord` 200 | ✓ | `updateMdtRecord` | defined (501) |
-| `GET` | `/cases/{case_id}/mdt/record.pdf` | — | application/pdf 200 |  | `getMdtRecordPdf` | defined (501) |
-| `PUT` | `/cases/{case_id}/mdt/conclusion` | `MdtConclusionUpsert` | `MdtConclusion` 200 | ✓ | `upsertMdtConclusion` | defined (501) |
-| `GET` | `/cases/{case_id}/mdt/conclusion` | — | `MdtConclusion` 200 |  | `getMdtConclusion` | defined (501) |
-| `POST` | `/cases/{case_id}/mdt/conclusion/upload` | file (multipart) | `UploadResult` 201 | ✓ | `uploadMdtConclusion` | defined (501) |
-| `POST` | `/cases/{case_id}/mdt/conclusion/confirm` | — | `MdtConclusion` 200 | ✓ | `confirmMdtConclusion` | defined (501) |
-| `GET` | `/cases/{case_id}/mdt/conclusion.pdf` | — | application/pdf 200 |  | `getMdtConclusionPdf` | defined (501) |
+| `POST` | `/cases/{case_id}/mdt/snapshot` | `MdtSnapshotCreate` | `MdtRecord` 201 | ✓ | `createMdtSnapshot` | **works** (S5) |
+| `GET` | `/cases/{case_id}/mdt/record` | — | `MdtRecord` 200 |  | `getMdtRecord` | **works** (S5) |
+| `PATCH` | `/cases/{case_id}/mdt/record` | `MdtRecordUpdate` | `MdtRecord` 200 | ✓ | `updateMdtRecord` | **works** (S5) |
+| `GET` | `/cases/{case_id}/mdt/record.pdf` | — | application/pdf 200 |  | `getMdtRecordPdf` | **works** (S5) |
+| `PUT` | `/cases/{case_id}/mdt/conclusion` | `MdtConclusionUpsert` | `MdtConclusion` 200 | ✓ | `upsertMdtConclusion` | **works** (S5) |
+| `GET` | `/cases/{case_id}/mdt/conclusion` | — | `MdtConclusion` 200 |  | `getMdtConclusion` | **works** (S5) |
+| `POST` | `/cases/{case_id}/mdt/conclusion/upload` | file (multipart) | `UploadResult` 201 | ✓ | `uploadMdtConclusion` | **works** (S5) |
+| `POST` | `/cases/{case_id}/mdt/conclusion/confirm` | — | `MdtConclusion` 200 | ✓ | `confirmMdtConclusion` | **works** (S5) |
+| `GET` | `/cases/{case_id}/mdt/conclusion.pdf` | — | application/pdf 200 |  | `getMdtConclusionPdf` | **works** (S5) |
 
 ### feedback
 

@@ -88,3 +88,44 @@ errors or trends already listed. Be conservative: no speculation, no treatment a
 Each note: message_cs (one Czech sentence), fields (handover paths from: {paths}), quotes (document_id + verbatim
 quote from the documents provided). Return an empty list if nothing important stands out.
 """
+
+DRAFT_RULES = """\
+Rules that always apply:
+- Use only the case data you are given. Never add a fact, number, date, diagnosis, stage or score that
+  is not written there; a suspicion stays a suspicion. If something important is missing, you may say
+  it is not stated ("není uvedeno"), nothing more.
+- No treatment advice and no conclusions of your own: deciding is the MDT's job.
+- Write in Czech, in plain text without Markdown.
+"""
+
+EPICRISIS_SUMMARY = (
+    """\
+You help an oncology centre coordinator prepare a case for a multidisciplinary tumour board (MDT).
+Write the epikríza for the MDT: a concise clinical summary of the case as known now, about 150 to 250
+words. Order: the patient (age, sex), the history and symptoms with their onset, relevant
+comorbidities and medication, the examinations and their key results in date order, histology, and
+the current diagnosis. The coordinator will edit and confirm it.
+"""
+    + DRAFT_RULES
+)
+
+MDT_QUESTION = (
+    """\
+You help an oncology centre coordinator prepare a case for a multidisciplinary tumour board (MDT).
+Write the request / question for the MDT ("Požadavek / otázka na MDT"): one to three short Czech
+sentences saying what the MDT is asked to assess or decide, based on the diagnosis and the state of
+the work-up. If the referring doctor's request is given, keep its intent. Mention missing information
+only when it is listed among the open problems. The coordinator will edit it.
+"""
+    + DRAFT_RULES
+)
+
+RESULT_LINES = (
+    """\
+You help an oncology centre coordinator fill the results table of the MDT record ("Výsledky
+stávajících vyšetření"). For each numbered row (date, examination, full result text) write one short
+Czech line with the key findings of that result: sizes, extent, values outside the range, the
+conclusion. Copy numbers, units and terms exactly as written. Return one line per row, by its index.
+"""
+    + DRAFT_RULES
+)

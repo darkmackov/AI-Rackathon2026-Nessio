@@ -31,6 +31,8 @@ from onko_contracts import (
     MdtBoard,
     MdtConclusion,
     MdtMember,
+    MdtRecord,
+    MdtResultRow,
     Message,
     MessageKind,
     Organization,
@@ -299,6 +301,7 @@ def test_clear_removes_everything(repo):
     repo.save_task_set(TaskSet(id="ts-1", name="Pankreas", steps=[]))
     repo.save_audit(_audit("a1"))
     repo.save_mdt_conclusion(MdtConclusion(case_id="c1", conclusion="Chemoterapie"))
+    repo.save_mdt_record(_record("c1"))
 
     repo.clear()
 
@@ -312,6 +315,17 @@ def test_clear_removes_everything(repo):
     assert repo.list_task_sets() == []
     assert repo.list_audit("c1") == []
     assert repo.get_mdt_conclusion("c1") is None
+    assert repo.get_mdt_record("c1") is None
+
+
+def _record(case_id: str) -> MdtRecord:
+    return MdtRecord(
+        case_id=case_id, mdt_date=date(2026, 10, 21), board_id="mdt-a",
+        members=[MdtMember(name="MUDr. Hrubý", specialty="chirurgie")],
+        patient_name="Jana Nováková", diagnosis_code="C25.0", comorbidities=["hypertenze"],
+        results=[MdtResultRow(date=date(2026, 10, 8), examination="CT", result="tumor 35 mm")],
+        created=Stamp(by="koord-a", at=NOW),
+    )
 
 
 def _audit(event_id: str, case_id: str = "c1", minutes: int = 0) -> AuditEvent:
@@ -342,10 +356,31 @@ def test_audit_is_append_only(repo):
 @pytest.mark.parametrize("save", [
     lambda repo: repo.save_audit(_audit("a1", case_id="nope")),
     lambda repo: repo.save_mdt_conclusion(MdtConclusion(case_id="nope")),
+    lambda repo: repo.save_mdt_record(_record("nope")),
 ])
-def test_audit_and_conclusion_need_an_existing_case(repo, save):
+def test_audit_and_mdt_need_an_existing_case(repo, save):
     with pytest.raises(KeyError):
         save(repo)
+
+
+def test_mdt_record_round_trip_and_replace(repo):
+    repo.save_case(_case("c1"))
+    assert repo.get_mdt_record("c1") is None
+
+    record = _record("c1")
+    repo.save_mdt_record(record)
+    assert repo.get_mdt_record("c1") == record
+
+    edited = record.model_copy(update={"mdt_question": "Resekabilita?", "results": []})
+    repo.save_mdt_record(edited)
+    assert repo.get_mdt_record("c1") == edited
+
+
+def test_mdt_conclusion_takes_a_rendered_pdf(repo):
+    repo.save_case(_case("c1"))
+    confirmed = MdtConclusion(case_id="c1", conclusion="Chemo", confirmed=Stamp(by="k", at=NOW))
+    repo.save_mdt_conclusion(confirmed, pdf=b"%PDF-1.4")
+    assert repo.get_mdt_conclusion("c1") == confirmed
 
 
 def test_mdt_conclusion_round_trip_and_replace(repo):

@@ -11,7 +11,7 @@ def test_reference_case_is_served():
         cases = client.get("/cases").json()
         assert [c["id"] for c in cases] == ["vzp-prochazkova"]
         case = cases[0]
-        assert case["state"] == "pripraveno_k_mdt"
+        assert case["state"] == "kompletni"
         assert case["next_step"] == "MDT pro nádory GIT"
 
         handover = client.get("/cases/vzp-prochazkova/handover").json()
@@ -109,7 +109,7 @@ def test_reset_to_reference_at_mdt():
         client.post("/demo/reset", json={"scenario": "empty"})
         cases = client.post("/demo/reset", json={"scenario": "reference_at_mdt"}).json()
         assert [c["id"] for c in cases] == ["vzp-prochazkova"]
-        assert cases[0]["state"] == "pripraveno_k_mdt"
+        assert cases[0]["state"] == "kompletni"
         assert client.get("/demo/clock").json()["now"].startswith("2026-10-21T08:0")
 
 

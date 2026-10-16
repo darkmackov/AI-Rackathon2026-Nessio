@@ -31,6 +31,7 @@ from onko_contracts import (
     Job,
     MdtBoard,
     MdtConclusion,
+    MdtRecord,
     Message,
     Organization,
     Receipt,
@@ -77,10 +78,13 @@ AUDIT = ModelTable("app_audit", AuditEvent, key=("id",), indexes=("case_id",),
                    foreign_keys={"case_id": "app_case"})
 MDT_CONCLUSIONS = ModelTable("app_mdt_conclusion", MdtConclusion, key=("case_id",),
                              foreign_keys={"case_id": "app_case"})
+# The MDT record (MDT_zapis), built from the frozen snapshot (S5); members and results stay JSON.
+MDT_RECORDS = ModelTable("app_mdt_record", MdtRecord, key=("case_id",),
+                         foreign_keys={"case_id": "app_case"})
 # Parents before children: created in this order, cleared and dropped in reverse.
 MODEL_TABLES: list[ModelTable[Any]] = [
     ORGANIZATIONS, ACTORS, MDT_BOARDS, CASES, DOCUMENTS, FINDINGS, TASKS, TASK_SETS, MESSAGES,
-    RECEIPTS, JOBS, AUDIT, MDT_CONCLUSIONS,
+    RECEIPTS, JOBS, AUDIT, MDT_CONCLUSIONS, MDT_RECORDS,
 ]
 
 # The handover as one JSON document per (case, live | MDT snapshot). A plain string, not a stream,
@@ -539,10 +543,19 @@ class IrisRepository:
     def list_audit(self, case_id: str) -> list[AuditEvent]:
         return self._select(AUDIT, '"case_id" = ?', [case_id], order='"at", %ID')
 
-    # --- MDT conclusion -----------------------------------------------------------------------
+    # --- MDT record and conclusion ------------------------------------------------------------
 
-    def save_mdt_conclusion(self, conclusion: MdtConclusion) -> None:
-        """A confirmed conclusion is also sent as a FHIR document Bundle (S9, Q-I20)."""
+    def save_mdt_record(self, record: MdtRecord) -> None:
+        self._require_case(record.case_id)
+        self._upsert(MDT_RECORDS.name, MDT_RECORDS.row(record))
+
+    def get_mdt_record(self, case_id: str) -> MdtRecord | None:
+        found = self._select(MDT_RECORDS, '"case_id" = ?', [case_id])
+        return found[0] if found else None
+
+    def save_mdt_conclusion(self, conclusion: MdtConclusion, *, pdf: bytes | None = None) -> None:
+        """A confirmed conclusion is also sent as a FHIR document Bundle (S9, Q-I20), with the
+        rendered `pdf` attached when it was written in the app."""
         self._require_case(conclusion.case_id)
         fhir = None
         if conclusion.confirmed is not None:
@@ -552,6 +565,7 @@ class IrisRepository:
                 self.get_handover(case_id, snapshot=True) or self.get_handover(case_id),
                 self._case_or_none(case_id),
                 patient_on_server=self._patient_projected(case_id),
+                pdf=pdf,
             ))
         self._write([self._upsert_sql(MDT_CONCLUSIONS.name, MDT_CONCLUSIONS.row(conclusion))],
                     case_id=conclusion.case_id, fhir=fhir)

@@ -168,6 +168,17 @@ class ClinicalReview(BaseModel):
     notes: list[ReviewNote]
 
 
+class ResultLine(BaseModel):
+    index: int = Field(description="Index of the result row in the given list")
+    result: str = Field(description="One Czech line with the row's key findings, only from its text")
+
+
+class ResultLines(BaseModel):
+    """The `mdt_results` draft: one line per MDT record result row (S5)."""
+
+    lines: list[ResultLine]
+
+
 @dataclass(frozen=True)
 class Extraction:
     """Per-document model output, already quote-verified, with the document it came from."""

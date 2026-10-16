@@ -53,7 +53,7 @@ def test_search_cases_filters_like_the_rest_endpoint():
         assert [c["id"] for c in tool(client, "search_cases")["result"]] == [CASE]
         assert [c["id"] for c in tool(client, "search_cases", koc_id="koc2-lipova")["result"]] == [CASE]
         assert tool(client, "search_cases", koc_id="koc1-u-mostu")["result"] == []
-        assert tool(client, "search_cases", state="pripraveno_k_mdt")["result"][0]["id"] == CASE
+        assert tool(client, "search_cases", state="kompletni")["result"][0]["id"] == CASE
         assert tool(client, "search_cases", state="uzavreno")["result"] == []
 
 

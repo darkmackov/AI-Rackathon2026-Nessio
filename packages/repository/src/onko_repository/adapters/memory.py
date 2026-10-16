@@ -12,6 +12,7 @@ from onko_contracts import (
     Job,
     MdtBoard,
     MdtConclusion,
+    MdtRecord,
     Message,
     Organization,
     Receipt,
@@ -40,6 +41,7 @@ class InMemoryRepository:
         self.receipts: list[Receipt] = []
         self.jobs: dict[str, Job] = {}
         self.audit: dict[str, AuditEvent] = {}
+        self.mdt_records: dict[str, MdtRecord] = {}
         self.mdt_conclusions: dict[str, MdtConclusion] = {}
 
     def save_organization(self, organization: Organization) -> None:
@@ -159,7 +161,14 @@ class InMemoryRepository:
     def list_audit(self, case_id: str) -> list[AuditEvent]:
         return sorted((e for e in self.audit.values() if e.case_id == case_id), key=lambda e: e.at)
 
-    def save_mdt_conclusion(self, conclusion: MdtConclusion) -> None:
+    def save_mdt_record(self, record: MdtRecord) -> None:
+        self._require_case(record.case_id)
+        self.mdt_records[record.case_id] = record
+
+    def get_mdt_record(self, case_id: str) -> MdtRecord | None:
+        return self.mdt_records.get(case_id)
+
+    def save_mdt_conclusion(self, conclusion: MdtConclusion, *, pdf: bytes | None = None) -> None:
         self._require_case(conclusion.case_id)
         self.mdt_conclusions[conclusion.case_id] = conclusion
 

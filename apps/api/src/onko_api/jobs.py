@@ -1,4 +1,5 @@
 """Background AI jobs (Q-A1): the route saves a queued `Job` and returns, the worker runs it.
+Two kinds: document ingest (S2) and drafts for the coordinator (S5).
 
 One worker thread (`max_workers=1`), so per-case extraction runs one at a time and two uploads to
 the same case never merge over each other. Tests swap in `ImmediateExecutor`.
@@ -13,8 +14,8 @@ from collections.abc import Callable
 from concurrent.futures import Executor, Future
 from typing import Any
 
-from onko_ai import analyse_case, apply_metadata, extract_metadata
-from onko_cases import sync_case_from_handover
+from onko_ai import analyse_case, apply_metadata, draft, draft_results, extract_metadata
+from onko_cases import conclusion_prefill, result_rows, sync_case_from_handover
 from onko_contracts import Job, JobKind, JobStatus, ParsedDocument
 from onko_llm_gateway import Gateway
 from onko_repository import CaseRepository
@@ -22,6 +23,11 @@ from onko_repository import CaseRepository
 from .clock import AppClock
 
 log = logging.getLogger(__name__)
+
+NO_MODEL = "Není nastaven žádný jazykový model (ONKO_MODELS / ONKO_ACTIVE_MODEL)."
+
+# Drafts that need the MDT snapshot and record; the conclusion prefill is not AI (Q-F37).
+RECORD_DRAFTS = frozenset({"mdt_results", "mdt_conclusion"})
 
 
 class ImmediateExecutor(Executor):
@@ -54,17 +60,37 @@ def queue_ingest(
 
 
 def run_ingest(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gateway | None) -> None:
+    _run(job_id, repo, clock, lambda job: _ingest(job, repo, clock, _require_model(gateway)))
+
+
+def queue_draft(repo: CaseRepository, now: dt.datetime, case_id: str, kind: str) -> Job:
+    """A draft for the coordinator (S5); `params.kind` is the `DraftKind`."""
+    job = Job(id=new_id("job"), kind=JobKind.DRAFT, case_id=case_id, params={"kind": kind},
+              created_at=now)
+    repo.save_job(job)
+    return job
+
+
+def run_draft(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gateway | None) -> None:
+    _run(job_id, repo, clock, lambda job: _draft(job, repo, gateway))
+
+
+def _require_model(gateway: Gateway | None) -> Gateway:
+    if gateway is None:
+        raise RuntimeError(NO_MODEL)
+    return gateway
+
+
+def _run(job_id: str, repo: CaseRepository, clock: AppClock,
+         work: Callable[[Job], dict[str, Any]]) -> None:
+    """queued → running → done with `work`'s result, or failed with its error."""
     job = repo.get_job(job_id)
     if job is None:
         return
     job = job.model_copy(update={"status": JobStatus.RUNNING, "started_at": clock.now()})
     repo.save_job(job)
     try:
-        if gateway is None:
-            raise RuntimeError(
-                "Není nastaven žádný jazykový model (ONKO_MODELS / ONKO_ACTIVE_MODEL)."
-            )
-        result = _ingest(job, repo, clock, gateway)
+        result = work(job)
         job = job.model_copy(
             update={"status": JobStatus.DONE, "finished_at": clock.now(), "result": result}
         )
@@ -74,6 +100,35 @@ def run_ingest(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gate
             update={"status": JobStatus.FAILED, "finished_at": clock.now(), "error": str(e)[:500]}
         )
     repo.save_job(job)
+
+
+def _draft(job: Job, repo: CaseRepository, gateway: Gateway | None) -> dict[str, Any]:
+    """`{text}` for the epikríza summary and the MDT question (from the live handover),
+    `{rows}` for the MDT record's result one-liners (from the frozen snapshot), `{fields}` for the
+    conclusion prefill (from the MDT record, no model)."""
+    kind = job.params["kind"]
+    case = repo.get_case(job.case_id)
+    if kind == "mdt_conclusion":
+        record = repo.get_mdt_record(case.id)
+        if record is None:
+            raise LookupError("MDT záznam zatím neexistuje.")
+        organizations = {o.id: o for o in repo.list_organizations()}
+        actors = {a.id: a for a in repo.list_actors()}
+        referrer = actors.get(case.referring_doctor_id)
+        practice = organizations.get(referrer.organization_id or "") if referrer else None
+        return {"fields": conclusion_prefill(record, organizations.get(case.koc_id), referrer,
+                                             practice)}
+    model = _require_model(gateway)
+    if kind == "mdt_results":
+        snapshot = repo.get_handover(case.id, snapshot=True)
+        if snapshot is None:
+            raise LookupError("Podklad pro MDT zatím neexistuje.")
+        rows = draft_results(result_rows(snapshot), gateway=model)
+        return {"rows": [r.model_dump(mode="json") for r in rows]}
+    handover = repo.get_handover(case.id)
+    if handover is None:
+        raise LookupError("Případ nemá handover.")
+    return {"text": draft(kind, handover, repo.list_findings(case.id), gateway=model)}
 
 
 def _ingest(job: Job, repo: CaseRepository, clock: AppClock, gateway: Gateway) -> dict[str, Any]:

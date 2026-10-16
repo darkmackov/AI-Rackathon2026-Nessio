@@ -251,6 +251,18 @@ def test_uploaded_conclusion_attaches_its_pdf(handover, case):
     assert reference["content"][1]["attachment"]["url"] == "Binary/doc-mdt-pdf"
 
 
+def test_written_conclusion_attaches_the_rendered_pdf(handover, case):
+    _, reference = mdt_conclusion_resources(_conclusion(handover), handover, case,
+                                            patient_on_server=True, pdf=b"%PDF-1.4 test")
+    pdf = reference["content"][1]["attachment"]
+    assert pdf["contentType"] == "application/pdf"
+    assert base64.b64decode(pdf["data"]) == b"%PDF-1.4 test"
+
+    _, without = mdt_conclusion_resources(_conclusion(handover), handover, case,
+                                          patient_on_server=True)
+    assert len(without["content"]) == 1
+
+
 def test_a_corrected_conclusion_is_a_new_bundle(handover, case):
     first, _ = mdt_conclusion_resources(_conclusion(handover), handover, case,
                                         patient_on_server=True)
