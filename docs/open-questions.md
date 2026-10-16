@@ -12,8 +12,8 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-W1 | **UI component library** (WEB-9 requires one for everything it offers) | None yet: semantic HTML only, no library added | Team |
 | Q-W2 | **Router** for the web app | None yet: `App.tsx` renders the dashboard directly | Team |
 | Q-W3 | **i18n library** for Czech + English (Q-F20) | None yet: UI text in Czech | Team |
-| Q-A11 | **Time zones:** contracts use naive `datetime`s. Store UTC, local time, or aware datetimes? | Unchanged (naive) | Team |
-| Q-A12 | **Id scheme** for new cases, tasks, findings, messages (today: slugs and composite ids from seed and `start_task_set`) | Unchanged | Team |
+| Q-K8 | **Time zones:** contracts use naive `datetime`s and api.md says ISO 8601. Store UTC, local time, or aware datetimes? | Unchanged (naive) | Team |
+| Q-K9 | **Id scheme** for new cases, tasks, findings, messages (api.md: string ids; today slugs and composite ids from seed and `start_task_set`) | Unchanged | Team |
 
 ## F: Product and flow
 
@@ -96,22 +96,19 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-M3 | Rate limits / cost? | No limits | gateway |
 | Q-M4 | Second test case? | **Now, in Phase 1** (synthetic, another diagnosis) | delivery.md |
 
-## A: Architecture and conventions
+## K: Code conventions
 
 Asked and decided on 16. 10. 2026. The rules are in [docs/conventions](conventions).
 
 | ID | Question | Decision | Lands in |
 |---|---|---|---|
-| Q-A1 | What do the data conventions cover? | Domain models, persistence/FHIR mapping, API DTOs. The `data/` folder is out of scope | data.md |
-| Q-A2 | How does the web app talk to the API, and where do those shapes live? | **DTOs only**, in `onko_contracts.dto` | DTO-1, DTO-8 |
-| Q-A3 | DTO naming? | `XxxDto` (`CaseDto`, `CreateCaseDto`) | DTO-2 |
-| Q-A4 | DTO shape and enums? | **Mirror the domain model**, diverge only when a screen needs it; reuse the domain enums | DTO-4, DTO-5 |
-| Q-A5 | JSON casing? | `snake_case` | DTO-6 |
-| Q-A6 | Where does domain ↔ DTO mapping live? | `apps/api` (`onko_api/mappers.py`) | DTO-9 |
-| Q-A7 | Error DTO? | No: FastAPI's default `{"detail": …}` | DTO-11 |
-| Q-A8 | Module layout? | **Layered files** (`models.py`, `ports.py`, `service.py`, `adapters/`); `__init__.py` is the only public API. Existing modules restructured | MOD-2 … MOD-11 |
-| Q-A9 | How are conventions enforced on AI? | `AGENTS.md` (root + per module) with `CLAUDE.md` importing it. No architecture tests or hooks | AGENTS.md |
-| Q-A10 | Branch naming? | `<type>/<short-topic>`; commits stay Conventional Commits | GIT-1, GIT-2 |
+| Q-K1 | What do the data conventions cover? | Domain models, API models, persistence. The `data/` folder is out of scope | data.md |
+| Q-K2 | Which shapes does the web app talk to the API with? | **Main's API contract** (Q-A1 to Q-A8, api.md): responses are the contract models, request bodies live in `apps/api/schemas.py`. A separate DTO layer (`XxxDto` in `onko_contracts.dto` + mappers) was proposed the same day and **dropped in favour of main** | data.md APIM-1, APIM-2 |
+| Q-K3 | JSON casing? | `snake_case`, no aliases | APIM-5 |
+| Q-K4 | Module layout? | **Layered files** (`models.py`, `ports.py`, `service.py`, `adapters/`); `__init__.py` is the only public API. Existing modules restructured | MOD-2 … MOD-11 |
+| Q-K5 | How are conventions enforced on AI? | `AGENTS.md` (root + per module) with `CLAUDE.md` importing it. No architecture tests or hooks | AGENTS.md |
+| Q-K6 | Branch naming? | `<type>/<short-topic>`; commits stay Conventional Commits | GIT-1, GIT-2 |
+| Q-K7 | Error model? | None: `{"detail": …}` with the codes in api.md | APIM-6 |
 
 ## W: Web
 

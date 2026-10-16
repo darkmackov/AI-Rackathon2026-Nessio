@@ -1,6 +1,6 @@
 import { defineConfig } from '@hey-api/openapi-ts'
 
-// Typed client + TanStack Query options generated from the FastAPI spec (DTO types only). Regenerate after API changes:
+// Typed client + TanStack Query options generated from the FastAPI spec. Regenerate after API changes:
 //   uv run python scripts/export_openapi.py && npm --prefix apps/web run gen:api
 export default defineConfig({
   input: './openapi.json',

@@ -8,9 +8,9 @@ Accessibility target: **WCAG 2.2 level AA** (Q-W5).
 
 | ID | Rule |
 |---|---|
-| UX-1 | Before designing or changing a screen, read the DTOs it will show (`apps/web/src/client/types.gen.ts`, or `packages/contracts/src/onko_contracts/dto`). The screen shows what those DTOs contain, using the existing fields. |
-| UX-2 | If the design needs a value no DTO has, extend the DTO in the backend first (WEB-4). Never invent, estimate or hard-code it in the UI. |
-| UX-3 | A `SourcedDto` value always shows its `status`. `found` shows the value with a link to its evidence. `missing` shows a visible empty state with the *Doplnit / Vyžádat* actions. `conflict` shows every competing value with its source. A missing value is never hidden or shown as blank. |
+| UX-1 | Before designing or changing a screen, read the API models it will show and send (`apps/web/src/client/types.gen.ts`, the endpoints in [api.md](../api.md)) and its slice in [slices.md](../slices.md). The screen shows what those models contain, using the existing fields. |
+| UX-2 | If the design needs a value no API model has, extend the contract in the backend first (WEB-4). Never invent, estimate or hard-code it in the UI. |
+| UX-3 | A `Sourced` value always shows its `status` and its `origin` (AI with evidence, or entered manually by whom). `found` shows the value with a link to its evidence. `missing` shows a visible empty state with the *Doplnit / Vyžádat* actions. `conflict` shows every competing value with its source. A missing value is never hidden or shown as blank. |
 
 ## Product rules the UI must make visible
 
@@ -20,7 +20,7 @@ Accessibility target: **WCAG 2.2 level AA** (Q-W5).
 | UX-5 | **AI proposes, a human confirms.** AI-produced values and drafts are visibly labelled as AI proposals until validated or confirmed. Nothing AI-made is submitted, sent or confirmed without an explicit user action. |
 | UX-6 | **Evidence on click:** every extracted value opens its source document with the quote highlighted. |
 | UX-7 | **Gaps never block the GP** (Q-F22): missing fields in the referral are soft "fill in if you know" prompts, and *Validovat a odeslat* stays enabled. For the coordinator, a blocker finding can be overridden with a note (Q-C2), and advisory findings are labelled as advisory (Q-C3). |
-| UX-8 | Use the action names from product.md exactly: *Validovat a odeslat*, *Vyžádat*, *Doplnit*, *Spustit sadu úkolů*, *Přidat úkol*, *Odložit*, *Informovat pacienta*, *Připravit podklad pro MDT*, *Potvrzuji převzetí*. |
+| UX-8 | Use the action names from product.md and slices.md exactly: *Validovat a odeslat*, *Převzít*, *Vyžádat*, *Doplnit*, *Není k dispozici*, *Spustit sadu úkolů*, *Přidat úkol*, *Odložit*, *Informovat pacienta*, *Připravit podklad pro MDT*, *Odeslat PL*, *Potvrzuji převzetí*. |
 | UX-9 | Actions with consequences outside the app or that can't be undone (send to the GP, confirm the MDT snapshot, confirm receipt) ask for confirmation in a dialog that names what will happen. Everything else acts immediately and gives feedback. |
 
 ## States and feedback
@@ -28,9 +28,10 @@ Accessibility target: **WCAG 2.2 level AA** (Q-W5).
 | ID | Rule |
 |---|---|
 | UX-10 | Every data view has four designed states: **loading** (skeleton or `role="status"` text), **error** (what failed plus a retry), **empty** (what it means plus the next action), and **success**. |
+| UX-20 | Slow AI work (uploads, extraction, drafts) shows its `Job` progress and keeps the rest of the screen usable. A failed job says what failed and offers a retry. |
 | UX-11 | Every user action gives visible feedback: a pending state on the control while it runs, then success or an error message next to where the user acted. |
 | UX-12 | Forms validate on submit and on blur, not on every keystroke. Errors appear next to the field in text, and the summary receives focus. |
-| UX-13 | Never make users retype data the app already has (the brief's core problem, WCAG 3.3.7). Prefill from the handover and DTOs. |
+| UX-13 | Never make users retype data the app already has (the brief's core problem, WCAG 3.3.7). Prefill from the handover and the API models. |
 
 ## Layout and content
 

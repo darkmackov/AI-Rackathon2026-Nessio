@@ -1,4 +1,5 @@
-"""IRIS repository: FHIR R4 (EU/CZ profiles) over REST + IRIS SQL for vector chunks."""
+"""IRIS repository: app state as JSON documents in IRIS SQL, projected to FHIR R4 (EU/CZ profiles)
+where needed (Q-A7); vector chunks in Phase 2."""
 
 from __future__ import annotations
 

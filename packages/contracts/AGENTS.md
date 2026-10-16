@@ -2,14 +2,14 @@
 
 Root rules: [AGENTS.md](../../AGENTS.md). Conventions: [docs/conventions/](../../docs/conventions).
 
-**Owns:** Shared domain models (`onko_contracts`) and the API DTOs (`onko_contracts.dto`).
+**Owns:** Shared domain models (`onko_contracts`). They are also the API's response models (docs/api.md).
 
 **May depend on:** pydantic only.
 
 **Rules:**
 - Domain models: follow DM-1 … DM-13 in data.md. Subclass `Model`, plain names, stable enum values.
-- DTOs: follow DTO-1 … DTO-12. `XxxDto`, mirror the domain model, no defaults on response DTOs, reuse domain enums. `dto/` imports only enums and constants from the domain.
-- Never put mapping code here: it lives in `apps/api/src/onko_api/mappers.py` (DTO-9).
-- Any change here is its own PR. In the same PR, update the reference JSONs and tests (`tests/test_reference_case.py`), the DTO and mapper if exposed, `docs/data-model.md` if persisted, and regenerate the web client if the API changed.
+- `Sourced` provenance is enforced here: `origin=ai` needs evidence, `origin=manual` needs `entered` (DM-8, Q-A2). Keep the validators.
+- These models are the API's responses, so a change here changes the web client: keep slice response models stable (APIM-4).
+- Any change here is its own PR. In the same PR, update the reference JSONs and tests (`tests/test_reference_case.py`), `docs/data-model.md` if projected to FHIR, and regenerate the spec and web client (APIM-7).
 - Handover change → bump `HANDOVER_SCHEMA_VERSION` (DM-9).
 - No I/O, no business logic (DM-10).

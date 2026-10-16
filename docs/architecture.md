@@ -6,7 +6,7 @@ Goals:
 - **Meaningful use of InterSystems IRIS**: FHIR in the MVP; Vector Search, agent tools and Embedded Python in Phase 2 (see below). The InterSystems challenge judges this, see [the intro deck](../data/vzp-structured/brief/InterSystems_challenge_intro.md).
 
 ## Principles
-1. **Contracts first.** Modules talk only through the Pydantic models in [`packages/contracts`](../packages/contracts/src/onko_contracts), each through its package's public API (`__init__.py`). The web app talks to the API only through **DTOs** (`onko_contracts.dto`), mapped from the domain in `apps/api`. Changing a contract is a PR that everyone reviews; everything else is owned by the module's owner. Rules: [conventions](conventions/).
+1. **Contracts first.** Modules talk only through the Pydantic models in [`packages/contracts`](../packages/contracts/src/onko_contracts), each through its package's public API (`__init__.py`). Changing a contract is a PR that everyone reviews; everything else is owned by the module's owner. Rules: [conventions](conventions/).
 2. **The product schema lives in code, user content lives in the database.**
    - The handover structure (from `Handover_obsah`) and the 8 case states are fixed and versioned in `contracts`.
    - Task sets, tasks, messages and documents are created by users in the UI and stored in IRIS.
@@ -36,8 +36,7 @@ flowchart TD
   bench["bench (dev tool)"] -.-> ai
   bench -.-> llm
   contracts["contracts"] -.- api
-  dto["contracts.dto<br/>DTOs"] -.- api
-  dto -.- web
+  contracts -.- web
 ```
 
 | Module | Package | Owns | Main interface |

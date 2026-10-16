@@ -2,7 +2,7 @@
 
 Root rules: [AGENTS.md](../../AGENTS.md). Conventions: [docs/conventions/](../../docs/conventions).
 
-**Owns:** Requests, MDT result delivery, receipts, in-app notifications, simulated patient notices.
+**Owns:** MDT result delivery to the GP's in-app inbox, receipts, in-app notifications, simulated patient notices. Request/reply flows are Phase 2 (Q-F23); in the MVP a request is a `Task` in `cases`.
 
 **May depend on:** contracts, repository (port only). Import other modules only through their package root (MOD-2).
 

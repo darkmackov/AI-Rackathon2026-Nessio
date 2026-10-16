@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { listCasesOptions } from '../client/@tanstack/react-query.gen'
-import type { CaseDto, QueueColumn } from '../client/types.gen'
+import type { Case, QueueColumn } from '../client/types.gen'
 
 // Placeholder coordinator dashboard (slide 9): proves web -> api wiring with the seeded reference case.
-// Data comes from the generated TanStack Query options, typed with the API's DTOs.
+// Data comes from the generated TanStack Query options, typed with the API's models.
 
 const COLUMNS: { key: QueueColumn; label: string }[] = [
   { key: 'novy', label: 'Nový pacient' },
@@ -12,7 +12,7 @@ const COLUMNS: { key: QueueColumn; label: string }[] = [
   { key: 'odlozeny', label: 'Odložený pacient' },
 ]
 
-function CaseCard({ item }: { item: CaseDto }) {
+function CaseCard({ item }: { item: Case }) {
   return (
     <article style={{ background: '#fff', borderRadius: 8, padding: 12 }}>
       <strong>{item.patient_name}</strong>
