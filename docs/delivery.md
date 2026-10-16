@@ -46,7 +46,7 @@ Each stream works against the in-memory fake until `IrisRepository` lands.
 | D: repository + IRIS | _tbd_ | Azure IRIS access, FHIR IG packages, mapping per [data-model.md](data-model.md), in-memory fake |
 | E: api + web | _tbd_ | FastAPI routes, screens 1–6 from [product.md](product.md) incl. the GP inbox for KOC requests and soft "fill in if you know" prompts, Czech + English UI (Q-F20) |
 
-Integration rules:
+Integration rules (full list in [conventions](conventions/)):
 - Change `contracts` first, in its own PR.
 - Every module ships with tests against the in-memory fake.
 - `main` always runs the demo.

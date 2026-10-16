@@ -6,7 +6,7 @@ Goals:
 - **Meaningful use of InterSystems IRIS** (FHIR, Vector Search, agent tools; Embedded Python later, see below). The InterSystems challenge judges this, see [the intro deck](../data/vzp-structured/brief/InterSystems_challenge_intro.md).
 
 ## Principles
-1. **Contracts first.** Modules talk only through the Pydantic models in [`packages/contracts`](../packages/contracts/src/onko_contracts). Changing a contract is a PR that everyone reviews; everything else is owned by the module's owner.
+1. **Contracts first.** Modules talk only through the Pydantic models in [`packages/contracts`](../packages/contracts/src/onko_contracts), each through its package's public API (`__init__.py`). The web app talks to the API only through **DTOs** (`onko_contracts.dto`), mapped from the domain in `apps/api`. Changing a contract is a PR that everyone reviews; everything else is owned by the module's owner. Rules: [conventions](conventions/).
 2. **The product schema lives in code, user content lives in the database.**
    - The handover structure (from `Handover_obsah`) and the 8 case states are fixed and versioned in `contracts`.
    - Task sets, tasks, messages and documents are created by users in the UI and stored in IRIS.
@@ -36,20 +36,21 @@ flowchart TD
   bench["bench (dev tool)"] -.-> ai
   bench -.-> llm
   contracts["contracts"] -.- api
-  contracts -.- web
+  dto["contracts.dto<br/>DTOs"] -.- api
+  dto -.- web
 ```
 
 | Module | Package | Owns | Main interface |
 |---|---|---|---|
-| contracts | `packages/contracts` | Shared Pydantic models, the handover schema, case states/transitions | is the contract |
+| contracts | `packages/contracts` | Shared Pydantic models, the handover schema, case states/transitions; API DTOs in `onko_contracts.dto` | is the contract |
 | documents | `packages/documents` | Upload, storage as `DocumentReference`/`Binary`, parsers by file type (docx, pdf; images through a vision model later), PDF rendering of the MDT record/conclusion | `parse(bytes, mime) -> ParsedDocument`, `render(kind, data) -> bytes` |
 | ai | `packages/ai` | Per-document extraction into `Handover` with evidence; merge across documents; completeness and consistency checks → `Finding`s; drafting (MDT conclusion, requests) | `extract(docs) -> Handover`, `check(handover, docs) -> [Finding]`, `draft(kind, case) -> str` |
 | llm_gateway | `packages/llm-gateway` | OpenAI-compatible client. Candidate models from env for the bench; the app uses **one active model** chosen by the bench (Q-M1) + one embedding model (Q-M2). Structured output per the chosen model's capabilities, cache, token/latency log, no rate limiting (Q-M3) | `complete(messages, schema)`, `embed(texts)` |
 | cases | `packages/cases` | State machine (`ALLOWED_TRANSITIONS`), queue column, who is on the move, tasks with dependencies, user-editable task sets, notifications, audit log | `transition(case, to)`, `start_task_set(case, set)`, `add_task(...)` |
 | messaging | `packages/messaging` | Document/info requests, MDT result delivery, the automatic reviewing-doctor feed, receipts. In-app inbox first; email/SMS adapters later | `send(message) -> Message`, `confirm(message_id, recipient)` |
 | repository | `packages/repository` | Domain ↔ FHIR R4 mapping ([data-model.md](data-model.md)), IRIS FHIR client, SQL/vector tables, in-memory fake | `CaseRepository` protocol |
-| api | `apps/api` | FastAPI routes, auth stub (role switcher for the demo), OpenAPI | `/cases`, `/documents`, `/handover`, `/tasks`, `/messages` … |
-| web | `apps/web` | All screens from [product.md](product.md) | client generated from OpenAPI |
+| api | `apps/api` | FastAPI routes on DTOs, domain ↔ DTO mappers, auth stub (role switcher for the demo), OpenAPI | `/cases`, `/documents`, `/handover`, `/tasks`, `/messages` … |
+| web | `apps/web` | All screens from [product.md](product.md) | client + TanStack Query options generated from OpenAPI (DTO types) |
 | bench | `packages/bench` | Runs `ai.extract` + `ai.check` for every model over reference cases and scores against the expected JSONs → leaderboard | CLI `uv run onko-bench` |
 
 ## AI pipeline

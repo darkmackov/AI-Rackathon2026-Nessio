@@ -5,9 +5,9 @@ export type ClientOptions = {
 };
 
 /**
- * Case
+ * CaseDto
  */
-export type Case = {
+export type CaseDto = {
     /**
      * Id
      */
@@ -19,7 +19,7 @@ export type Case = {
     /**
      * Diagnosis Label
      */
-    diagnosis_label?: string | null;
+    diagnosis_label: string | null;
     /**
      * Koc
      */
@@ -31,27 +31,27 @@ export type Case = {
     /**
      * Coordinator Id
      */
-    coordinator_id?: string | null;
-    state?: CaseState;
-    queue?: QueueColumn;
+    coordinator_id: string | null;
+    state: CaseState;
+    queue: QueueColumn;
     /**
      * On Move
      *
      * Actor id responsible for the next step
      */
-    on_move?: string | null;
+    on_move: string | null;
     /**
      * Next Step
      */
-    next_step?: string | null;
+    next_step: string | null;
     /**
      * Next Due
      */
-    next_due?: string | null;
+    next_due: string | null;
     /**
      * Mdt Date
      */
-    mdt_date?: string | null;
+    mdt_date: string | null;
     /**
      * Created At
      */
@@ -59,8 +59,8 @@ export type Case = {
     /**
      * Manual 'odloženo' flag (Q-F9)
      */
-    on_hold?: OnHold | null;
-    milestones?: Milestones;
+    on_hold: OnHoldDto | null;
+    milestones: MilestonesDto;
 };
 
 /**
@@ -71,22 +71,19 @@ export type Case = {
 export type CaseState = 'odeslano' | 'v_triage' | 'ceka_na_podklady' | 'kompletni' | 'pripraveno_k_mdt' | 'zaver_mdt' | 'zpetna_vazba_odeslana' | 'uzavreno';
 
 /**
- * Contacts
+ * ContactsDto
  */
-export type Contacts = {
-    patient_phone?: SourcedStr;
-    patient_email?: SourcedStr;
-    /**
-     * Name + relation
-     */
-    contact_person?: SourcedStr;
-    contact_person_phone?: SourcedStr;
+export type ContactsDto = {
+    patient_phone: SourcedDtoStr;
+    patient_email: SourcedDtoStr;
+    contact_person: SourcedDtoStr;
+    contact_person_phone: SourcedDtoStr;
 };
 
 /**
- * DocumentMeta
+ * DocumentMetaDto
  */
-export type DocumentMeta = {
+export type DocumentMetaDto = {
     /**
      * Id
      */
@@ -94,7 +91,7 @@ export type DocumentMeta = {
     /**
      * Case Id
      */
-    case_id?: string | null;
+    case_id: string | null;
     /**
      * Filename
      */
@@ -106,8 +103,6 @@ export type DocumentMeta = {
     doc_type: DocumentType;
     /**
      * Document Date
-     *
-     * Date of the examination / issue
      */
     document_date: string;
     /**
@@ -117,27 +112,39 @@ export type DocumentMeta = {
     /**
      * Department
      */
-    department?: string | null;
+    department: string | null;
     /**
      * Author
      */
-    author?: string | null;
+    author: string | null;
     /**
      * Ordered By
-     *
-     * Indikující / odesílající lékař
      */
-    ordered_by?: string | null;
+    ordered_by: string | null;
     /**
      * Received At
      *
-     * When the document entered the case; drives the MDT snapshot
+     * When the document entered the case
      */
-    received_at?: string | null;
+    received_at: string | null;
     /**
      * Mime Type
      */
-    mime_type?: string;
+    mime_type: string;
+};
+
+/**
+ * DocumentTextDto
+ */
+export type DocumentTextDto = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Text
+     */
+    text: string;
 };
 
 /**
@@ -146,11 +153,9 @@ export type DocumentMeta = {
 export type DocumentType = 'referral' | 'epicrisis' | 'outpatient_report' | 'lab' | 'imaging' | 'procedure' | 'histology' | 'mdt_record' | 'mdt_conclusion' | 'other';
 
 /**
- * Evidence
- *
- * Where a value came from. Every AI-extracted value carries at least one.
+ * EvidenceDto
  */
-export type Evidence = {
+export type EvidenceDto = {
     /**
      * Document Id
      */
@@ -164,18 +169,13 @@ export type Evidence = {
     /**
      * Document Date
      */
-    document_date?: string | null;
+    document_date: string | null;
 };
 
 /**
- * Examination
- *
- * Provedené vyšetření: date, place, type, full result text.
- *
- * `result_full_text` = all clinical sections verbatim (findings, ZÁVĚR, DOPORUČENÍ), without the
- * administrative header and signature (Q-C8). GP examinations are included too (Q-C7).
+ * ExaminationDto
  */
-export type Examination = {
+export type ExaminationDto = {
     /**
      * Date
      */
@@ -195,7 +195,7 @@ export type Examination = {
     /**
      * Evidence
      */
-    evidence?: Array<Evidence>;
+    evidence: Array<EvidenceDto>;
 };
 
 /**
@@ -206,9 +206,9 @@ export type Examination = {
 export type FieldStatus = 'found' | 'missing' | 'conflict';
 
 /**
- * Finding
+ * FindingDto
  */
-export type Finding = {
+export type FindingDto = {
     /**
      * Id
      */
@@ -220,7 +220,7 @@ export type Finding = {
      *
      * Handover paths, e.g. 'performance_status'
      */
-    fields?: Array<string>;
+    fields: Array<string>;
     /**
      * Message Cs
      */
@@ -228,24 +228,24 @@ export type Finding = {
     /**
      * Evidence
      */
-    evidence?: Array<Evidence>;
-    suggested_action?: SuggestedAction;
+    evidence: Array<EvidenceDto>;
+    suggested_action: SuggestedAction;
     /**
      * Advisory
      *
-     * Clinical-judgement hint from the LLM review, not a data gap (Q-C3)
+     * Clinical-judgement hint, not a data gap (Q-C3)
      */
-    advisory?: boolean;
+    advisory: boolean;
     /**
      * Overridable
      *
-     * A blocker the coordinator may override with a note (Q-C2)
+     * A blocker the coordinator may override (Q-C2)
      */
-    overridable?: boolean;
+    overridable: boolean;
     /**
      * Resolved
      */
-    resolved?: boolean;
+    resolved: boolean;
 };
 
 /**
@@ -264,93 +264,79 @@ export type HttpValidationError = {
 };
 
 /**
- * Handover
+ * HandoverDto
  */
-export type Handover = {
+export type HandoverDto = {
     /**
      * Schema Version
      */
-    schema_version?: string;
+    schema_version: string;
     /**
      * Case Id
      */
     case_id: string;
     /**
      * As Of
-     *
-     * Snapshot date; only documents received by then are used
      */
     as_of: string;
-    patient?: PatientDetails;
-    contacts?: Contacts;
-    diagnosis?: SourcedStr;
+    patient: PatientDetailsDto;
+    contacts: ContactsDto;
+    diagnosis: SourcedDtoStr;
     /**
      * MKN-10 / ICD-10
      */
-    diagnosis_code?: SourcedStr;
+    diagnosis_code: SourcedDtoStr;
     /**
-     * Referring doctor's epikríza, verbatim (Q-F15)
+     * Referring doctor's epikríza, verbatim
      */
-    epicrisis_source?: SourcedStr;
+    epicrisis_source: SourcedDtoStr;
     /**
-     * Final epikríza: AI summary proposal shown side by side, written/confirmed by the coordinator
+     * Final epikríza confirmed by the coordinator
      */
-    epicrisis?: SourcedStr;
-    /**
-     * Požadavek / otázka na MDT; written by the coordinator, optional AI prefill (Q-F14)
-     */
-    mdt_question?: SourcedStr;
-    /**
-     * OA
-     */
-    comorbidities?: SourcedListStr;
-    /**
-     * FA
-     */
-    medications?: SourcedListStr;
-    /**
-     * AA
-     */
-    allergies?: SourcedStr;
+    epicrisis: SourcedDtoStr;
+    mdt_question: SourcedDtoStr;
+    comorbidities: SourcedDtoListStr;
+    medications: SourcedDtoListStr;
+    allergies: SourcedDtoStr;
     /**
      * ECOG / Karnofsky
      */
-    performance_status?: SourcedStr;
-    weight_kg?: SourcedFloat;
-    height_cm?: SourcedFloat;
-    /**
-     * Symptoms and their onset
-     */
-    symptoms?: SourcedStr;
+    performance_status: SourcedDtoStr;
+    weight_kg: SourcedDtoFloat;
+    height_cm: SourcedDtoFloat;
+    symptoms: SourcedDtoStr;
     /**
      * Examinations
      */
-    examinations?: Array<Examination>;
+    examinations: Array<ExaminationDto>;
     /**
      * Labs
-     *
-     * Including tumour markers
      */
-    labs?: Array<LabPanel>;
-    histology?: SourcedStr;
-    /**
-     * Jiná sdělení incl. patient wishes
-     */
-    other?: SourcedStr;
-    /**
-     * Referring doctor validated the AI proposal before sending (Q-F5)
-     */
-    validated_by_referrer?: Stamp | null;
-    /**
-     * Coordinator confirmed the MDT snapshot (Q-F5, Q-F21)
-     */
-    confirmed_by_coordinator?: Stamp | null;
+    labs: Array<LabPanelDto>;
+    histology: SourcedDtoStr;
+    other: SourcedDtoStr;
+    validated_by_referrer: StampDto | null;
+    confirmed_by_coordinator: StampDto | null;
 };
 
 /**
- * LabPanel
+ * HealthDto
  */
-export type LabPanel = {
+export type HealthDto = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Iris Configured
+     */
+    iris_configured: boolean;
+};
+
+/**
+ * LabPanelDto
+ */
+export type LabPanelDto = {
     /**
      * Date
      */
@@ -362,17 +348,17 @@ export type LabPanel = {
     /**
      * Values
      */
-    values: Array<LabValue>;
+    values: Array<LabValueDto>;
     /**
      * Evidence
      */
-    evidence?: Array<Evidence>;
+    evidence: Array<EvidenceDto>;
 };
 
 /**
- * LabValue
+ * LabValueDto
  */
-export type LabValue = {
+export type LabValueDto = {
     /**
      * Name
      */
@@ -384,53 +370,43 @@ export type LabValue = {
     /**
      * Unit
      */
-    unit?: string | null;
+    unit: string | null;
     /**
      * Reference Range
      */
-    reference_range?: string | null;
+    reference_range: string | null;
     /**
      * Flag
-     *
-     * H / L as printed by the lab
      */
-    flag?: string | null;
+    flag: string | null;
 };
 
 /**
- * Milestones
- *
- * Dates behind time to treatment = T1 + T2 + T3 (slide 4).
+ * MilestonesDto
  */
-export type Milestones = {
+export type MilestonesDto = {
     /**
      * Symptom Onset
-     *
-     * First symptoms (from documents)
      */
-    symptom_onset?: string | null;
+    symptom_onset: string | null;
     /**
      * Referred At
-     *
-     * Referral sent to the KOC
      */
-    referred_at?: string | null;
+    referred_at: string | null;
     /**
      * Mdt Held
      */
-    mdt_held?: string | null;
+    mdt_held: string | null;
     /**
      * Treatment Start
      */
-    treatment_start?: string | null;
+    treatment_start: string | null;
 };
 
 /**
- * OnHold
- *
- * Set by the coordinator; puts the case in the 'Odložený' column.
+ * OnHoldDto
  */
-export type OnHold = {
+export type OnHoldDto = {
     /**
      * Reason
      */
@@ -438,7 +414,7 @@ export type OnHold = {
     /**
      * Until
      */
-    until?: string | null;
+    until: string | null;
     /**
      * Set By
      */
@@ -450,25 +426,20 @@ export type OnHold = {
 };
 
 /**
- * PatientDetails
- *
- * Nacionále pacienta.
+ * PatientDetailsDto
  */
-export type PatientDetails = {
-    first_name?: SourcedStr;
-    last_name?: SourcedStr;
+export type PatientDetailsDto = {
+    first_name: SourcedDtoStr;
+    last_name: SourcedDtoStr;
     /**
      * Rodné číslo
      */
-    birth_number?: SourcedStr;
-    birth_date?: SourcedDate;
-    age?: SourcedInt;
-    sex?: SourcedStr;
-    /**
-     * Kód zdravotní pojišťovny, e.g. 111 = VZP, 211 = ZPMV
-     */
-    insurance_code?: SourcedStr;
-    address?: SourcedStr;
+    birth_number: SourcedDtoStr;
+    birth_date: SourcedDtoDate;
+    age: SourcedDtoInt;
+    sex: SourcedDtoStr;
+    insurance_code: SourcedDtoStr;
+    address: SourcedDtoStr;
 };
 
 /**
@@ -484,114 +455,114 @@ export type QueueColumn = 'novy' | 'aktivni' | 'odlozeny';
 export type Severity = 'info' | 'warning' | 'blocker';
 
 /**
- * Sourced[date]
+ * SourcedDto[date]
  */
-export type SourcedDate = {
+export type SourcedDtoDate = {
     /**
      * Value
      */
-    value?: string | null;
-    status?: FieldStatus;
+    value: string | null;
+    status: FieldStatus;
     /**
      * Evidence
      */
-    evidence?: Array<Evidence>;
+    evidence: Array<EvidenceDto>;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note?: string | null;
+    note: string | null;
 };
 
 /**
- * Sourced[float]
+ * SourcedDto[float]
  */
-export type SourcedFloat = {
+export type SourcedDtoFloat = {
     /**
      * Value
      */
-    value?: number | null;
-    status?: FieldStatus;
+    value: number | null;
+    status: FieldStatus;
     /**
      * Evidence
      */
-    evidence?: Array<Evidence>;
+    evidence: Array<EvidenceDto>;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note?: string | null;
+    note: string | null;
 };
 
 /**
- * Sourced[int]
+ * SourcedDto[int]
  */
-export type SourcedInt = {
+export type SourcedDtoInt = {
     /**
      * Value
      */
-    value?: number | null;
-    status?: FieldStatus;
+    value: number | null;
+    status: FieldStatus;
     /**
      * Evidence
      */
-    evidence?: Array<Evidence>;
+    evidence: Array<EvidenceDto>;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note?: string | null;
+    note: string | null;
 };
 
 /**
- * Sourced[list[str]]
+ * SourcedDto[list[str]]
  */
-export type SourcedListStr = {
+export type SourcedDtoListStr = {
     /**
      * Value
      */
-    value?: Array<string> | null;
-    status?: FieldStatus;
+    value: Array<string> | null;
+    status: FieldStatus;
     /**
      * Evidence
      */
-    evidence?: Array<Evidence>;
+    evidence: Array<EvidenceDto>;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note?: string | null;
+    note: string | null;
 };
 
 /**
- * Sourced[str]
+ * SourcedDto[str]
  */
-export type SourcedStr = {
+export type SourcedDtoStr = {
     /**
      * Value
      */
-    value?: string | null;
-    status?: FieldStatus;
+    value: string | null;
+    status: FieldStatus;
     /**
      * Evidence
      */
-    evidence?: Array<Evidence>;
+    evidence: Array<EvidenceDto>;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note?: string | null;
+    note: string | null;
 };
 
 /**
- * Stamp
+ * StampDto
  */
-export type Stamp = {
+export type StampDto = {
     /**
      * By
      */
@@ -608,9 +579,9 @@ export type Stamp = {
 export type SuggestedAction = 'request' | 'fill_in' | 'review';
 
 /**
- * Task
+ * TaskDto
  */
-export type Task = {
+export type TaskDto = {
     /**
      * Id
      */
@@ -625,14 +596,12 @@ export type Task = {
     title: string;
     /**
      * Kind
-     *
-     * e.g. imaging, biopsy, lab, consult, request_documents, mdt
      */
     kind: string;
     /**
      * Location
      */
-    location?: string | null;
+    location: string | null;
     /**
      * Owner
      *
@@ -642,24 +611,24 @@ export type Task = {
     /**
      * Due
      */
-    due?: string | null;
-    status?: TaskStatus;
+    due: string | null;
+    status: TaskStatus;
     /**
      * Depends On
      *
      * Task ids that must be done first
      */
-    depends_on?: Array<string>;
+    depends_on: Array<string>;
     /**
      * External
      *
      * Waiting on someone outside the KOC
      */
-    external?: boolean;
+    external: boolean;
     /**
      * Result Document Id
      */
-    result_document_id?: string | null;
+    result_document_id: string | null;
 };
 
 /**
@@ -704,13 +673,9 @@ export type HealthData = {
 
 export type HealthResponses = {
     /**
-     * Response Health
-     *
      * Successful Response
      */
-    200: {
-        [key: string]: boolean;
-    };
+    200: HealthDto;
 };
 
 export type HealthResponse = HealthResponses[keyof HealthResponses];
@@ -728,7 +693,7 @@ export type ListCasesResponses = {
      *
      * Successful Response
      */
-    200: Array<Case>;
+    200: Array<CaseDto>;
 };
 
 export type ListCasesResponse = ListCasesResponses[keyof ListCasesResponses];
@@ -758,7 +723,7 @@ export type GetCaseResponses = {
     /**
      * Successful Response
      */
-    200: Case;
+    200: CaseDto;
 };
 
 export type GetCaseResponse = GetCaseResponses[keyof GetCaseResponses];
@@ -793,7 +758,7 @@ export type GetHandoverResponses = {
     /**
      * Successful Response
      */
-    200: Handover;
+    200: HandoverDto;
 };
 
 export type GetHandoverResponse = GetHandoverResponses[keyof GetHandoverResponses];
@@ -825,7 +790,7 @@ export type ListFindingsResponses = {
      *
      * Successful Response
      */
-    200: Array<Finding>;
+    200: Array<FindingDto>;
 };
 
 export type ListFindingsResponse = ListFindingsResponses[keyof ListFindingsResponses];
@@ -857,7 +822,7 @@ export type ListTasksResponses = {
      *
      * Successful Response
      */
-    200: Array<Task>;
+    200: Array<TaskDto>;
 };
 
 export type ListTasksResponse = ListTasksResponses[keyof ListTasksResponses];
@@ -889,7 +854,7 @@ export type ListDocumentsResponses = {
      *
      * Successful Response
      */
-    200: Array<DocumentMeta>;
+    200: Array<DocumentMetaDto>;
 };
 
 export type ListDocumentsResponse = ListDocumentsResponses[keyof ListDocumentsResponses];
@@ -917,13 +882,9 @@ export type DocumentTextError = DocumentTextErrors[keyof DocumentTextErrors];
 
 export type DocumentTextResponses = {
     /**
-     * Response Document Text
-     *
      * Successful Response
      */
-    200: {
-        [key: string]: string;
-    };
+    200: DocumentTextDto;
 };
 
 export type DocumentTextResponse = DocumentTextResponses[keyof DocumentTextResponses];

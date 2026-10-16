@@ -9,6 +9,11 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | ID | Question | Interim assumption | Ask |
 |---|---|---|---|
 | Q-F8 | **Repeated MDT:** slide 4's example has two MDTs, and the sample conclusion plans another one after neoadjuvant therapy. Can a case go back from *Závěr MDT*? | Not supported. `ALLOWED_TRANSITIONS` has no way back from `zaver_mdt` | VZP |
+| Q-W1 | **UI component library** (WEB-9 requires one for everything it offers) | None yet: semantic HTML only, no library added | Team |
+| Q-W2 | **Router** for the web app | None yet: `App.tsx` renders the dashboard directly | Team |
+| Q-W3 | **i18n library** for Czech + English (Q-F20) | None yet: UI text in Czech | Team |
+| Q-A11 | **Time zones:** contracts use naive `datetime`s. Store UTC, local time, or aware datetimes? | Unchanged (naive) | Team |
+| Q-A12 | **Id scheme** for new cases, tasks, findings, messages (today: slugs and composite ids from seed and `start_task_set`) | Unchanged | Team |
 
 ## F: Product and flow
 
@@ -77,6 +82,32 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-M3 | Rate limits / cost? | No limits | gateway |
 | Q-M4 | Second test case? | **Now, in Phase 1** (synthetic, another diagnosis) | delivery.md |
 
+## A: Architecture and conventions
+
+Asked and decided on 16. 10. 2026. The rules are in [docs/conventions](conventions).
+
+| ID | Question | Decision | Lands in |
+|---|---|---|---|
+| Q-A1 | What do the data conventions cover? | Domain models, persistence/FHIR mapping, API DTOs. The `data/` folder is out of scope | data.md |
+| Q-A2 | How does the web app talk to the API, and where do those shapes live? | **DTOs only**, in `onko_contracts.dto` | DTO-1, DTO-8 |
+| Q-A3 | DTO naming? | `XxxDto` (`CaseDto`, `CreateCaseDto`) | DTO-2 |
+| Q-A4 | DTO shape and enums? | **Mirror the domain model**, diverge only when a screen needs it; reuse the domain enums | DTO-4, DTO-5 |
+| Q-A5 | JSON casing? | `snake_case` | DTO-6 |
+| Q-A6 | Where does domain ↔ DTO mapping live? | `apps/api` (`onko_api/mappers.py`) | DTO-9 |
+| Q-A7 | Error DTO? | No: FastAPI's default `{"detail": …}` | DTO-11 |
+| Q-A8 | Module layout? | **Layered files** (`models.py`, `ports.py`, `service.py`, `adapters/`); `__init__.py` is the only public API. Existing modules restructured | MOD-2 … MOD-11 |
+| Q-A9 | How are conventions enforced on AI? | `AGENTS.md` (root + per module) with `CLAUDE.md` importing it. No architecture tests or hooks | AGENTS.md |
+| Q-A10 | Branch naming? | `<type>/<short-topic>`; commits stay Conventional Commits | GIT-1, GIT-2 |
+
+## W: Web
+
+| ID | Question | Decision | Lands in |
+|---|---|---|---|
+| Q-W4 | How does the web app load data without `useEffect`? | **TanStack Query** through hey-api's generated `xxxOptions()` / `xxxMutation()` helpers. `useEffect` is banned | web.md WEB-1, WEB-10 |
+| Q-W5 | Accessibility bar? | **WCAG 2.2 AA** | ui-ux.md A11Y-* |
+
+Q-W1 to Q-W3 (UI library, router, i18n) are still open, see the top of this page.
+
 ## T: Tooling decisions (taken without asking; review if you disagree)
 
 | ID | Decision | Why |
@@ -90,6 +121,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | T-7 | FastAPI operation ids = route function names | Readable generated client |
 | T-8 | Generated client + `openapi.json` committed; a test fails when stale | Frontend works without a running API |
 | T-9 | In-memory repository seeded with the reference case | Unblocks UI work until `IrisRepository` lands |
+| T-10 | `@tanstack/react-query` pinned to 5.104.1, the newest release at least two weeks old on 16. 10. 2026 | Supply-chain caution; bump deliberately |
 
 ## D: Design decisions (taken without asking; review if you disagree)
 

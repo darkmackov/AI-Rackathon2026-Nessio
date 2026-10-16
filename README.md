@@ -14,12 +14,14 @@ A tool for the KOC coordinator and doctors: GP referral without forms → AI han
 | [docs/reference-case.md](docs/reference-case.md) | The test patient, expected results, traps |
 | [docs/demo-script.md](docs/demo-script.md) | The demo, click by click |
 | [docs/open-questions.md](docs/open-questions.md) | Every decision (Q-…) and what is still open |
+| [docs/conventions/](docs/conventions) | Binding conventions: [data](docs/conventions/data.md) (domain, DTOs, FHIR), [implementation](docs/conventions/implementation.md) (modules, API, Python, git), [web](docs/conventions/web.md), [UI/UX](docs/conventions/ui-ux.md) |
+| [AGENTS.md](AGENTS.md) | Mandatory rules for AI agents (Claude Code loads them via `CLAUDE.md`); every module has its own |
 
 ## Repo layout
 ```
 apps/api           FastAPI backend
 apps/web           React + Vite SPA, typed client generated from the API (src/client)
-packages/contracts shared Pydantic models: change these first, in their own PR
+packages/contracts shared Pydantic models + API DTOs (onko_contracts.dto): change these first, in their own PR
 packages/*         documents, ai, llm-gateway, cases, messaging, repository, bench
 data/              raw challenge data + data/vzp-structured (extracted text, reference case)
 scripts/           extract_sources.py (regenerates data/vzp-structured), export_openapi.py

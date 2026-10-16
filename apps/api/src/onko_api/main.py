@@ -1,4 +1,6 @@
-"""FastAPI app. Thin layer over the modules; all models come from onko_contracts.
+"""FastAPI app. Thin layer over the modules.
+
+Routes take and return DTOs from `onko_contracts.dto` only; domain models are mapped in `mappers`.
 
 Run:  uv run uvicorn onko_api.main:app --reload
 Data: in-memory fake seeded with the reference case until IrisRepository lands
@@ -12,9 +14,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from onko_contracts import Case, DocumentMeta, Finding, Handover, Task
+from onko_contracts.dto import (
+    CaseDto,
+    DocumentMetaDto,
+    DocumentTextDto,
+    FindingDto,
+    HandoverDto,
+    HealthDto,
+    TaskDto,
+)
 from onko_repository import CaseRepository, InMemoryRepository, IrisSettings
 
+from .mappers import case_to_dto, document_meta_to_dto, finding_to_dto, handover_to_dto, task_to_dto
 from .seed import seed_reference_case
 
 repo: CaseRepository = InMemoryRepository()
@@ -46,49 +57,49 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health() -> dict[str, bool]:
-    return {"ok": True, "iris_configured": _iris_configured()}
+def health() -> HealthDto:
+    return HealthDto(ok=True, iris_configured=_iris_configured())
 
 
 @app.get("/cases")
-def list_cases() -> list[Case]:
-    return repo.list_cases()
+def list_cases() -> list[CaseDto]:
+    return [case_to_dto(c) for c in repo.list_cases()]
 
 
 @app.get("/cases/{case_id}")
-def get_case(case_id: str) -> Case:
+def get_case(case_id: str) -> CaseDto:
     try:
-        return repo.get_case(case_id)
+        return case_to_dto(repo.get_case(case_id))
     except KeyError:
         raise HTTPException(404, "case not found") from None
 
 
 @app.get("/cases/{case_id}/handover")
-def get_handover(case_id: str, snapshot: bool = False) -> Handover:
+def get_handover(case_id: str, snapshot: bool = False) -> HandoverDto:
     handover = repo.get_handover(case_id, snapshot=snapshot)
     if handover is None:
         raise HTTPException(404, "no handover yet")
-    return handover
+    return handover_to_dto(handover)
 
 
 @app.get("/cases/{case_id}/findings")
-def list_findings(case_id: str) -> list[Finding]:
-    return repo.list_findings(case_id)
+def list_findings(case_id: str) -> list[FindingDto]:
+    return [finding_to_dto(f) for f in repo.list_findings(case_id)]
 
 
 @app.get("/cases/{case_id}/tasks")
-def list_tasks(case_id: str) -> list[Task]:
-    return repo.list_tasks(case_id)
+def list_tasks(case_id: str) -> list[TaskDto]:
+    return [task_to_dto(t) for t in repo.list_tasks(case_id)]
 
 
 @app.get("/cases/{case_id}/documents")
-def list_documents(case_id: str) -> list[DocumentMeta]:
-    return repo.list_documents(case_id)
+def list_documents(case_id: str) -> list[DocumentMetaDto]:
+    return [document_meta_to_dto(m) for m in repo.list_documents(case_id)]
 
 
 @app.get("/documents/{document_id}/text")
-def document_text(document_id: str) -> dict[str, str]:
+def document_text(document_id: str) -> DocumentTextDto:
     try:
-        return {"id": document_id, "text": repo.document_text(document_id)}
+        return DocumentTextDto(id=document_id, text=repo.document_text(document_id))
     except KeyError:
         raise HTTPException(404, "document not found") from None
