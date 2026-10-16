@@ -26,7 +26,19 @@ describe('app shell, identity and demo controls', () => {
     expect(queryClient.getQueryData(meQueryKey({ headers: actorHeaders('koordinator') }))).toMatchObject({ id: 'koordinator' })
   })
 
-  it('returns to the reloaded page, with its tab, after choosing a person again', async () => {
+  it('keeps the person and the page, with its tab, across a reload of the tab', async () => {
+    const first = renderApp('/coordinator')
+    const user = userEvent.setup()
+    await signIn(user)
+    expect(await screen.findByText('Alena Procházková')).toBeVisible()
+    first.unmount()
+    const { router } = renderApp('/coordinator/cases/vzp-prochazkova?tab=tasks')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alena Procházková' })).toBeVisible()
+    expect(router.state.location.pathname).toBe('/coordinator/cases/vzp-prochazkova')
+    expect(router.state.location.search).toEqual({ tab: 'tasks' })
+  })
+
+  it('returns to the opened page, with its tab, after choosing a person in a new tab', async () => {
     const { router } = renderApp('/coordinator/cases/vzp-prochazkova?tab=tasks')
     const user = userEvent.setup()
     await user.selectOptions(await screen.findByLabelText('Role'), 'coordinator')
