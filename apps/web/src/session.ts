@@ -11,15 +11,31 @@ export function roleHome(role: string) {
   return role === 'coordinator' ? '/coordinator' : '/referrer'
 }
 
-// The page to reopen after choosing a person again (a reload drops the identity, Q-W8). Only same-origin paths.
+// The page to reopen after choosing a person again (a closed tab drops the identity, Q-W8). Only same-origin paths.
 export function entrySearch(search: Record<string, unknown>): { redirect?: string } {
   const { redirect } = search
   return typeof redirect === 'string' && /^\/(?![/\\])/.test(redirect) ? { redirect } : {}
 }
 
+// The chosen person survives a reload of this tab only (Q-W8). Storage can be blocked, so it is best effort.
+const actorKey = 'onko.actorId'
+export function storedActorId(): string | null {
+  try { return sessionStorage.getItem(actorKey) } catch { return null }
+}
+function storeActorId(id: string | null) {
+  try {
+    if (id === null) sessionStorage.removeItem(actorKey)
+    else sessionStorage.setItem(actorKey, id)
+  } catch { /* identity stays in memory */ }
+}
+
 export function useSessionState() {
   const queryClient = useQueryClient()
-  const [actorId, setActorId] = useState<string | null>(null)
+  const [actorId, setActorIdState] = useState<string | null>(storedActorId)
+  function setActorId(id: string | null) {
+    storeActorId(id)
+    setActorIdState(id)
+  }
   const identity = useQuery({
     ...meOptions({ headers: actorHeaders(actorId ?? '') }),
     enabled: actorId !== null,
