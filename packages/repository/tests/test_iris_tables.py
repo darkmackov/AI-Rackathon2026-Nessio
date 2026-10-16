@@ -16,7 +16,7 @@ from onko_contracts import (
     Severity,
     Task,
 )
-from onko_repository.adapters.iris_tables import ID, TEXT, ModelTable
+from onko_repository.adapters.iris_tables import ID, TEXT, ModelTable, _timestamp
 
 NOW = datetime(2026, 10, 16, 9, 30)
 CASES = ModelTable("app_case", Case, key=("id",))
@@ -71,3 +71,10 @@ def test_column_added_later_falls_back_to_the_default():
     values = tasks.row(task)
     values["external"] = None  # an old row, written before the column existed
     assert tasks.model_from([values[n] for n in tasks.column_names]).external is False
+
+
+def test_posix_time_from_an_ordered_query_reads_as_a_datetime():
+    # What IRIS returns for 2026-10-16 09:30 when the query is ordered by that column.
+    assert _timestamp("1154713647606846976") == datetime(2026, 10, 16, 9, 30)
+    assert _timestamp(1154713647606846976) == datetime(2026, 10, 16, 9, 30)
+    assert _timestamp("2026-10-16 09:30:00") == "2026-10-16 09:30:00"

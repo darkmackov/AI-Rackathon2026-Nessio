@@ -169,11 +169,11 @@ Package ids, versions, profile names and identifier systems below were **checked
 | Handover, MDT record, MDT conclusion | `Composition` + rendered `DocumentReference` (PDF). The sent MDT conclusion is also a document `Bundle` (`Composition` first, only the resources it references, unique `identifier` + timestamp, never changed) indexed by a `DocumentReference` with the Bundle and the PDF as attachments (S9, Q-I20) | `composition-cz-core` (cz.core) |
 | AI evidence + human validation | `Provenance` | `cz-provenance` (cz.core) |
 | Findings (gaps/conflicts) | `DetectedIssue` | base R4 |
-| Journey steps (incl. request tasks) / task sets | `Task` / `PlanDefinition` | base R4 |
+| Journey steps (incl. request tasks) / task sets | `Task` / `PlanDefinition` | base R4. `Task` is projected (S9): requester = the KOC, owner = whoever is on the move (Q-I20) |
 | MDT meeting | `Appointment`, `Encounter` | `appointment-cz-core`, `encounter-cz-core` (cz.core) |
 | MDT result delivery, returned referrals (`case_returned`), receipts, patient notices (simulated) | `Communication` | base R4. `CommunicationRequest` for request/reply flows is Phase 2 (Q-F23) |
 | Consent to share with the daughter | `Consent` | base R4 |
-| Audit | `AuditEvent` | base R4 |
+| Audit | `AuditEvent` | base R4, projected from `app_audit` (S9, Q-I26) |
 
 ### Packages (as published on packages.fhir.org)
 
@@ -190,10 +190,13 @@ Package ids, versions, profile names and identifier systems below were **checked
 | `hl7.fhir.eu.hdr` | 0.1.0-ballot only | Hospital Discharge Report; too early to depend on |
 | `hl7.fhir.cz.terminology` | **0.2.0 only** | cz.core and cz.lab require 0.3.0, which is not on the registry |
 
-### How the projection is written (S7)
-- `IrisRepository` pushes the projection on every save, as one FHIR transaction (`PUT` by id): `save_document` → `DocumentReference` + `Binary` (Q-I10; the parsed text when the original bytes are missing); `save_handover` → `Patient`, `Condition`, `Observation`, `DiagnosticReport`, `Composition`, `Provenance`. Findings, tasks, cases and messages are not projected yet; tasks (as FHIR `Task`) and the MDT conclusion as a document `Bundle` come with S9 (Q-I20).
+### How the projection is written (S7, S9)
+- `IrisRepository` pushes the projection on every save, as one FHIR transaction (`PUT` by id): `save_document` → `DocumentReference` + `Binary` (Q-I10; the parsed text when the original bytes are missing); `save_handover` → `Patient`, `Condition`, `Observation`, `DiagnosticReport`, `Composition`, `Provenance`; `save_task` → `Task`; `save_audit` → `AuditEvent`; `save_mdt_conclusion` with a confirmed conclusion → the MDT conclusion document `Bundle` + its `DocumentReference` (S9, Q-I20). Findings, cases and messages are not projected.
+- **`Task`** (S9): id `task-{task}`; status `planned` → `requested`, `booked` → `accepted`, `done` → `completed`, `cancelled` → `cancelled`; `intent=order`; priority `normal` → `routine`, `high` → `urgent`, `urgent` → `asap`; `requester` = the case's KOC, `owner` = `Task.owner` (both by name from the directory, as `display`); `restriction.period.end` = due; `for` = the case's `Patient` once a handover has been projected; the result document as `output` (`DocumentReference`).
+- **`AuditEvent`** (S9): id `audit-{event}`, type DICOM `110110` *Patient Record*, the app's `action` as `subtype`, `recorded` = `at`, the actor as the requesting `agent`, the case's `Patient` as `entity` (with `detail` as its description).
+- **MDT conclusion** (S9, Q-I20): built when a **confirmed** conclusion is saved (confirmation is required to send it). A FHIR **document `Bundle`** (`Bundle/{case}-mdt-conclusion-{confirmed.at}`): `identifier` `urn:ietf:rfc:3986` + a `urn:uuid` derived from the case and the confirmation time, `timestamp` = `confirmed.at`, `fullUrl`s and references as `urn:uuid`. Entries: the `Composition` first (*Závěr MDT*, `final`, sections Diagnóza / Klinické zhodnocení / Závěr / Doporučení), then only what it references: the `Patient` and the diagnosis `Condition`, now `confirmed` with the definitive MKN-10 code (Q-C9). A re-confirmed (corrected) conclusion gets a new id and identifier; an assembled Bundle is never changed. A `DocumentReference` with the same id indexes it: attachment 1 is the Bundle (`application/fhir+json`), attachment 2 the PDF: the uploaded report's `Binary` (source `uploaded`); the rendered PDF of a written conclusion joins when S5 renders it.
 - FHIR ids derive from the app ids: `{case}-patient`, `{case}-dx`, `{case}-lab-1`, `{case}-handover`, `doc-{document}`. The MDT snapshot gets its own `{case}-mdt-…` resources (PER-9), sharing the case's `Patient`.
-- A failed projection never loses the app-state save. From S9 every FHIR write goes through the **outbox** (D-14): stored in the same IRIS SQL transaction as the save, then sent and retried until it succeeds, with pending writes visible.
+- A failed projection never loses the app-state save. Every FHIR write goes through the **outbox** (S9, D-14): the transaction `Bundle` is stored in `fhir_outbox` in the same IRIS SQL transaction as the app-state save, then sent right after the commit. A write that fails stays in the outbox and a background thread retries it every 10 s. Writes are sent **in order**, oldest first, and a failure stops the round, so an older state never overwrites a newer one. Pending writes are visible in `/health` (`fhir_pending`). Without `ONKO_FHIR_BASE_URL` nothing is queued.
 - **MKN-10** is coded with `http://hl7.org/fhir/sid/icd-10`: cz.core 1.0.0 defines no MKN-10 system. The diagnosis `Condition` stays `provisional` (Q-C9).
 - Body weight / height use the base R4 vital-signs profiles with LOINC `29463-7` / `8302-2`. Performance status is an `Observation` only when found (PER-7), without a LOINC code; once the contract carries scale + score (Q-C13), the score is its value.
 - Lab results: today the projection parses the number itself when it can (`valueQuantity` with the printed unit, no UCUM code), else `valueString`. With Q-C13 the parsing moves into extraction: `valueQuantity` gets the normalized number, the comparator and the UCUM unit (`http://unitsofmeasure.org`); a value that couldn't be normalized stays a `valueString`.
@@ -226,6 +229,9 @@ Tables and columns missing on start are created (`ALTER TABLE … ADD COLUMN`), 
 | `app_receipt` | `Receipt` | `message_id`, `recipient_id` | | |
 | `app_job` | `Job` | `id` | `case_id` | |
 | `app_handover` | `Handover` | `case_id`, `is_snapshot` | | `body`: the handover as **one JSON document** (live and the frozen MDT snapshot, PER-9) |
+| `app_audit` | `AuditEvent` | `id` | `case_id` | append-only (PER-13); foreign key `case_id` → `app_case` |
+| `app_mdt_conclusion` | `MdtConclusion` | `case_id` | | foreign key `case_id` → `app_case` |
+| `fhir_outbox` | (none) | `id` | | `case_id`, `bundle` (the transaction `Bundle` as JSON, stream), `attempts`, `last_error`; sent in insertion order, a row is deleted once sent (S9, D-14) |
 
 The handover is the one document: 26 `Sourced` values with evidence, read and written whole. It is stored as a plain string, so IRIS SQL can query inside it with `JSON_TABLE`; its clinical content is what the FHIR projection carries.
 
@@ -233,12 +239,10 @@ A new port method that stores a new model adds its table here (PER-11).
 
 **Planned schema changes (Q-I26)**, all plain IRIS SQL:
 - `app_message_recipient(message_id, recipient_id)`, indexed on `recipient_id`, written in the same save as `app_message` (S6). Keyed like `app_receipt`.
-- `app_audit` for `AuditEvent`: one row per event, append-only, indexed on `case_id` (S4); projected to FHIR `AuditEvent` through the outbox (S9).
-- Foreign keys: `case_id` in `app_document`, `app_finding`, `app_task`, `app_message`, `app_handover`, `app_audit`, `doc_chunk` and `fhir_outbox` → `app_case`; `document_id` in `doc_chunk` → `app_document` (S7). `clear()` deletes child tables first.
+- Foreign keys: `case_id` in `app_document`, `app_finding`, `app_task`, `app_message`, `app_handover`, `doc_chunk` → `app_case` (`app_audit` and `app_mdt_conclusion` have theirs since S9; `fhir_outbox.case_id` stays unconstrained, a document can be saved before its case); `document_id` in `doc_chunk` → `app_document` (S7). `clear()` deletes child tables first.
 - Bitmap indexes instead of normal ones on `state`, `queue` (`app_case`), `kind` (`app_organization`), `role` (`app_actor`), if the tables keep IRIS's integer row ID (Q-I27).
 
 - `doc_chunk(id, document_id, case_id, ord, text, embedding VECTOR(DOUBLE, n))` (S8, Q-I19): Vector Search for evidence and "ask the case", plus the chunk's character offsets in its document. Case-scoped queries are an exact scan filtered by `case_id`, no HNSW index. `n` depends on the embedding model (Q-M7). Planned; the contract PR for S8 adds the model and the exact columns.
-- `fhir_outbox` (S9, D-14): pending FHIR writes, stored in the same transaction as the app-state save and retried until sent. Planned; the exact columns come with S9.
 - Duplicate uploads (Q-I22): a SHA-256 of the original bytes on `app_document`, compared on upload; near copies are compared on the parsed text. Planned with S2.
 - An MKN-10 code table with embeddings for code candidates (S8, Q-C11); the list source is open (Q-C12).
 - `llm_call(id, step, model, prompt_hash, tokens_in, tokens_out, latency_ms, ok)`: bench and usage tracking (no limits, Q-M3).

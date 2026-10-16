@@ -594,6 +594,8 @@ export const resetDemo = <ThrowOnError extends boolean = false>(options: Options
 
 /**
  * Health
+ *
+ * `fhir_pending`: FHIR writes still waiting in the outbox (D-14), never silent.
  */
 export const health = <ThrowOnError extends boolean = false>(options?: Options<HealthData, ThrowOnError>): RequestResult<HealthResponses, unknown, ThrowOnError> => (options?.client ?? client).get<HealthResponses, unknown, ThrowOnError>({ url: '/health', ...options });
 

@@ -6,12 +6,14 @@ from typing import Protocol
 
 from onko_contracts import (
     Actor,
+    AuditEvent,
     Case,
     DocumentMeta,
     Finding,
     Handover,
     Job,
     MdtBoard,
+    MdtConclusion,
     Message,
     Organization,
     Receipt,
@@ -69,3 +71,23 @@ class CaseRepository(Protocol):
     def save_message(self, message: Message) -> None: ...
     def list_messages(self, case_id: str) -> list[Message]: ...
     def save_receipt(self, receipt: Receipt) -> None: ...
+
+    def save_audit(self, event: AuditEvent) -> None:
+        """Append one audit event (PER-13): `ValueError` if its id is taken, `KeyError` if the case
+        is unknown. Audit rows are never updated."""
+        ...
+
+    def list_audit(self, case_id: str) -> list[AuditEvent]:
+        """The case's audit trail, oldest `at` first."""
+        ...
+
+    def save_mdt_conclusion(self, conclusion: MdtConclusion) -> None:
+        """Store the case's MDT conclusion (one per case, replaced on save). `KeyError` if the case
+        is unknown."""
+        ...
+
+    def get_mdt_conclusion(self, case_id: str) -> MdtConclusion | None: ...
+
+    def pending_fhir_writes(self) -> int:
+        """FHIR writes waiting in the outbox (D-14); always 0 without a FHIR projection."""
+        ...
