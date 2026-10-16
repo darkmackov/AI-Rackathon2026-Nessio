@@ -73,6 +73,7 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
 
   return {
     saveResult: (caseId: string, value: ReturnType<typeof demoExtraction>) => results.set(caseId, structuredClone(value)),
+    detachJob: (id: string) => { jobs.delete(id) },
     reset: (withReference: boolean) => {
       documents.clear(); originals.clear(); jobs.clear(); results.clear(); texts.clear(); extracted.clear()
       if (!withReference) return

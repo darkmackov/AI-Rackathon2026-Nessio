@@ -122,7 +122,8 @@ describe('S4 HTTP workflow', () => {
     await expect(mutation(api.returnCaseMutation(), { ...scoped, body: { note: 'Zpráva', finding_id: 'foreign' } })).rejects.toMatchObject({ status: 404 })
     await expect(mutation(api.updateTaskSetMutation(), { headers, path: { task_set_id: 'missing' }, body: { name: 'Sada', steps: [] } })).rejects.toMatchObject({ status: 404 })
     expect(demoState.coordinator.audit(s4CaseId)).toHaveLength(count)
-    await expect(mutation(api.createMdtSnapshotMutation(), { ...scoped, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-25' } })).rejects.toMatchObject({ status: 501 })
+    // S5 is simulated now; a case still in triage must not create a snapshot.
+    await expect(mutation(api.createMdtSnapshotMutation(), { ...scoped, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-25' } })).rejects.toMatchObject({ status: 409 })
   })
 
   it('validates HTTP bodies, unknown identities, non-overridable findings and cyclic templates', async () => {

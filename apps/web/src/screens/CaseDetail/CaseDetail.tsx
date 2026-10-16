@@ -2,7 +2,7 @@ import { Badge, Grid, Stack, Tabs } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { IconHistory, IconChecklist, IconClipboardText, IconFiles, IconLayoutDashboard, IconListSearch, type Icon } from '@tabler/icons-react'
+import { IconHistory, IconChecklist, IconClipboardText, IconFiles, IconLayoutDashboard, IconListSearch, IconUsersGroup, type Icon } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, actorHeaders } from '../../api'
@@ -23,8 +23,9 @@ import HandoverTab from '../../components/handover/HandoverTab'
 import OverviewTab from './OverviewTab'
 import SourcePanel, { SourcePlaceholder } from '../../components/handover/SourcePanel'
 import TasksTab from './TasksTab'
+import MdtTab from './Mdt/MdtTab'
 
-const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles, audit: IconHistory }
+const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles, audit: IconHistory, mdt: IconUsersGroup }
 
 function DetailContent({ caseId }: { caseId: string }) {
   const { t } = useTranslation()
@@ -106,6 +107,7 @@ function DetailContent({ caseId }: { caseId: string }) {
               findingActions={(finding) => <FindingActions caseId={caseId} finding={finding} handover={handover.data} />} />}
           </Tabs.Panel>
           <Tabs.Panel value="tasks">{seen('tasks') && <TasksTab caseId={caseId} openSource={openSource} showFinding={showFinding} />}</Tabs.Panel>
+          <Tabs.Panel value="mdt">{seen('mdt') && <MdtTab item={current} handover={handover.data} handoverState={handover.isPending ? <LoadingState rows={2} /> : handoverError} documents={documents.data ?? []} names={names} sources={sources} showFindings={() => { void navigate({ search: { tab: 'findings' } }) }} />}</Tabs.Panel>
           <Tabs.Panel value="audit">{seen('audit') && <AuditTab caseId={caseId} />}</Tabs.Panel>
           <Tabs.Panel value="documents">{seen('documents') && <DocumentsTab item={current} names={names} openSource={openSource} />}</Tabs.Panel>
         </Grid.Col>

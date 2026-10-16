@@ -7,6 +7,8 @@ import { createCoordinatorHandlers } from './coordinator'
 import { treatmentTime } from './treatment-time'
 import { createDocumentDemoState, createDocumentHandlers } from './documents'
 import { createReferralHandlers } from './referrals'
+import { createMdtState, handoverAt, mdtRecord } from './mdt-state'
+import { createMdtHandlers } from './mdt'
 import { caseStates, enumError, extraFields, isApiDateTime, objectBody, organizationKinds, queryValue, queueColumns, validateEnumQuery, validationResponse } from './validation'
 
 // Mutable simulated server state is private to this tab (Q-W6, Q-W10).
@@ -15,6 +17,7 @@ export function createDemoState(readNow: () => number = Date.now) {
   let simulatedAt: number | null = null
   let anchoredAt = readNow()
   const documents = createDocumentDemoState(readNow)
+  const mdt = createMdtState(readNow)
 
   const setTime = (value: string | null) => {
     simulatedAt = value === null ? null : new Date(value).getTime()
@@ -23,12 +26,24 @@ export function createDemoState(readNow: () => number = Date.now) {
   const reset = (scenario: DemoScenario) => {
     documents.reset(scenario !== 'empty')
     coordinator.reset(scenario !== 'empty')
+    mdt.reset()
+    if (scenario !== 'empty') {
+      for (const item of coordinator.cases().filter((item) => item.state === 'pripraveno_k_mdt')) {
+        const live = documents.result(item.id)?.handover, board = mdt.boards().find((entry) => entry.id === item.mdt_board_id)
+        if (live && board && item.mdt_date && item.coordinator_id) {
+          const stamp = { by: item.coordinator_id, at: `${item.mdt_date}T09:00:00` }
+          const frozen = handoverAt(live, documents.list(item.id), item.mdt_date, stamp)
+          mdt.saveSnapshot(frozen); mdt.saveRecord(mdtRecord(frozen, board, actors.find((actor) => actor.id === item.referring_doctor_id), stamp))
+        }
+      }
+    }
     setTime(scenario === 'empty' ? '2026-10-02T14:00:00' : '2026-10-21T09:00:00')
     return coordinator.cases()
   }
   reset('reference_at_mdt')
   return {
     documents,
+    mdt,
     coordinator,
     reset,
     setTime,
@@ -46,6 +61,7 @@ export function createDemoState(readNow: () => number = Date.now) {
 export function createHandlers(state = createDemoState()) {
   const notFound = () => HttpResponse.json({ detail: 'not found' }, { status: 404 })
   return [
+    ...createMdtHandlers(state),
     ...createCoordinatorHandlers(state),
     ...createDocumentHandlers(state),
     ...createReferralHandlers(state),

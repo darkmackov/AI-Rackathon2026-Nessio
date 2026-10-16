@@ -1,12 +1,13 @@
 import { Alert, Badge, Button, Drawer, Group, Stack, Table, Text, Title } from '@mantine/core'
 import { useIsMutating, useQuery } from '@tanstack/react-query'
-import { useCallback, useId, useRef, useState } from 'react'
+import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { getDocumentFileOptions, listDocumentsOptions } from '../../client/@tanstack/react-query.gen'
 import type { Case, DocumentMeta } from '../../client/types.gen'
 import LoadingState, { EmptyState, QueryError } from '../DataState'
 import DocumentJobs from '../documents/DocumentJobs'
+import DownloadFile from './DownloadFile'
 import DocumentMetadataForm from '../documents/DocumentMetadataForm'
 import DocumentUploader from '../documents/DocumentUploader'
 import { useSession } from '../../session'
@@ -17,33 +18,12 @@ export function DownloadOriginal({ document }: { document: DocumentMeta }) {
   const { t } = useTranslation()
   const { actorId } = useSession()
   const download = useQuery({ ...getDocumentFileOptions({ path: { document_id: document.id }, headers: actorHeaders(actorId ?? ''), parseAs: 'blob' }), enabled: false, gcTime: 0 })
-  const [feedback, setFeedback] = useState<'downloaded' | 'downloadError' | null>(null)
-  const link = useRef<HTMLAnchorElement | null>(null)
-  const url = useRef<string | null>(null)
-  const linkRef = useCallback((node: HTMLAnchorElement | null) => {
-    link.current = node
-    return () => {
-      link.current = null
-      if (url.current) URL.revokeObjectURL(url.current)
-      url.current = null
-    }
-  }, [])
-  return <Stack gap={4}><Button variant="subtle" size="compact-sm" loading={download.isFetching} onClick={async () => {
-    setFeedback(null)
+  return <DownloadFile label={t('caseDetail.download')} filename={document.filename} pending={download.isFetching} load={async () => {
     const result = await download.refetch()
-    if (!link.current) return // Identity changed or detail was reset while loading.
-    if (result.isError || !(result.data instanceof Blob)) { setFeedback('downloadError'); return }
-    if (url.current) URL.revokeObjectURL(url.current)
-    url.current = URL.createObjectURL(result.data)
-    link.current.href = url.current
-    link.current.click()
-    setFeedback('downloaded')
-  }}>{t('caseDetail.download')}</Button>
-    <a hidden ref={linkRef} download={document.filename} />
-    {feedback && <Text size="sm" role={feedback === 'downloadError' ? 'alert' : 'status'} c={feedback === 'downloadError' ? 'red.9' : undefined}>{t(`caseDetail.${feedback}`)}</Text>}
-  </Stack>
+    if (result.isError) throw result.error
+    return result.data
+  }} />
 }
-
 function DocumentTable({ item, documents, names, openSource, onEdit, editDisabled }: {
   item: Case; documents: DocumentMeta[]; names: Record<string, string>; openSource: OpenSource; onEdit: (id: string) => void; editDisabled: boolean;
 }) {

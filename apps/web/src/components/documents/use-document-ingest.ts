@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import {
   getCaseQueryKey, getHandoverQueryKey, getJobOptions, getJobQueryKey, getTimeToTreatmentQueryKey,
   listCaseJobsQueryKey, listCasesQueryKey, listDocumentsQueryKey, listFindingsQueryKey,
-  listTasksQueryKey, listAuditQueryKey, reextractCaseMutation,
+  listTasksQueryKey, listAuditQueryKey, reextractCaseMutation, getMdtRecordQueryKey, getMdtConclusionQueryKey,
 } from '../../client/@tanstack/react-query.gen'
 import type { Job } from '../../client/types.gen'
 import { actorHeaders } from '../../api'
@@ -13,7 +13,7 @@ export async function refreshCaseResults(client: QueryClient, caseId: string) {
   // Omitting headers here invalidates all cached actor/snapshot variants of this case.
   await Promise.all([
     listDocumentsQueryKey(options), getHandoverQueryKey(options), listFindingsQueryKey(options),
-    getCaseQueryKey(options), listTasksQueryKey(options), listAuditQueryKey(options), getTimeToTreatmentQueryKey(options), listCasesQueryKey(),
+    getCaseQueryKey(options), listTasksQueryKey(options), listAuditQueryKey(options), getTimeToTreatmentQueryKey(options), listCasesQueryKey(), getMdtRecordQueryKey(options), getMdtConclusionQueryKey(options),
   ].map((queryKey) => client.invalidateQueries({ queryKey })))
 }
 
