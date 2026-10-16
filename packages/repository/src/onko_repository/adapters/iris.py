@@ -1,5 +1,6 @@
 """IRIS repository: app state in IRIS SQL tables, projected to FHIR R4 (EU/CZ profiles) where
-needed (Q-A7, PER-4) through the FHIR outbox (D-14); vector chunks in Phase 2.
+needed (Q-A7, PER-4) through the FHIR outbox (D-14); document chunks and the MKN-10 code list with
+their embeddings in `VECTOR` columns (S8, Q-I19).
 
 Workflow state is relational: one table per model with a typed column per field, generated from the
 contract models (`iris_tables`, Q-I14). Only the handover, a deep aggregate of `Sourced` values,
@@ -25,6 +26,8 @@ from onko_contracts import (
     Actor,
     AuditEvent,
     Case,
+    CodeCandidate,
+    DocChunk,
     DocumentMeta,
     Finding,
     Handover,
@@ -79,6 +82,22 @@ MODEL_TABLES: list[ModelTable[Any]] = [
     ORGANIZATIONS, ACTORS, MDT_BOARDS, CASES, DOCUMENTS, FINDINGS, TASKS, MESSAGES, RECEIPTS, JOBS,
     AUDIT, MDT_CONCLUSIONS,
 ]
+
+
+def vector_tables(dim: int) -> tuple[ModelTable[DocChunk], ModelTable[CodeCandidate]]:
+    """`doc_chunk` and `mkn10_code` with an `embedding VECTOR(DOUBLE, dim)` column (S8, Q-I19).
+    Only with ONKO_EMBED_DIM set, since the dimension is part of the column type."""
+    embedding = {"embedding": f"VECTOR(DOUBLE, {dim})"}
+    chunks = ModelTable("doc_chunk", DocChunk, key=("id",), extra=embedding,
+                        indexes=("case_id", "document_id"),
+                        foreign_keys={"case_id": CASES.name, "document_id": DOCUMENTS.name})
+    codes = ModelTable("mkn10_code", CodeCandidate, key=("code",), extra=embedding)
+    return chunks, codes
+
+
+def _vector(values: list[float]) -> str:
+    """A vector as `TO_VECTOR` reads it."""
+    return ",".join(repr(float(v)) for v in values)
 
 # The handover as one JSON document per (case, live | MDT snapshot). A plain string, not a stream,
 # so IRIS SQL can query inside it with JSON_TABLE.
@@ -141,6 +160,8 @@ class IrisRepository:
         self._connect = connect or self._connect_driver
         self._lock = threading.RLock()
         self._conn: Any = None
+        self.embed_dim = self.settings.embed_dim
+        self._vectors = vector_tables(self.embed_dim) if self.embed_dim else None
         self.create_tables()
         self.outbox: Outbox | None = None
         if projector is not None:
@@ -205,7 +226,7 @@ class IrisRepository:
             for table, column in cur.fetchall():
                 existing.setdefault(table.lower(), set()).add(column.lower())
 
-            for table in MODEL_TABLES:
+            for table in self._model_tables():
                 qualified = self._t(table.name)
                 if table.name not in existing:
                     cur.execute(table.create_sql(qualified, self._t))
@@ -235,14 +256,22 @@ class IrisRepository:
                 [self.schema],
             )
             existing = {row[0].lower() for row in cur.fetchall()}
-            for name in self._table_names():
+            for name in [*self._table_names(), *self._reference_tables()]:
                 if name in existing:
                     cur.execute(f"DROP TABLE {self._t(name)}")
 
-    @staticmethod
-    def _table_names() -> list[str]:
-        """Children first, so foreign keys hold while rows or tables go."""
-        return [OUTBOX_TABLE, HANDOVER_TABLE, *reversed([t.name for t in MODEL_TABLES])]
+    def _model_tables(self) -> list[ModelTable[Any]]:
+        """Parents before children."""
+        return [*MODEL_TABLES, *(self._vectors or ())]
+
+    def _table_names(self) -> list[str]:
+        """The app-state tables, children first, so foreign keys hold while rows or tables go."""
+        chunks = [self._vectors[0].name] if self._vectors else []
+        return [*chunks, OUTBOX_TABLE, HANDOVER_TABLE, *reversed([t.name for t in MODEL_TABLES])]
+
+    def _reference_tables(self) -> list[str]:
+        """Reference data the demo reset keeps (the MKN-10 code list)."""
+        return [self._vectors[1].name] if self._vectors else []
 
     def clear(self) -> None:
         """Delete every row of the app-state tables and the pending FHIR writes, keeping the schema
@@ -542,6 +571,82 @@ class IrisRepository:
     def get_mdt_conclusion(self, case_id: str) -> MdtConclusion | None:
         found = self._select(MDT_CONCLUSIONS, '"case_id" = ?', [case_id])
         return found[0] if found else None
+
+
+    # --- vector search (S8, Q-I19) -------------------------------------------------------------
+
+    def _vector_tables(self, vectors: list[list[float]] | None = None
+                       ) -> tuple[ModelTable[DocChunk], ModelTable[CodeCandidate]]:
+        if self._vectors is None:
+            raise RuntimeError("Set ONKO_EMBED_DIM (the embedding model's dimension) in .env")
+        if any(len(v) != self.embed_dim for v in vectors or []):
+            raise ValueError(f"embeddings must have {self.embed_dim} dimensions (ONKO_EMBED_DIM)")
+        return self._vectors
+
+    def _insert_vector_sql(self, table: ModelTable[Any], values: dict[str, Any],
+                           vector: list[float]) -> tuple[str, list[Any]]:
+        columns = ", ".join(quote(c) for c in [*values, "embedding"])
+        marks = ", ".join(["?"] * len(values) + [f"TO_VECTOR(?, DOUBLE, {self.embed_dim})"])
+        return (f"INSERT INTO {self._t(table.name)} ({columns}) VALUES ({marks})",
+                [*values.values(), _vector(vector)])
+
+    def _nearest(self, table: ModelTable[M], vector: list[float], limit: int, where: str = "",
+                 params: list[Any] | None = None) -> list[M]:
+        """Exact scan ranked by cosine similarity, best first (Q-I19)."""
+        self._vector_tables([vector])
+        sql = f"SELECT TOP {int(limit)} {table.select_list()} FROM {self._t(table.name)}"
+        if where:
+            sql += f" WHERE {where}"
+        sql += f' ORDER BY VECTOR_COSINE("embedding", TO_VECTOR(?, DOUBLE, {self.embed_dim})) DESC'
+        with self._cursor() as cur:
+            cur.execute(sql, [*(params or []), _vector(vector)])
+            rows = [list(row) for row in cur.fetchall()]
+        return [table.model_from(row) for row in rows]
+
+    def save_chunks(self, document_id: str, chunks: list[DocChunk], vectors: list[list[float]]
+                    ) -> None:
+        table, _ = self._vector_tables(vectors)
+        if len(chunks) != len(vectors):
+            raise ValueError(f"{len(vectors)} vectors for {len(chunks)} chunks")
+        if any(c.document_id != document_id for c in chunks):
+            raise ValueError(f"every chunk must belong to document {document_id}")
+        meta = self.get_document(document_id)
+        if meta is None:
+            raise KeyError(document_id)
+        statements = [(f'DELETE FROM {self._t(table.name)} WHERE "document_id" = ?', [document_id])]
+        statements += [self._insert_vector_sql(table, table.row(c), v)
+                       for c, v in zip(chunks, vectors, strict=True)]
+        self._write(statements, case_id=meta.case_id)
+
+    def list_chunks(self, case_id: str) -> list[DocChunk]:
+        table, _ = self._vector_tables()
+        return self._select(table, '"case_id" = ?', [case_id], order='"document_id", "ord"')
+
+    def nearest_chunks(self, case_id: str, vector: list[float], limit: int, *,
+                       document_id: str | None = None) -> list[DocChunk]:
+        table, _ = self._vector_tables()
+        if document_id is None:
+            return self._nearest(table, vector, limit, '"case_id" = ?', [case_id])
+        return self._nearest(table, vector, limit, '"case_id" = ? AND "document_id" = ?',
+                             [case_id, document_id])
+
+    def save_codes(self, codes: list[CodeCandidate], vectors: list[list[float]]) -> None:
+        _, table = self._vector_tables(vectors)
+        if len(codes) != len(vectors):
+            raise ValueError(f"{len(vectors)} vectors for {len(codes)} codes")
+        self._write([(f"DELETE FROM {self._t(table.name)}", []),
+                     *(self._insert_vector_sql(table, table.row(c), v)
+                       for c, v in zip(codes, vectors, strict=True))])
+
+    def count_codes(self) -> int:
+        _, table = self._vector_tables()
+        with self._cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM {self._t(table.name)}")
+            return int(cur.fetchone()[0])
+
+    def nearest_codes(self, vector: list[float], limit: int) -> list[CodeCandidate]:
+        _, table = self._vector_tables()
+        return self._nearest(table, vector, limit)
 
 
 class _OutboxTable:

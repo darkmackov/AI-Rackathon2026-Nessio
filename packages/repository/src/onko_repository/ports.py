@@ -8,6 +8,8 @@ from onko_contracts import (
     Actor,
     AuditEvent,
     Case,
+    CodeCandidate,
+    DocChunk,
     DocumentMeta,
     Finding,
     Handover,
@@ -87,6 +89,36 @@ class CaseRepository(Protocol):
         ...
 
     def get_mdt_conclusion(self, case_id: str) -> MdtConclusion | None: ...
+
+    # --- vector search (S8, Q-I19) -------------------------------------------------------------
+
+    def save_chunks(self, document_id: str, chunks: list[DocChunk], vectors: list[list[float]]
+                    ) -> None:
+        """Replace the document's chunks and their embeddings (one vector per chunk). `KeyError` if
+        the document is unknown, `ValueError` if a chunk belongs to another document or the counts
+        differ."""
+        ...
+
+    def list_chunks(self, case_id: str) -> list[DocChunk]:
+        """The case's chunks, by document, then `ord`."""
+        ...
+
+    def nearest_chunks(self, case_id: str, vector: list[float], limit: int, *,
+                       document_id: str | None = None) -> list[DocChunk]:
+        """The case's (or one document's) `limit` chunks most similar to `vector` (cosine), best
+        first. An exact scan, no approximate index (Q-I19)."""
+        ...
+
+    def save_codes(self, codes: list[CodeCandidate], vectors: list[list[float]]) -> None:
+        """Replace the MKN-10 code list (Q-C11, Q-C12) with one embedding per code. Reference data:
+        `clear()` keeps it."""
+        ...
+
+    def count_codes(self) -> int: ...
+
+    def nearest_codes(self, vector: list[float], limit: int) -> list[CodeCandidate]:
+        """The `limit` codes most similar to `vector` (cosine), best first."""
+        ...
 
     def pending_fhir_writes(self) -> int:
         """FHIR writes waiting in the outbox (D-14); always 0 without a FHIR projection."""

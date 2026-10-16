@@ -237,18 +237,18 @@ Tables and columns missing on start are created (`ALTER TABLE … ADD COLUMN`), 
 | `app_handover` | `Handover` | `case_id`, `is_snapshot` | | `body`: the handover as **one JSON document** (live and the frozen MDT snapshot, PER-9) |
 | `app_audit` | `AuditEvent` | `id` | `case_id` | append-only (PER-13); foreign key `case_id` → `app_case` |
 | `app_mdt_conclusion` | `MdtConclusion` | `case_id` | | foreign key `case_id` → `app_case` |
+| `doc_chunk` | `DocChunk` | `id` (`{document_id}-{ord}`) | `case_id`, `document_id` | `embedding VECTOR(DOUBLE, n)`, `n` = `ONKO_EMBED_DIM` (Q-M7); foreign keys `case_id` → `app_case`, `document_id` → `app_document`; a document's chunks are replaced when it is indexed again (S8, Q-I19). Ranked by `VECTOR_COSINE` in an exact scan filtered by `case_id` (and `document_id` for an unverified-quote flag), no HNSW index |
+| `mkn10_code` | `CodeCandidate` | `code` | | `embedding VECTOR(DOUBLE, n)`: the MKN-10 code list (Q-C12) embedded by its Czech name, loaded by `scripts/load_mkn10.py`, ranked by `VECTOR_COSINE` against the diagnosis text (S8, Q-C11). Reference data: the demo reset keeps it |
 | `fhir_outbox` | (none) | `id` | | `case_id`, `bundle` (the transaction `Bundle` as JSON, stream), `attempts`, `last_error`; sent in insertion order, a row is deleted once sent (S9, D-14) |
 
 The handover is the one document: 26 `Sourced` values with evidence, read and written whole. It is stored as a plain string, so IRIS SQL can query inside it with `JSON_TABLE`; its clinical content is what the FHIR projection carries.
 
-A new port method that stores a new model adds its table here (PER-11).
+A new port method that stores a new model adds its table here (PER-11). The two vector tables exist only with `ONKO_EMBED_DIM` set; they are not projected to FHIR.
 
 **Planned schema changes (Q-I26)**, all plain IRIS SQL:
 - `app_message_recipient(message_id, recipient_id)`, indexed on `recipient_id`, written in the same save as `app_message` (S6). Keyed like `app_receipt`.
 - Foreign keys: `case_id` in `app_document`, `app_finding`, `app_task`, `app_message`, `app_handover`, `doc_chunk` → `app_case` (`app_audit` and `app_mdt_conclusion` have theirs since S9; `fhir_outbox.case_id` stays unconstrained, a document can be saved before its case); `document_id` in `doc_chunk` → `app_document` (S7). `clear()` deletes child tables first.
 - Bitmap indexes instead of normal ones on `state`, `queue` (`app_case`), `kind` (`app_organization`), `role` (`app_actor`), if the tables keep IRIS's integer row ID (Q-I27).
 
-- `doc_chunk` (S8, Q-I19): model `DocChunk`, key `id` (`{document_id}-{ord}`), indexed `case_id`, `document_id`; extra column `embedding VECTOR(DOUBLE, n)` with `n` = `ONKO_EMBED_DIM`, the embedding model's dimension (Q-M7). Foreign keys `case_id` → `app_case`, `document_id` → `app_document`. A document's chunks are replaced whenever it is indexed again. Vector Search for flagging unverified quotes with the nearest chunk and for "ask the case": an exact scan filtered by `case_id` (and `document_id` for a flag), ranked by `VECTOR_COSINE`, no HNSW index. Not projected to FHIR.
 - Duplicate uploads (Q-I22): a SHA-256 of the original bytes on `app_document`, compared on upload; near copies are compared on the parsed text. Planned with S2.
-- `mkn10_code` (S8, Q-C11): `code` (key), `title_cs`, `embedding VECTOR(DOUBLE, n)`; the MKN-10 code list (Q-C12) loaded by a script, ranked by `VECTOR_COSINE` against the embedded diagnosis text (exact scan; an HNSW index is allowed here, Q-I19). Reference data, not app state: the demo reset keeps it.
 - `llm_call(id, step, model, prompt_hash, tokens_in, tokens_out, latency_ms, ok)`: bench and usage tracking (no limits, Q-M3).

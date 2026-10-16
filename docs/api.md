@@ -196,8 +196,8 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 | `PATCH` | `/cases/{case_id}/handover` | `HandoverFieldUpdate` | `Handover` 200 | ✓ | `updateHandoverField` | **works** (S3) |
 | `GET` | `/cases/{case_id}/handover` | — · query `snapshot` | `Handover` 200 |  | `getHandover` | **works** (seeded) |
 | `POST` | `/cases/{case_id}/handover/examinations` | `ExaminationCreate` | `Handover` 201 | ✓ | `addExamination` | **works** (S3) |
-| `GET` | `/cases/{case_id}/handover/code-candidates` | — | `list[CodeCandidate]` 200 |  | `listCodeCandidates` | defined (501) |
-| `POST` | `/cases/{case_id}/handover/diagnosis-code` | `DiagnosisCodePick` | `Handover` 200 | ✓ | `pickDiagnosisCode` | defined (501) |
+| `GET` | `/cases/{case_id}/handover/code-candidates` | — | `list[CodeCandidate]` 200 |  | `listCodeCandidates` | **works** (S8) |
+| `POST` | `/cases/{case_id}/handover/diagnosis-code` | `DiagnosisCodePick` | `Handover` 200 | ✓ | `pickDiagnosisCode` | **works** (S8) |
 | `POST` | `/cases/{case_id}/handover/validate` | — | `Handover` 200 | ✓ | `validateHandover` | **works** (S3) |
 
 ### jobs
@@ -209,7 +209,7 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 | `POST` | `/cases/{case_id}/extract` | — | `Job` 202 | ✓ | `reextractCase` | **works** (S2) |
 | `POST` | `/cases/{case_id}/drafts` | `DraftCreate` | `Job` 202 | ✓ | `createDraft` | defined (501) |
 | `POST` | `/cases/{case_id}/suggestions/tasks` | — | `Job` 202 | ✓ | `suggestTasks` | defined (501) |
-| `POST` | `/cases/{case_id}/ask` | `CaseAsk` | `Job` 202 | ✓ | `askCase` | defined (501) |
+| `POST` | `/cases/{case_id}/ask` | `CaseAsk` | `Job` 202 | ✓ | `askCase` | **works** (S8) |
 
 ### cases
 

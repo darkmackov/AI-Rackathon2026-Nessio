@@ -6,12 +6,15 @@ from datetime import date, datetime, timedelta
 
 import pytest
 from onko_cases import (
+    CodeNotNeededError,
     HandoverEditError,
     HandoverLockedError,
     NotValidatedError,
     TransitionError,
     add_examination,
+    diagnosis_for_code,
     new_referral,
+    pick_diagnosis_code,
     receive_referral,
     require_editable,
     send_referral,
@@ -19,7 +22,17 @@ from onko_cases import (
     sync_case_from_handover,
     validate_handover,
 )
-from onko_contracts import CaseState, FieldStatus, Origin, QueueColumn, Stamp
+from onko_contracts import (
+    CaseState,
+    CodeCandidate,
+    Evidence,
+    FieldStatus,
+    Handover,
+    Origin,
+    QueueColumn,
+    Sourced,
+    Stamp,
+)
 from pydantic import ValidationError
 
 NOW = datetime(2026, 10, 2, 14, 0)
@@ -160,3 +173,46 @@ def test_received_referral_is_sent_and_new_without_a_validation():
     assert case.state is CaseState.SENT and case.queue is QueueColumn.NEW
     assert case.milestones.referred_at == NOW and case.referring_doctor_id == GP
     assert handover.case_id == "case-2" and handover.validated_by_referrer is None
+
+
+# --- MKN-10 code from AI suggestions (S8, Q-C11) --------------------------------------------
+
+
+def _with_diagnosis(code: str | None = None):
+    quoted = [Evidence(document_id="d1", quote="adenokarcinom")]
+    handover = Handover(case_id="case-1", as_of=NOW.date(),
+                        diagnosis=Sourced(value="adenokarcinom", status=FieldStatus.FOUND,
+                                          evidence=quoted))
+    if code:
+        handover = handover.model_copy(update={"diagnosis_code": Sourced(
+            value=code, status=FieldStatus.FOUND, evidence=quoted)})
+    return handover
+
+
+def _candidates():
+    return [CodeCandidate(code="X01.0", title_cs="Novotvar A"),
+            CodeCandidate(code="X01.9", title_cs="Novotvar B")]
+
+
+def test_a_picked_candidate_is_a_manual_code_and_the_suggestion_is_audited():
+    handover, event = pick_diagnosis_code(_with_diagnosis(), "X01.9", _candidates(),
+                                          event_id="audit-1", by="koordinator", now=NOW)
+
+    assert handover.diagnosis_code.value == "X01.9"
+    assert handover.diagnosis_code.origin is Origin.MANUAL
+    assert handover.diagnosis_code.entered == Stamp(by="koordinator", at=NOW)
+    assert event.action == "diagnosis_code_from_ai" and event.case_id == "case-1"
+    assert "X01.9" in event.detail and "X01.0" in event.detail
+
+
+def test_only_a_suggested_code_can_be_picked():
+    with pytest.raises(HandoverEditError):
+        pick_diagnosis_code(_with_diagnosis(), "Z99", _candidates(), event_id="a", by="k", now=NOW)
+
+
+def test_candidates_need_a_diagnosis_without_a_code():
+    assert diagnosis_for_code(_with_diagnosis()) == "adenokarcinom"
+    with pytest.raises(CodeNotNeededError):
+        diagnosis_for_code(_with_diagnosis("X01.0"))
+    with pytest.raises(CodeNotNeededError):
+        diagnosis_for_code(Handover(case_id="case-1", as_of=NOW.date()))

@@ -13,9 +13,16 @@ from collections.abc import Callable
 from concurrent.futures import Executor, Future
 from typing import Any
 
-from onko_ai import analyse_case, apply_metadata, extract_metadata
+from onko_ai import (
+    analyse_case,
+    apply_metadata,
+    ask_case,
+    extract_metadata,
+    index_document,
+    index_missing,
+)
 from onko_cases import sync_case_from_handover
-from onko_contracts import Job, JobKind, JobStatus, ParsedDocument
+from onko_contracts import CaseAnswer, Job, JobKind, JobStatus, ParsedDocument
 from onko_llm_gateway import Gateway
 from onko_repository import CaseRepository
 
@@ -53,7 +60,36 @@ def queue_ingest(
     return job
 
 
+def queue_ask(repo: CaseRepository, now: dt.datetime, case_id: str, question: str) -> Job:
+    """'Ask the case' (S8): the answer lands in `job.answer`."""
+    job = Job(
+        id=new_id("job"),
+        kind=JobKind.ASK_CASE,
+        case_id=case_id,
+        params={"question": question},
+        created_at=now,
+    )
+    repo.save_job(job)
+    return job
+
+
 def run_ingest(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gateway | None) -> None:
+    _run(job_id, repo, clock, gateway, lambda job, gw: {"result": _ingest(job, repo, clock, gw)})
+
+
+def run_ask(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gateway | None) -> None:
+    _run(job_id, repo, clock, gateway, lambda job, gw: {"answer": _ask(job, repo, clock, gw)})
+
+
+def _run(
+    job_id: str,
+    repo: CaseRepository,
+    clock: AppClock,
+    gateway: Gateway | None,
+    work: Callable[[Job, Gateway], dict[str, Any]],
+) -> None:
+    """Mark the job running, do the work, store what it returns (`result` / `answer`) or the
+    error."""
     job = repo.get_job(job_id)
     if job is None:
         return
@@ -64,9 +100,9 @@ def run_ingest(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gate
             raise RuntimeError(
                 "Není nastaven žádný jazykový model (ONKO_MODELS / ONKO_ACTIVE_MODEL)."
             )
-        result = _ingest(job, repo, clock, gateway)
+        update = work(job, gateway)
         job = job.model_copy(
-            update={"status": JobStatus.DONE, "finished_at": clock.now(), "result": result}
+            update={"status": JobStatus.DONE, "finished_at": clock.now(), **update}
         )
     except Exception as e:
         log.exception("job %s failed", job.id)
@@ -74,6 +110,34 @@ def run_ingest(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gate
             update={"status": JobStatus.FAILED, "finished_at": clock.now(), "error": str(e)[:500]}
         )
     repo.save_job(job)
+
+
+def _snapshot(repo: CaseRepository, case_id: str, now: dt.datetime) -> list[ParsedDocument]:
+    """The case's documents received by `now` (demo backdating)."""
+    return [
+        ParsedDocument(meta=m, text=repo.document_text(m.id))
+        for m in repo.list_documents(case_id)
+        if m.received_at is None or m.received_at <= now
+    ]
+
+
+def _index(documents: list[ParsedDocument], document_id: str | None, repo: CaseRepository,
+           gateway: Gateway) -> bool:
+    """Chunk and embed for vector search (S8): the uploaded document again (its text may be new),
+    and any not indexed yet. Without an embedding model (or vector tables), or when it fails,
+    extraction still runs; unverified quotes then come without the nearest chunk. True if the
+    documents are indexed."""
+    if not gateway.can_embed:
+        return False
+    try:
+        for doc in documents:
+            if doc.meta.id == document_id:
+                index_document(doc, repo, gateway)
+        index_missing(documents, repo, gateway)
+    except Exception:
+        log.exception("indexing documents for vector search failed")
+        return False
+    return True
 
 
 def _ingest(job: Job, repo: CaseRepository, clock: AppClock, gateway: Gateway) -> dict[str, Any]:
@@ -87,11 +151,8 @@ def _ingest(job: Job, repo: CaseRepository, clock: AppClock, gateway: Gateway) -
         repo.update_document(apply_metadata(meta, draft))
 
     now = clock.now()
-    documents = [
-        ParsedDocument(meta=m, text=repo.document_text(m.id))
-        for m in repo.list_documents(case_id)
-        if m.received_at is None or m.received_at <= now
-    ]
+    documents = _snapshot(repo, case_id, now)
+    indexed = _index(documents, job.document_id, repo, gateway)
     handover, findings, _ = analyse_case(
         case_id,
         documents,
@@ -100,8 +161,16 @@ def _ingest(job: Job, repo: CaseRepository, clock: AppClock, gateway: Gateway) -
         now=now,
         previous_handover=repo.get_handover(case_id),
         previous_findings=repo.list_findings(case_id),
+        repo=repo if indexed else None,
     )
     repo.save_handover(handover)
     repo.save_case(sync_case_from_handover(repo.get_case(case_id), handover))
     repo.save_findings(case_id, findings)
     return {"documents": len(documents), "open_findings": sum(not f.resolved for f in findings)}
+
+
+def _ask(job: Job, repo: CaseRepository, clock: AppClock, gateway: Gateway) -> CaseAnswer:
+    if not gateway.can_embed:
+        raise RuntimeError("Není nastaven embedding model (ONKO_EMBED_MODEL).")
+    question = str(job.params["question"])
+    return ask_case(job.case_id, question, _snapshot(repo, job.case_id, clock.now()), repo, gateway)

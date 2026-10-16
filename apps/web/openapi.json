@@ -810,7 +810,7 @@
           "handover"
         ],
         "summary": "List Code Candidates",
-        "description": "MKN-10 candidates for a diagnosis without a code (S8, Q-C11), best first, from vector search\nover the code list. AI proposals only: nothing is filled in. 409 if the handover has no\ndiagnosis or its code is already set.",
+        "description": "MKN-10 candidates for a diagnosis without a code (S8, Q-C11), best first, from vector search\nover the code list. AI proposals only: nothing is filled in. 409 if the handover has no\ndiagnosis or its code is already set, or no embedding model or code list is set up.",
         "operationId": "list_code_candidates",
         "parameters": [
           {

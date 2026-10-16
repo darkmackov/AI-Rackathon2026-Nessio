@@ -77,7 +77,7 @@ class Gateway:
             client = OpenAICompatClient()
         self.client = client
         self.calls: list[CallRecord] = []
-        self._cache: dict[str, BaseModel | str] = {}
+        self._cache: dict[str, BaseModel | str | list[float]] = {}
         self._lock = threading.Lock()
 
     @classmethod
@@ -177,5 +177,39 @@ class Gateway:
             self.calls.append(record)
         log.info("llm call %s", record)
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
-        raise NotImplementedError
+    @property
+    def can_embed(self) -> bool:
+        """An embedding slot is configured (Q-M2, Q-M7)."""
+        return self.embed_slot is not None and self.embed_slot in self.slots
+
+    def embed(self, texts: list[str], *, batch: int = 64) -> list[list[float]]:
+        """Embeddings on the embedding slot, one vector per text, in order. Texts already embedded
+        are served from the cache; the rest go out in batches of `batch`."""
+        if not self.can_embed:
+            raise RuntimeError("no embedding model slot is configured (ONKO_EMBED_MODEL)")
+        s = self.slots[self.embed_slot]  # type: ignore[index]
+        keys = [
+            "embed:" + hashlib.sha256(json.dumps([s.model, t], ensure_ascii=False).encode()).hexdigest()
+            for t in texts
+        ]
+        with self._lock:
+            found = {k: self._cache[k] for k in keys if k in self._cache}
+        first = {k: i for i, k in reversed(list(enumerate(keys)))}  # one call per distinct text
+        todo = sorted(i for k, i in first.items() if k not in found)
+        for at in range(0, len(todo), batch):
+            part = todo[at : at + batch]
+            started = time.perf_counter()
+            result = self.client.embed(s, [texts[i] for i in part])
+            if len(result.vectors) != len(part):
+                self._record(s, ChatResult(""), started, cached=False, attempts=1, ok=False)
+                raise ValueError(f"{len(result.vectors)} embeddings for {len(part)} texts")
+            self._record(
+                s, ChatResult("", result.prompt_tokens), started, cached=False, attempts=1, ok=True
+            )
+            with self._lock:
+                for i, vector in zip(part, result.vectors, strict=True):
+                    self._cache[keys[i]] = vector  # type: ignore[assignment]
+                    found[keys[i]] = vector  # type: ignore[assignment]
+        if not todo:
+            self._record(s, ChatResult(""), 0, cached=True, attempts=0, ok=True)
+        return [list(found[k]) for k in keys]  # type: ignore[arg-type]

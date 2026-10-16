@@ -7,11 +7,19 @@ Public API: only what `__all__` lists. Layout: docs/conventions/implementation.m
 
 from __future__ import annotations
 
-from .models import HandoverEditError, HandoverLockedError, NotValidatedError, TransitionError
+from .models import (
+    CodeNotNeededError,
+    HandoverEditError,
+    HandoverLockedError,
+    NotValidatedError,
+    TransitionError,
+)
 from .referral import (
     EDITABLE_STATES,
     add_examination,
+    diagnosis_for_code,
     new_referral,
+    pick_diagnosis_code,
     receive_referral,
     require_editable,
     send_referral,
@@ -33,14 +41,17 @@ from .service import (
 
 __all__ = [
     "EDITABLE_STATES",
+    "CodeNotNeededError",
     "HandoverEditError",
     "HandoverLockedError",
     "NotValidatedError",
     "TransitionError",
     "add_examination",
+    "diagnosis_for_code",
     "new_referral",
     "next_step",
     "open_tasks",
+    "pick_diagnosis_code",
     "put_on_hold",
     "queue_column",
     "ready_tasks",

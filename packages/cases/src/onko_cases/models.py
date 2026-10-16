@@ -18,3 +18,8 @@ class HandoverLockedError(ValueError):
 
 class NotValidatedError(ValueError):
     """The referral is sent without a (fresh) validation by the referring doctor."""
+
+
+class CodeNotNeededError(ValueError):
+    """MKN-10 candidates are asked for a handover without a diagnosis, or whose code is set
+    (Q-C11)."""

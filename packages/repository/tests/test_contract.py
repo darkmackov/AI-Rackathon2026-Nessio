@@ -19,6 +19,8 @@ from onko_contracts import (
     AuditEvent,
     Case,
     CaseState,
+    CodeCandidate,
+    DocChunk,
     DocumentMeta,
     Evidence,
     FieldStatus,
@@ -55,7 +57,8 @@ def _iris_repo() -> IrisRepository:
         pytest.skip("ONKO_IRIS_CONNECTION_STRING is not set")
     user = re.sub(r"[^a-z0-9]", "", getpass.getuser().lower()) or "dev"
     # No FHIR projection here: the contract is about app state. test_fhir.py covers the projection.
-    return IrisRepository(settings.model_copy(update={"fhir_base_url": None}),
+    # 3-dimensional embeddings, like the vectors these tests save.
+    return IrisRepository(settings.model_copy(update={"fhir_base_url": None, "embed_dim": 3}),
                           schema=f"test_{user}_{uuid.uuid4().hex[:8]}")
 
 
@@ -342,3 +345,69 @@ def test_no_pending_fhir_writes_without_a_fhir_server(repo):
     repo.save_case(_case("c1"))
     repo.save_task(Task(id="t1", case_id="c1", title="CT", kind="imaging", owner="koc"))
     assert repo.pending_fhir_writes() == 0
+
+
+# --- vector search (S8, Q-I19) ---------------------------------------------------------------
+
+
+def _chunk(document_id: str, case_id: str, ord_: int, text: str) -> DocChunk:
+    return DocChunk(id=f"{document_id}-{ord_}", document_id=document_id, case_id=case_id, ord=ord_,
+                    start=ord_ * 100, end=ord_ * 100 + len(text), text=text)
+
+
+def _save_cases(repo, *case_ids: str) -> None:
+    for case_id in case_ids:
+        repo.save_case(_case(case_id))
+
+
+def _chunked_cases(repo) -> None:
+    _save_cases(repo, "c1", "c2")
+    for doc, case in (("d1", "c1"), ("d2", "c1"), ("d3", "c2")):
+        repo.save_document(DocumentMeta(id=doc, case_id=case, filename=f"{doc}.docx"), b"", "text")
+    repo.save_chunks("d1", [_chunk("d1", "c1", 0, "ECOG 1"), _chunk("d1", "c1", 1, "CT hrudníku")],
+                     [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+    repo.save_chunks("d2", [_chunk("d2", "c1", 0, "Histologie")], [[0.6, 0.0, 0.8]])
+    repo.save_chunks("d3", [_chunk("d3", "c2", 0, "jiný pacient")], [[1.0, 0.0, 0.0]])
+
+
+def test_nearest_chunks_rank_by_cosine_within_the_case(repo):
+    _chunked_cases(repo)
+
+    nearest = repo.nearest_chunks("c1", [0.9, 0.1, 0.0], 2)
+
+    assert [c.id for c in nearest] == ["d1-0", "d2-0"]
+    assert nearest[0] == _chunk("d1", "c1", 0, "ECOG 1")
+    assert [c.id for c in repo.nearest_chunks("c1", [0.9, 0.1, 0.0], 5, document_id="d2")] == ["d2-0"]
+    assert repo.nearest_chunks("c3", [1.0, 0.0, 0.0], 5) == []
+
+
+def test_saving_chunks_replaces_the_documents_chunks(repo):
+    _chunked_cases(repo)
+    repo.save_chunks("d1", [_chunk("d1", "c1", 0, "nový text")], [[0.0, 0.0, 1.0]])
+
+    assert [c.id for c in repo.list_chunks("c1")] == ["d1-0", "d2-0"]
+    assert repo.list_chunks("c1")[0].text == "nový text"
+
+
+def test_chunks_need_their_document(repo):
+    _save_cases(repo, "c1")
+    with pytest.raises(KeyError):
+        repo.save_chunks("nope", [_chunk("nope", "c1", 0, "x")], [[1.0, 0.0, 0.0]])
+    repo.save_document(DocumentMeta(id="d1", case_id="c1", filename="d1.docx"), b"", "text")
+    with pytest.raises(ValueError):
+        repo.save_chunks("d1", [_chunk("d2", "c1", 0, "x")], [[1.0, 0.0, 0.0]])
+    with pytest.raises(ValueError):
+        repo.save_chunks("d1", [_chunk("d1", "c1", 0, "x")], [])
+
+
+def test_codes_rank_by_cosine_and_survive_the_demo_reset(repo):
+    codes = [CodeCandidate(code="C25.0", title_cs="Zhoubný novotvar hlavy slinivky břišní"),
+             CodeCandidate(code="C34.1", title_cs="Zhoubný novotvar horního laloku plic"),
+             CodeCandidate(code="J18.9", title_cs="Pneumonie, neurčená")]
+    repo.save_codes(codes, [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.7, 0.7]])
+    repo.clear()
+
+    assert repo.count_codes() == 3
+    assert repo.nearest_codes([0.1, 1.0, 0.0], 2) == [codes[1], codes[2]]
+    repo.save_codes(codes[:1], [[1.0, 0.0, 0.0]])
+    assert repo.count_codes() == 1
