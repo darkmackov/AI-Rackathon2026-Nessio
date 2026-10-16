@@ -39,7 +39,13 @@ def strict_schema(model: type[BaseModel]) -> dict[str, Any]:
 
     def fix(node: Any) -> Any:
         if isinstance(node, dict):
-            node = {k: fix(v) for k, v in node.items() if k not in ("default", "title")}
+            node = {
+                k: fix(v) for k, v in node.items() if k not in ("default", "title", "properties")
+            } | (
+                {"properties": {name: fix(sub) for name, sub in node["properties"].items()}}
+                if isinstance(node.get("properties"), dict)
+                else {}
+            )
             if node.get("type") == "object" and "properties" in node:
                 node["additionalProperties"] = False
                 node["required"] = list(node["properties"])

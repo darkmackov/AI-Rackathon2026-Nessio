@@ -94,6 +94,16 @@ def test_strict_schema_closes_objects_and_requires_every_property():
     assert "default" not in json.dumps(schema)
 
 
+def test_strict_schema_keeps_properties_named_like_keywords():
+    class Doc(BaseModel):
+        title: str | None
+        default: int
+
+    schema = strict_schema(Doc)
+    assert set(schema["properties"]) == {"title", "default"}
+    assert schema["required"] == ["title", "default"]
+
+
 def test_slot_repr_hides_the_key():
     assert "secret-key" not in repr(SLOT)
 
