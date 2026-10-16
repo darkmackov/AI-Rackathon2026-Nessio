@@ -8,6 +8,7 @@ from enum import StrEnum
 from pydantic import Field
 
 from .common import Model
+from .findings import Finding
 
 
 class CaseState(StrEnum):
@@ -159,3 +160,15 @@ class Case(Model):
     on_hold: OnHold | None = Field(default=None, description="Manual 'odloženo' flag (Q-F9)")
     milestones: Milestones = Field(default_factory=Milestones)
 
+
+
+class CaseOverview(Model):
+    """One case at a glance for agents (S10, Q-I23): where it stands, how long it is taking, what
+    is missing and what comes next. Holds the existing models whole; the handover stays separate."""
+
+    case: Case
+    time_to_treatment: TimeToTreatment
+    findings: list[Finding] = Field(default_factory=list, description="Unresolved findings")
+    open_tasks: list[Task] = Field(
+        default_factory=list, description="Tasks not done or cancelled, earliest due first"
+    )
