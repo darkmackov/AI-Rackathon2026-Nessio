@@ -6,6 +6,7 @@ import { referenceCases } from './reference'
 import { referenceDocuments, referenceFindings, referenceHandover, referenceTexts } from './reference-data'
 import { referenceTasks } from './reference-tasks'
 import { treatmentTime } from './treatment-time'
+import { createDocumentDemoState, createDocumentHandlers } from './documents'
 import { caseStates, enumError, extraFields, isApiDateTime, objectBody, organizationKinds, queryValue, queueColumns, validateEnumQuery, validationResponse } from './validation'
 
 // Mutable simulated server state is private to this tab (Q-W6, Q-W10).
@@ -13,18 +14,21 @@ export function createDemoState(readNow: () => number = Date.now) {
   let cases: Case[] = []
   let simulatedAt: number | null = null
   let anchoredAt = readNow()
+  const documents = createDocumentDemoState(readNow)
 
   const setTime = (value: string | null) => {
     simulatedAt = value === null ? null : new Date(value).getTime()
     anchoredAt = readNow()
   }
   const reset = (scenario: DemoScenario) => {
+    documents.reset()
     cases = scenario === 'empty' ? [] : structuredClone(referenceCases)
     setTime(scenario === 'empty' ? '2026-10-02T14:00:00' : '2026-10-21T09:00:00')
     return structuredClone(cases)
   }
   reset('reference_at_mdt')
   return {
+    documents,
     reset,
     setTime,
     getCases: () => structuredClone(cases),
@@ -39,6 +43,7 @@ export function createHandlers(state = createDemoState()) {
   const referenceAvailable = () => state.getCases().some((item) => item.id === referenceHandover.case_id)
   const notFound = () => HttpResponse.json({ detail: 'not found' }, { status: 404 })
   return [
+    ...createDocumentHandlers(state),
     http.get('*/api/me', ({ request }) => {
       const id = request.headers.get('X-Actor-Id')
       if (id === null) return validationResponse([{ loc: ['header', 'X-Actor-Id'], type: 'missing', msg: 'Field required', input: null }])

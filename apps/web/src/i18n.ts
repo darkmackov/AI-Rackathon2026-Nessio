@@ -1,10 +1,12 @@
 import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { s1Cs, s1En } from './s1-translations'
+import { documentsCs, documentsEn } from './components/documents/translations'
 
 export const resources = {
   cs: { translation: {
     s1: s1Cs,
+    documents: documentsCs,
     appName: 'Onko-koordinace', skip: 'Přejít k obsahu', navigation: 'Hlavní navigace',
     language: 'Jazyk', demoData: 'Demo · fiktivní data', realApi: 'Režim skutečného API',
     selectTitle: 'Vyberte svou identitu', selectIntro: 'Zvolte roli a osobu, za kterou chcete pracovat.',
@@ -44,6 +46,7 @@ export const resources = {
   } },
   en: { translation: {
     s1: s1En,
+    documents: documentsEn,
     appName: 'Oncology coordination', skip: 'Skip to content', navigation: 'Main navigation',
     language: 'Language', demoData: 'Demo · fictional data', realApi: 'Real API mode',
     selectTitle: 'Choose your identity', selectIntro: 'Choose the role and person you want to work as.',
