@@ -1,7 +1,11 @@
-"""Messaging module: requests for missing information, MDT result delivery, receipts.
+"""Messaging module: MDT result delivery to the GP, receipts, in-app notifications, patient notices.
 
-Owner: stream C. The MVP channel is the in-app inbox; email/SMS are adapters behind `ChannelAdapter`.
-The reviewing doctor (revizní lékař of the patient's insurer) gets every MDT result automatically (MessageKind.REVIEW_FEED).
+Owner: stream C. MVP scope:
+- MDT result → the GP's in-app inbox → receipt ('Potvrzuji převzetí') closes the case.
+- In-app deadline notifications (Q-F17).
+- Patient notices are recorded with `simulated=True` and never delivered (Q-F16).
+Not in the MVP: request/reply flows for additional documents (Q-F23; in the MVP a request is a
+`Task` in onko_cases), the reviewing-doctor feed (Q-F10), email/SMS adapters.
 """
 
 from __future__ import annotations
@@ -19,7 +23,8 @@ class ChannelAdapter(Protocol):
 
 
 class InAppInbox:
-    """Messages land in the recipient's inbox in the app. Storage via repository. TODO stream C."""
+    """Messages land in the recipient's in-app inbox (MVP: the GP receiving the MDT result).
+    Storage via repository. TODO stream C."""
 
     channel = Channel.IN_APP
 

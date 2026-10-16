@@ -5,21 +5,44 @@
     "version": "0.1.0"
   },
   "paths": {
-    "/health": {
+    "/me": {
       "get": {
-        "summary": "Health",
-        "operationId": "health",
+        "tags": [
+          "directory"
+        ],
+        "summary": "Me",
+        "description": "The current user (referring doctor or coordinator).",
+        "operationId": "me",
+        "parameters": [
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "boolean"
-                  },
-                  "type": "object",
-                  "title": "Response Health"
+                  "$ref": "#/components/schemas/Actor"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -27,10 +50,137 @@
         }
       }
     },
-    "/cases": {
+    "/directory/organizations": {
       "get": {
-        "summary": "List Cases",
-        "operationId": "list_cases",
+        "tags": [
+          "directory"
+        ],
+        "summary": "List Organizations",
+        "description": "Organisations; `kind=koc` feeds the KOC picker on the referral screen.",
+        "operationId": "list_organizations",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OrganizationKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Organization"
+                  },
+                  "title": "Response List Organizations"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/directory/actors": {
+      "get": {
+        "tags": [
+          "directory"
+        ],
+        "summary": "List Actors",
+        "description": "People: GPs, coordinators, specialists. Owners for tasks, recipients for requests.",
+        "operationId": "list_actors",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Role"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Actor"
+                  },
+                  "title": "Response List Actors"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mdt-boards": {
+      "get": {
+        "tags": [
+          "directory"
+        ],
+        "summary": "List Mdt Boards",
+        "operationId": "list_mdt_boards",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -38,10 +188,10 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Case"
+                    "$ref": "#/components/schemas/MdtBoard"
                   },
                   "type": "array",
-                  "title": "Response List Cases"
+                  "title": "Response List Mdt Boards"
                 }
               }
             }
@@ -49,23 +199,145 @@
         }
       }
     },
-    "/cases/{case_id}": {
+    "/mdt-boards/{board_id}": {
       "get": {
-        "summary": "Get Case",
-        "operationId": "get_case",
+        "tags": [
+          "directory"
+        ],
+        "summary": "Get Mdt Board",
+        "operationId": "get_mdt_board",
         "parameters": [
           {
-            "name": "case_id",
+            "name": "board_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Case Id"
+              "title": "Board Id"
             }
           }
         ],
         "responses": {
           "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MdtBoard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mdt-boards/{board_id}/members": {
+      "put": {
+        "tags": [
+          "directory"
+        ],
+        "summary": "Update Mdt Board Members",
+        "description": "Edit the roster (Q-F13).",
+        "operationId": "update_mdt_board_members",
+        "parameters": [
+          {
+            "name": "board_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Board Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MdtBoardMembersUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MdtBoard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/referrals": {
+      "post": {
+        "tags": [
+          "referral"
+        ],
+        "summary": "Create Referral",
+        "description": "GP starts a referral draft (state `koncept`), addressed to a KOC.",
+        "operationId": "create_referral",
+        "parameters": [
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferralCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -88,8 +360,284 @@
         }
       }
     },
-    "/cases/{case_id}/handover": {
+    "/cases/{case_id}/documents": {
+      "post": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Upload Document",
+        "description": "Upload a report (GP while drafting, coordinator later). Stores it, parses the text and\nqueues an `ingest_document` job: AI metadata + handover extraction + checks.",
+        "operationId": "upload_document",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_document"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "List Documents",
+        "operationId": "list_documents",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentMeta"
+                  },
+                  "title": "Response List Documents"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}": {
+      "patch": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Update Document",
+        "description": "Correct AI-extracted metadata (type, date, facility, …).",
+        "operationId": "update_document",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentMetaUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentMeta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/file": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Get Document File",
+        "description": "The original uploaded file.",
+        "operationId": "get_document_file",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Original file",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/handover": {
+      "patch": {
+        "tags": [
+          "handover"
+        ],
+        "summary": "Update Handover Field",
+        "description": "'Doplnit' / 'Není k dispozici' on one field (origin=manual). Used by the GP's soft\n'fill in if you know' prompts and by the coordinator (final epikríza, MDT question, …).",
+        "operationId": "update_handover_field",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoverFieldUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "handover"
+        ],
         "summary": "Get Handover",
         "operationId": "get_handover",
         "parameters": [
@@ -137,10 +685,228 @@
         }
       }
     },
-    "/cases/{case_id}/findings": {
+    "/cases/{case_id}/handover/examinations": {
+      "post": {
+        "tags": [
+          "handover"
+        ],
+        "summary": "Add Examination",
+        "description": "Manually add an examination (origin=manual).",
+        "operationId": "add_examination",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExaminationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/handover/validate": {
+      "post": {
+        "tags": [
+          "handover"
+        ],
+        "summary": "Validate Handover",
+        "description": "Referring doctor validates the AI proposal (sets `validated_by_referrer`).",
+        "operationId": "validate_handover",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/send": {
+      "post": {
+        "tags": [
+          "referral"
+        ],
+        "summary": "Send Referral",
+        "description": "'Validovat a odeslat': koncept → odeslano. Requires a validated handover.",
+        "operationId": "send_referral",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
       "get": {
-        "summary": "List Findings",
-        "operationId": "list_findings",
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job",
+        "description": "Poll a job until `done` / `failed`.",
+        "operationId": "get_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/jobs": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "List Case Jobs",
+        "operationId": "list_case_jobs",
         "parameters": [
           {
             "name": "case_id",
@@ -160,9 +926,816 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Finding"
+                    "$ref": "#/components/schemas/Job"
                   },
-                  "title": "Response List Findings"
+                  "title": "Response List Case Jobs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/extract": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Reextract Case",
+        "description": "Re-run extraction + checks over all case documents (e.g. after the model choice).",
+        "operationId": "reextract_case",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/drafts": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Create Draft",
+        "description": "AI draft for the coordinator to edit: epikríza summary, MDT question, MDT result rows,\nMDT conclusion. Text arrives in `job.result.text` (`job.result.rows` for mdt_results).",
+        "operationId": "create_draft",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/suggestions/tasks": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Suggest Tasks",
+        "description": "Bonus (Q-F3): high-precision, quote-backed task proposals in `job.result.tasks`.",
+        "operationId": "suggest_tasks",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/take-over": {
+      "post": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Take Over Case",
+        "description": "'Převzít': the current coordinator takes the case (sets coordinator_id), odeslano → v_triage.",
+        "operationId": "take_over_case",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}": {
+      "patch": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Update Case",
+        "description": "Priority, coordinator, planned MDT board/date.",
+        "operationId": "update_case",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Get Case",
+        "operationId": "get_case",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/transition": {
+      "post": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Transition Case",
+        "description": "Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).",
+        "operationId": "transition_case",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseTransition"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/hold": {
+      "put": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Set Hold",
+        "description": "'Odložit': manual on-hold flag (Q-F9).",
+        "operationId": "set_hold",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Clear Hold",
+        "operationId": "clear_hold",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/milestones": {
+      "patch": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Update Milestones",
+        "operationId": "update_milestones",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MilestonesUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/time-to-treatment": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Get Time To Treatment",
+        "description": "T1 + T2 + T3 (Q-F18).",
+        "operationId": "get_time_to_treatment",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeToTreatment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/audit": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "List Audit",
+        "operationId": "list_audit",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEvent"
+                  },
+                  "title": "Response List Audit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/findings/{finding_id}/resolve": {
+      "post": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "Resolve Finding",
+        "description": "Resolve, override (note required) or dismiss a finding.",
+        "operationId": "resolve_finding",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Finding Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingResolve"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Finding"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/findings/{finding_id}/request": {
+      "post": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "Request From Finding",
+        "description": "'Vyžádat': a request task linked to the finding (`Task.finding_id`).",
+        "operationId": "request_from_finding",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Finding Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestTaskCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -181,7 +1754,72 @@
       }
     },
     "/cases/{case_id}/tasks": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Create Task",
+        "description": "'Přidat úkol': one-off task.",
+        "operationId": "create_task",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
+        "tags": [
+          "tasks"
+        ],
         "summary": "List Tasks",
         "operationId": "list_tasks",
         "parameters": [
@@ -223,10 +1861,966 @@
         }
       }
     },
-    "/cases/{case_id}/documents": {
+    "/tasks/{task_id}": {
+      "patch": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Update Task",
+        "operationId": "update_task",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/task-sets/start": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Start Task Set",
+        "description": "'Spustit sadu úkolů'.",
+        "operationId": "start_task_set",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskSetStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  },
+                  "title": "Response Start Task Set"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/task-sets": {
       "get": {
-        "summary": "List Documents",
-        "operationId": "list_documents",
+        "tags": [
+          "tasks"
+        ],
+        "summary": "List Task Sets",
+        "operationId": "list_task_sets",
+        "parameters": [
+          {
+            "name": "diagnosis_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Diagnosis Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaskSet"
+                  },
+                  "title": "Response List Task Sets"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Create Task Set",
+        "operationId": "create_task_set",
+        "parameters": [
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskSetUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskSet"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/task-sets/{task_set_id}": {
+      "put": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Update Task Set",
+        "operationId": "update_task_set",
+        "parameters": [
+          {
+            "name": "task_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Set Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskSetUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskSet"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "List Notifications",
+        "description": "In-app deadline notifications for the current user (Q-F17).",
+        "operationId": "list_notifications",
+        "parameters": [
+          {
+            "name": "within_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 2,
+              "title": "Within Days"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DueNotice"
+                  },
+                  "title": "Response List Notifications"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/mdt/snapshot": {
+      "post": {
+        "tags": [
+          "mdt"
+        ],
+        "summary": "Create Mdt Snapshot",
+        "description": "Freeze the handover (as_of = mdt_date), coordinator confirms it, build the MDT record,\nkompletni → pripraveno_k_mdt. 409 while non-overridden blockers remain.",
+        "operationId": "create_mdt_snapshot",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MdtSnapshotCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MdtRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/mdt/record": {
+      "get": {
+        "tags": [
+          "mdt"
+        ],
+        "summary": "Get Mdt Record",
+        "operationId": "get_mdt_record",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MdtRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "mdt"
+        ],
+        "summary": "Update Mdt Record",
+        "description": "Edit the record before the meeting (e.g. apply an `mdt_results` draft).",
+        "operationId": "update_mdt_record",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MdtRecordUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MdtRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/mdt/record.pdf": {
+      "get": {
+        "tags": [
+          "mdt"
+        ],
+        "summary": "Get Mdt Record Pdf",
+        "operationId": "get_mdt_record_pdf",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF document",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/mdt/conclusion": {
+      "put": {
+        "tags": [
+          "mdt"
+        ],
+        "summary": "Upsert Mdt Conclusion",
+        "description": "Write / edit the conclusion (optionally starting from a `mdt_conclusion` draft).",
+        "operationId": "upsert_mdt_conclusion",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MdtConclusionUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MdtConclusion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "mdt"
+        ],
+        "summary": "Get Mdt Conclusion",
+        "operationId": "get_mdt_conclusion",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MdtConclusion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/mdt/conclusion/upload": {
+      "post": {
+        "tags": [
+          "mdt"
+        ],
+        "summary": "Upload Mdt Conclusion",
+        "description": "Upload the MDT's own report instead of writing it (source=uploaded).",
+        "operationId": "upload_mdt_conclusion",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_mdt_conclusion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/mdt/conclusion/confirm": {
+      "post": {
+        "tags": [
+          "mdt"
+        ],
+        "summary": "Confirm Mdt Conclusion",
+        "description": "Coordinator confirms; pripraveno_k_mdt → zaver_mdt. Required before sending.",
+        "operationId": "confirm_mdt_conclusion",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MdtConclusion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/mdt/conclusion.pdf": {
+      "get": {
+        "tags": [
+          "mdt"
+        ],
+        "summary": "Get Mdt Conclusion Pdf",
+        "operationId": "get_mdt_conclusion_pdf",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF document",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/feedback": {
+      "post": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "Send Feedback",
+        "description": "Send the confirmed conclusion to the GP's inbox; zaver_mdt → zpetna_vazba_odeslana.",
+        "operationId": "send_feedback",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackSend"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/patient-notices": {
+      "post": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "Create Patient Notice",
+        "description": "'Informovat pacienta': recorded, simulated=True, never delivered (Q-F16).",
+        "operationId": "create_patient_notice",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientNoticeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/messages": {
+      "get": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "List Case Messages",
+        "operationId": "list_case_messages",
         "parameters": [
           {
             "name": "case_id",
@@ -246,9 +2840,439 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/DocumentMeta"
+                    "$ref": "#/components/schemas/Message"
                   },
-                  "title": "Response List Documents"
+                  "title": "Response List Case Messages"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/receipts": {
+      "get": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "List Case Receipts",
+        "description": "Proof of delivery ('doložit doručení').",
+        "operationId": "list_case_receipts",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Receipt"
+                  },
+                  "title": "Response List Case Receipts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inbox": {
+      "get": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "List Inbox",
+        "description": "The current user's in-app inbox (MVP: the GP's MDT results).",
+        "operationId": "list_inbox",
+        "parameters": [
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Message"
+                  },
+                  "title": "Response List Inbox"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/{message_id}/confirm": {
+      "post": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "Confirm Receipt",
+        "description": "'Potvrzuji převzetí'; zpetna_vazba_odeslana → uzavreno.",
+        "operationId": "confirm_receipt",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/demo/clock": {
+      "get": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Get Demo Clock",
+        "operationId": "get_demo_clock",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoClock"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Set Demo Clock",
+        "description": "Set the app clock (e.g. 2026-10-21T09:00 for the MDT step), or back to the wall clock.",
+        "operationId": "set_demo_clock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoClockSet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoClock"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/demo/reset": {
+      "post": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Reset Demo",
+        "description": "Reset all data to a scenario; returns the resulting cases.",
+        "operationId": "reset_demo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoReset"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Case"
+                  },
+                  "type": "array",
+                  "title": "Response Reset Demo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Health",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object",
+                  "title": "Response Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "List Cases",
+        "description": "Coordinator dashboard (filter by koc_id) or the GP's own referrals (referring_doctor_id).\nDrafts (koncept) only appear when filtering by their referring doctor.",
+        "operationId": "list_cases",
+        "parameters": [
+          {
+            "name": "referring_doctor_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Referring Doctor Id"
+            }
+          },
+          {
+            "name": "koc_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Koc Id"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CaseState"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "queue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/QueueColumn"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Queue"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Case"
+                  },
+                  "title": "Response List Cases"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/findings": {
+      "get": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "List Findings",
+        "operationId": "list_findings",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Finding"
+                  },
+                  "title": "Response List Findings"
                 }
               }
             }
@@ -268,6 +3292,9 @@
     },
     "/documents/{document_id}/text": {
       "get": {
+        "tags": [
+          "documents"
+        ],
         "summary": "Document Text",
         "operationId": "document_text",
         "parameters": [
@@ -312,6 +3339,165 @@
   },
   "components": {
     "schemas": {
+      "Actor": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "referring_doctor | coordinator | specialist | mdt_member | reviewing_doctor"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "title": "Actor",
+        "description": "A person taking part in the case. Users are the referring doctor and the coordinator;\nMDT members and reviewing doctors are information only (Q-F21)."
+      },
+      "AuditEvent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "actor_id": {
+            "type": "string",
+            "title": "Actor Id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "case_id",
+          "at",
+          "actor_id",
+          "action"
+        ],
+        "title": "AuditEvent"
+      },
+      "Body_upload_document": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At",
+            "description": "Demo backdating; default = app clock now (see /demo/clock)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_document"
+      },
+      "Body_upload_mdt_conclusion": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At",
+            "description": "Demo backdating; default = app clock now (see /demo/clock)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_mdt_conclusion"
+      },
       "Case": {
         "properties": {
           "id": {
@@ -333,9 +3519,21 @@
             ],
             "title": "Diagnosis Label"
           },
-          "koc": {
+          "koc_id": {
             "type": "string",
-            "title": "Koc"
+            "title": "Koc Id",
+            "description": "Organization id of the receiving KOC"
+          },
+          "mdt_board_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mdt Board Id"
           },
           "referring_doctor_id": {
             "type": "string",
@@ -355,6 +3553,10 @@
           "state": {
             "$ref": "#/components/schemas/CaseState",
             "default": "odeslano"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority",
+            "default": "normal"
           },
           "queue": {
             "$ref": "#/components/schemas/QueueColumn",
@@ -432,7 +3634,7 @@
         "required": [
           "id",
           "patient_name",
-          "koc",
+          "koc_id",
           "referring_doctor_id",
           "created_at"
         ],
@@ -441,6 +3643,7 @@
       "CaseState": {
         "type": "string",
         "enum": [
+          "koncept",
           "odeslano",
           "v_triage",
           "ceka_na_podklady",
@@ -452,6 +3655,101 @@
         ],
         "title": "CaseState",
         "description": "The 8 case states from the VZP brief (slide 10)."
+      },
+      "CaseTransition": {
+        "properties": {
+          "to": {
+            "$ref": "#/components/schemas/CaseState"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "to"
+        ],
+        "title": "CaseTransition"
+      },
+      "CaseUpdate": {
+        "properties": {
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Priority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coordinator_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinator Id",
+            "description": "Reassign the coordinator"
+          },
+          "mdt_board_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mdt Board Id"
+          },
+          "mdt_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mdt Date",
+            "description": "Planned MDT date (shown on the dashboard)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CaseUpdate",
+        "description": "Partial case update; omitted fields stay unchanged."
+      },
+      "Channel": {
+        "type": "string",
+        "enum": [
+          "in_app",
+          "email",
+          "sms"
+        ],
+        "title": "Channel"
+      },
+      "ConclusionSource": {
+        "type": "string",
+        "enum": [
+          "written",
+          "uploaded"
+        ],
+        "title": "ConclusionSource"
       },
       "Contacts": {
         "properties": {
@@ -472,6 +3770,69 @@
         "additionalProperties": false,
         "type": "object",
         "title": "Contacts"
+      },
+      "DemoClock": {
+        "properties": {
+          "now": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Now"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated",
+            "description": "False = wall clock"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "now",
+          "simulated"
+        ],
+        "title": "DemoClock",
+        "description": "The app's notion of 'now'. The reference case runs 2.–27. 10. 2026 while a demo runs in\nminutes, so stamps, received_at, due/overdue and time to treatment use this clock."
+      },
+      "DemoClockSet": {
+        "properties": {
+          "now": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Now",
+            "description": "None = back to the wall clock"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DemoClockSet"
+      },
+      "DemoReset": {
+        "properties": {
+          "scenario": {
+            "$ref": "#/components/schemas/DemoScenario"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scenario"
+        ],
+        "title": "DemoReset"
+      },
+      "DemoScenario": {
+        "type": "string",
+        "enum": [
+          "empty",
+          "reference_at_mdt"
+        ],
+        "title": "DemoScenario"
       },
       "DocumentMeta": {
         "properties": {
@@ -495,20 +3856,42 @@
             "title": "Filename"
           },
           "title": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Title"
           },
           "doc_type": {
-            "$ref": "#/components/schemas/DocumentType"
+            "$ref": "#/components/schemas/DocumentType",
+            "default": "other"
           },
           "document_date": {
-            "type": "string",
-            "format": "date",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Document Date",
             "description": "Date of the examination / issue"
           },
           "facility": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Facility"
           },
           "department": {
@@ -558,6 +3941,18 @@
             "title": "Received At",
             "description": "When the document entered the case; drives the MDT snapshot"
           },
+          "uploaded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded By",
+            "description": "Actor id"
+          },
           "mime_type": {
             "type": "string",
             "title": "Mime Type",
@@ -568,13 +3963,95 @@
         "type": "object",
         "required": [
           "id",
-          "filename",
-          "title",
-          "doc_type",
-          "document_date",
-          "facility"
+          "filename"
         ],
-        "title": "DocumentMeta"
+        "title": "DocumentMeta",
+        "description": "Metadata of an uploaded document. Everything except filename/received_at is AI-extracted\nafter upload (decision 16. 10.: AI extract), so it is optional until the ingest job finishes."
+      },
+      "DocumentMetaUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "doc_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "document_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Date"
+          },
+          "facility": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facility"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "ordered_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordered By"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DocumentMetaUpdate",
+        "description": "Correct AI-extracted document metadata (dates drive examinations and the MDT cut-off).\nOmitted fields stay unchanged."
       },
       "DocumentType": {
         "type": "string",
@@ -591,6 +4068,65 @@
           "other"
         ],
         "title": "DocumentType"
+      },
+      "DraftCreate": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/DraftKind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "DraftCreate"
+      },
+      "DraftKind": {
+        "type": "string",
+        "enum": [
+          "epicrisis_summary",
+          "mdt_question",
+          "mdt_results",
+          "mdt_conclusion"
+        ],
+        "title": "DraftKind"
+      },
+      "DueNotice": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "due": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due"
+          },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_id",
+          "case_id",
+          "title",
+          "due",
+          "overdue"
+        ],
+        "title": "DueNotice",
+        "description": "In-app deadline notification derived from tasks (Q-F17)."
       },
       "Evidence": {
         "properties": {
@@ -614,6 +4150,30 @@
               }
             ],
             "title": "Document Date"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start",
+            "description": "Char offset of the quote in the document text"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End",
+            "description": "Char offset after the quote"
           }
         },
         "additionalProperties": false,
@@ -623,7 +4183,7 @@
           "quote"
         ],
         "title": "Evidence",
-        "description": "Where a value came from. Every AI-extracted value carries at least one."
+        "description": "Where an AI value came from: a verbatim quote from a case document."
       },
       "Examination": {
         "properties": {
@@ -644,12 +4204,26 @@
             "type": "string",
             "title": "Result Full Text"
           },
+          "origin": {
+            "$ref": "#/components/schemas/Origin",
+            "default": "ai"
+          },
           "evidence": {
             "items": {
               "$ref": "#/components/schemas/Evidence"
             },
             "type": "array",
             "title": "Evidence"
+          },
+          "entered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -663,6 +4237,56 @@
         "title": "Examination",
         "description": "Provedené vyšetření: date, place, type, full result text.\n\n`result_full_text` = all clinical sections verbatim (findings, ZÁVĚR, DOPORUČENÍ), without the\nadministrative header and signature (Q-C8). GP examinations are included too (Q-C7)."
       },
+      "ExaminationCreate": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "place": {
+            "type": "string",
+            "title": "Place"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "result_full_text": {
+            "type": "string",
+            "title": "Result Full Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "place",
+          "type",
+          "result_full_text"
+        ],
+        "title": "ExaminationCreate",
+        "description": "Manually add an examination to the handover (origin=manual)."
+      },
+      "FeedbackSend": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedbackSend",
+        "description": "Send the confirmed MDT conclusion (+ original context) to the referring doctor."
+      },
       "FieldStatus": {
         "type": "string",
         "enum": [
@@ -671,7 +4295,7 @@
           "conflict"
         ],
         "title": "FieldStatus",
-        "description": "Extraction state of one handover value."
+        "description": "State of one handover value."
       },
       "Finding": {
         "properties": {
@@ -724,6 +4348,17 @@
             "type": "boolean",
             "title": "Resolved",
             "default": false
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resolution"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who resolved it, how, why"
           }
         },
         "additionalProperties": false,
@@ -747,6 +4382,31 @@
           "trend"
         ],
         "title": "FindingKind"
+      },
+      "FindingResolve": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ResolutionKind"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Required for kind=overridden (Q-C2)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "FindingResolve"
       },
       "HTTPValidationError": {
         "properties": {
@@ -882,6 +4542,191 @@
         ],
         "title": "Handover"
       },
+      "HandoverFieldUpdate": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Dotted field path, e.g. 'performance_status' or 'contacts.patient_email'"
+          },
+          "value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "not_available": {
+            "type": "boolean",
+            "title": "Not Available",
+            "description": "Mark as not available instead of a value",
+            "default": false
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "HandoverFieldUpdate",
+        "description": "Manual entry into one handover field ('Doplnit'), or marking it 'Není k dispozici'.\nCreates a Sourced value with origin=manual and `entered` = current actor."
+      },
+      "HoldSet": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "HoldSet",
+        "description": "'Odložit': manual on-hold flag (Q-F9)."
+      },
+      "Job": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JobKind"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus",
+            "default": "queued"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result",
+            "description": "e.g. {'text': ...} for drafts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "case_id",
+          "created_at"
+        ],
+        "title": "Job"
+      },
+      "JobKind": {
+        "type": "string",
+        "enum": [
+          "ingest_document",
+          "draft",
+          "suggest_tasks"
+        ],
+        "title": "JobKind"
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed"
+        ],
+        "title": "JobStatus"
+      },
       "LabPanel": {
         "properties": {
           "date": {
@@ -900,12 +4745,26 @@
             "type": "array",
             "title": "Values"
           },
+          "origin": {
+            "$ref": "#/components/schemas/Origin",
+            "default": "ai"
+          },
           "evidence": {
             "items": {
               "$ref": "#/components/schemas/Evidence"
             },
             "type": "array",
             "title": "Evidence"
+          },
+          "entered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -970,6 +4829,777 @@
         ],
         "title": "LabValue"
       },
+      "MdtBoard": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "organization_id": {
+            "type": "string",
+            "title": "Organization Id"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MdtMember"
+            },
+            "type": "array",
+            "title": "Members"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "organization_id"
+        ],
+        "title": "MdtBoard",
+        "description": "A roster per MDT board, edited by the coordinator, pre-filled per session (Q-F13)."
+      },
+      "MdtBoardMembersUpdate": {
+        "properties": {
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MdtMember"
+            },
+            "type": "array",
+            "title": "Members"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "members"
+        ],
+        "title": "MdtBoardMembersUpdate"
+      },
+      "MdtConclusion": {
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ConclusionSource",
+            "default": "written"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id",
+            "description": "Uploaded report (source=uploaded)"
+          },
+          "presented_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presented By",
+            "description": "Případ prezentoval"
+          },
+          "diagnosis_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Name"
+          },
+          "diagnosis_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Code",
+            "description": "Definitive MKN-10 (resolves F05-type findings)"
+          },
+          "clinical_assessment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinical Assessment"
+          },
+          "conclusion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conclusion"
+          },
+          "recommendations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "chair": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chair",
+            "description": "Předsedající MDT"
+          },
+          "copy_to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Copy To"
+          },
+          "ai_draft_used": {
+            "type": "boolean",
+            "title": "Ai Draft Used",
+            "default": false
+          },
+          "confirmed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Coordinator confirmed; required to send"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "case_id"
+        ],
+        "title": "MdtConclusion",
+        "description": "Závěr MDT (MDT_zaver layout), recorded by the coordinator (Q-F12, Q-F21)."
+      },
+      "MdtConclusionUpsert": {
+        "properties": {
+          "presented_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presented By"
+          },
+          "diagnosis_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Name"
+          },
+          "diagnosis_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Code"
+          },
+          "clinical_assessment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinical Assessment"
+          },
+          "conclusion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conclusion"
+          },
+          "recommendations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "chair": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chair"
+          },
+          "copy_to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Copy To"
+          },
+          "ai_draft_used": {
+            "type": "boolean",
+            "title": "Ai Draft Used",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MdtConclusionUpsert",
+        "description": "Written conclusion (MDT_zaver layout). For an uploaded MDT report use the upload endpoint."
+      },
+      "MdtMember": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "specialty": {
+            "type": "string",
+            "title": "Specialty"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "specialty"
+        ],
+        "title": "MdtMember"
+      },
+      "MdtRecord": {
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "mdt_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Mdt Date"
+          },
+          "board_id": {
+            "type": "string",
+            "title": "Board Id"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MdtMember"
+            },
+            "type": "array",
+            "title": "Members"
+          },
+          "patient_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Name"
+          },
+          "insurance_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insurance Code"
+          },
+          "patient_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Phone"
+          },
+          "patient_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Email"
+          },
+          "patient_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Address"
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Kg"
+          },
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          },
+          "referring_doctor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referring Doctor Name"
+          },
+          "referring_doctor_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referring Doctor Phone"
+          },
+          "referring_doctor_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referring Doctor Email"
+          },
+          "diagnosis_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Name"
+          },
+          "diagnosis_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Code"
+          },
+          "comorbidities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Comorbidities"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/MdtResultRow"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "mdt_question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mdt Question"
+          },
+          "created": {
+            "$ref": "#/components/schemas/Stamp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "case_id",
+          "mdt_date",
+          "board_id",
+          "members",
+          "created"
+        ],
+        "title": "MdtRecord",
+        "description": "Zápis k jednání MDT, sections 1–5 of MDT_zapis, built from the frozen handover snapshot.\nValues missing in the snapshot stay None (rendered as 'neuvedeno')."
+      },
+      "MdtRecordUpdate": {
+        "properties": {
+          "members": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MdtMember"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Members"
+          },
+          "results": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MdtResultRow"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Results"
+          },
+          "mdt_question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mdt Question"
+          },
+          "diagnosis_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Name"
+          },
+          "diagnosis_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Code"
+          },
+          "comorbidities": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comorbidities"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MdtRecordUpdate",
+        "description": "Edit the MDT record before the meeting (members, result one-liners, question).\nOmitted fields stay unchanged."
+      },
+      "MdtResultRow": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "examination": {
+            "type": "string",
+            "title": "Examination"
+          },
+          "result": {
+            "type": "string",
+            "title": "Result"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "examination",
+          "result"
+        ],
+        "title": "MdtResultRow"
+      },
+      "MdtSnapshotCreate": {
+        "properties": {
+          "board_id": {
+            "type": "string",
+            "title": "Board Id"
+          },
+          "mdt_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Mdt Date"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "board_id",
+          "mdt_date"
+        ],
+        "title": "MdtSnapshotCreate",
+        "description": "'Připravit podklad pro MDT': freeze the handover, confirm it, build the MDT record.\nFails with 409 while non-overridden blocker findings remain."
+      },
+      "Message": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MessageKind"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/Channel",
+            "default": "in_app"
+          },
+          "sender_id": {
+            "type": "string",
+            "title": "Sender Id"
+          },
+          "recipient_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recipient Ids"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "attachment_document_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Attachment Document Ids"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id",
+            "description": "The gap this message relates to"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated",
+            "description": "Recorded as sent but not delivered externally",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "case_id",
+          "kind",
+          "sender_id",
+          "recipient_ids",
+          "subject",
+          "body"
+        ],
+        "title": "Message"
+      },
+      "MessageKind": {
+        "type": "string",
+        "enum": [
+          "document_request",
+          "info_request",
+          "mdt_result",
+          "review_feed",
+          "patient_notice",
+          "notification"
+        ],
+        "title": "MessageKind"
+      },
       "Milestones": {
         "properties": {
           "symptom_onset": {
@@ -1028,6 +5658,38 @@
         "title": "Milestones",
         "description": "Dates behind time to treatment = T1 + T2 + T3 (slide 4)."
       },
+      "MilestonesUpdate": {
+        "properties": {
+          "symptom_onset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symptom Onset"
+          },
+          "treatment_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Treatment Start"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MilestonesUpdate",
+        "description": "Dates for time to treatment that aren't set automatically."
+      },
       "OnHold": {
         "properties": {
           "reason": {
@@ -1066,6 +5728,91 @@
         "title": "OnHold",
         "description": "Set by the coordinator; puts the case in the 'Odložený' column."
       },
+      "Organization": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/OrganizationKind"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "identifiers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Identifiers",
+            "description": "e.g. {'icp': '72045318'} or {'kp': '211'} (CZ Core slices)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ],
+        "title": "Organization"
+      },
+      "OrganizationKind": {
+        "type": "string",
+        "enum": [
+          "koc",
+          "clinic",
+          "laboratory",
+          "radiology",
+          "gp_practice",
+          "insurer"
+        ],
+        "title": "OrganizationKind"
+      },
+      "Origin": {
+        "type": "string",
+        "enum": [
+          "ai",
+          "manual"
+        ],
+        "title": "Origin",
+        "description": "Who produced a value."
+      },
       "PatientDetails": {
         "properties": {
           "first_name": {
@@ -1100,6 +5847,36 @@
         "title": "PatientDetails",
         "description": "Nacionále pacienta."
       },
+      "PatientNoticeCreate": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subject",
+          "body"
+        ],
+        "title": "PatientNoticeCreate",
+        "description": "'Informovat pacienta': recorded with simulated=True, never delivered (Q-F16)."
+      },
+      "Priority": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "high",
+          "urgent"
+        ],
+        "title": "Priority",
+        "description": "Slide 9: 'pacienti, priority, úkoly'."
+      },
       "QueueColumn": {
         "type": "string",
         "enum": [
@@ -1109,6 +5886,147 @@
         ],
         "title": "QueueColumn",
         "description": "Coordinator dashboard columns (slide 9)."
+      },
+      "Receipt": {
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "title": "Message Id"
+          },
+          "recipient_id": {
+            "type": "string",
+            "title": "Recipient Id"
+          },
+          "confirmed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Confirmed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message_id",
+          "recipient_id",
+          "confirmed_at"
+        ],
+        "title": "Receipt",
+        "description": "Confirmed delivery: 'Potvrzuji převzetí'."
+      },
+      "ReferralCreate": {
+        "properties": {
+          "koc_id": {
+            "type": "string",
+            "title": "Koc Id",
+            "description": "Organization id of the receiving KOC (picker: /directory/organizations?kind=koc)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "koc_id"
+        ],
+        "title": "ReferralCreate",
+        "description": "Start a referral draft (state koncept)."
+      },
+      "RequestTaskCreate": {
+        "properties": {
+          "owner_id": {
+            "type": "string",
+            "title": "Owner Id",
+            "description": "Actor or organization id expected to supply it"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "What is requested; default derived from the finding"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority",
+            "default": "normal"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "owner_id"
+        ],
+        "title": "RequestTaskCreate",
+        "description": "'Vyžádat' on a finding: creates a request task addressed to whoever holds the information.\nIn the MVP the reply comes outside the app (Q-F23)."
+      },
+      "Resolution": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ResolutionKind"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "by": {
+            "type": "string",
+            "title": "By"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "by",
+          "at"
+        ],
+        "title": "Resolution"
+      },
+      "ResolutionKind": {
+        "type": "string",
+        "enum": [
+          "resolved",
+          "overridden",
+          "dismissed"
+        ],
+        "title": "ResolutionKind"
       },
       "Severity": {
         "type": "string",
@@ -1135,7 +6053,11 @@
           },
           "status": {
             "$ref": "#/components/schemas/FieldStatus",
-            "default": "found"
+            "default": "missing"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin",
+            "default": "ai"
           },
           "evidence": {
             "items": {
@@ -1143,6 +6065,17 @@
             },
             "type": "array",
             "title": "Evidence"
+          },
+          "entered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who typed it in (origin=manual)"
           },
           "note": {
             "anyOf": [
@@ -1176,7 +6109,11 @@
           },
           "status": {
             "$ref": "#/components/schemas/FieldStatus",
-            "default": "found"
+            "default": "missing"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin",
+            "default": "ai"
           },
           "evidence": {
             "items": {
@@ -1184,6 +6121,17 @@
             },
             "type": "array",
             "title": "Evidence"
+          },
+          "entered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who typed it in (origin=manual)"
           },
           "note": {
             "anyOf": [
@@ -1217,7 +6165,11 @@
           },
           "status": {
             "$ref": "#/components/schemas/FieldStatus",
-            "default": "found"
+            "default": "missing"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin",
+            "default": "ai"
           },
           "evidence": {
             "items": {
@@ -1225,6 +6177,17 @@
             },
             "type": "array",
             "title": "Evidence"
+          },
+          "entered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who typed it in (origin=manual)"
           },
           "note": {
             "anyOf": [
@@ -1261,7 +6224,11 @@
           },
           "status": {
             "$ref": "#/components/schemas/FieldStatus",
-            "default": "found"
+            "default": "missing"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin",
+            "default": "ai"
           },
           "evidence": {
             "items": {
@@ -1269,6 +6236,17 @@
             },
             "type": "array",
             "title": "Evidence"
+          },
+          "entered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who typed it in (origin=manual)"
           },
           "note": {
             "anyOf": [
@@ -1302,7 +6280,11 @@
           },
           "status": {
             "$ref": "#/components/schemas/FieldStatus",
-            "default": "found"
+            "default": "missing"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin",
+            "default": "ai"
           },
           "evidence": {
             "items": {
@@ -1310,6 +6292,17 @@
             },
             "type": "array",
             "title": "Evidence"
+          },
+          "entered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who typed it in (origin=manual)"
           },
           "note": {
             "anyOf": [
@@ -1332,7 +6325,8 @@
         "properties": {
           "by": {
             "type": "string",
-            "title": "By"
+            "title": "By",
+            "description": "Actor id"
           },
           "at": {
             "type": "string",
@@ -1390,7 +6384,11 @@
           "owner": {
             "type": "string",
             "title": "Owner",
-            "description": "Actor id of whoever is 'na tahu' (on the move)"
+            "description": "Actor or organization id of whoever is 'na tahu' (on the move)"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority",
+            "default": "normal"
           },
           "due": {
             "anyOf": [
@@ -1419,8 +6417,20 @@
           "external": {
             "type": "boolean",
             "title": "External",
-            "description": "Waiting on someone outside the KOC",
+            "description": "Performed outside the KOC (e.g. CT at KOC 1). Informational; on hold is manual (Q-F9)",
             "default": false
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id",
+            "description": "Finding this task resolves, e.g. a request task for F09 (Q-F23)"
           },
           "result_document_id": {
             "anyOf": [
@@ -1445,6 +6455,182 @@
         ],
         "title": "Task"
       },
+      "TaskCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "imaging | biopsy | lab | consult | request_documents | mdt | other"
+          },
+          "owner_id": {
+            "type": "string",
+            "title": "Owner Id",
+            "description": "Actor or organization id"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority",
+            "default": "normal"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Depends On"
+          },
+          "external": {
+            "type": "boolean",
+            "title": "External",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "kind",
+          "owner_id"
+        ],
+        "title": "TaskCreate"
+      },
+      "TaskSet": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "diagnosis_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Diagnosis Codes",
+            "description": "e.g. ['C25']"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/TaskTemplate"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "steps"
+        ],
+        "title": "TaskSet",
+        "description": "A reusable set of steps for a diagnosis, created and edited by coordinators in the UI."
+      },
+      "TaskSetStart": {
+        "properties": {
+          "task_set_id": {
+            "type": "string",
+            "title": "Task Set Id"
+          },
+          "owners": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Owners",
+            "description": "owner_role -> actor id"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start",
+            "description": "Base for due offsets; default now"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_set_id"
+        ],
+        "title": "TaskSetStart"
+      },
+      "TaskSetUpsert": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "diagnosis_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Diagnosis Codes"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/TaskTemplate"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "steps"
+        ],
+        "title": "TaskSetUpsert"
+      },
       "TaskStatus": {
         "type": "string",
         "enum": [
@@ -1454,6 +6640,234 @@
           "cancelled"
         ],
         "title": "TaskStatus"
+      },
+      "TaskTemplate": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "owner_role": {
+            "type": "string",
+            "title": "Owner Role"
+          },
+          "due_offset_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Offset Days"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Depends On",
+            "description": "Keys of other steps in the set"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "kind",
+          "owner_role"
+        ],
+        "title": "TaskTemplate"
+      },
+      "TaskUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Priority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "depends_on": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depends On"
+          },
+          "external": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External"
+          },
+          "result_document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Document Id",
+            "description": "Attach the arrived result"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TaskUpdate",
+        "description": "Partial update; omitted fields stay unchanged."
+      },
+      "TimeToTreatment": {
+        "properties": {
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1"
+          },
+          "t2": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T2"
+          },
+          "t3": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T3"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TimeToTreatment",
+        "description": "Slide 4: T1 symptom -> referral, T2 referral -> MDT, T3 MDT -> treatment, in days.\nA part is None until both of its dates are known."
+      },
+      "UploadResult": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/DocumentMeta"
+          },
+          "job": {
+            "$ref": "#/components/schemas/Job"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document",
+          "job"
+        ],
+        "title": "UploadResult",
+        "description": "Returned by every upload: the stored document and the AI ingest job (metadata + extraction)."
       },
       "ValidationError": {
         "properties": {

@@ -38,7 +38,8 @@ def check(handover: Handover, documents: list[ParsedDocument]) -> list[Finding]:
 
 
 def draft(kind: str, handover: Handover, findings: list[Finding]) -> str:
-    """Draft text for a human to edit: 'mdt_conclusion', 'document_request', ... TODO stream A."""
+    """Draft text for the coordinator to edit: 'epicrisis_summary' (Q-F15), 'mdt_question' (Q-F14),
+    'mdt_conclusion' (Q-F12). TODO stream A."""
     raise NotImplementedError
 
 

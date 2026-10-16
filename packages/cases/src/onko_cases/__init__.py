@@ -5,7 +5,6 @@ Owner: stream C. Task sets are user data (created in the UI), never config files
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 from onko_contracts import (
@@ -17,6 +16,7 @@ from onko_contracts import (
     Task,
     TaskSet,
     TaskStatus,
+    TimeToTreatment,
 )
 
 
@@ -42,7 +42,7 @@ def ready_tasks(tasks: list[Task]) -> list[Task]:
 
 def queue_column(case: Case) -> QueueColumn:
     """Dashboard column. 'Odložený' is a manual coordinator flag (Q-F9), not derived."""
-    if case.state in (CaseState.SENT, CaseState.TRIAGE):
+    if case.state in (CaseState.DRAFT, CaseState.SENT, CaseState.TRIAGE):
         return QueueColumn.NEW
     if case.on_hold is not None:
         return QueueColumn.ON_HOLD
@@ -60,21 +60,6 @@ def resume(case: Case) -> Case:
     return case.model_copy(update={"queue": queue_column(case)})
 
 
-@dataclass(frozen=True)
-class TimeToTreatment:
-    """Slide 4: T1 symptom -> referral to KOC, T2 referral -> MDT, T3 MDT -> treatment (days).
-    A part is None until both of its dates are known."""
-
-    t1: int | None
-    t2: int | None
-    t3: int | None
-
-    @property
-    def total(self) -> int | None:
-        parts = (self.t1, self.t2, self.t3)
-        return sum(parts) if all(p is not None for p in parts) else None
-
-
 def time_to_treatment(case: Case) -> TimeToTreatment:
     m = case.milestones
     referred = m.referred_at.date() if m.referred_at else None
@@ -82,11 +67,9 @@ def time_to_treatment(case: Case) -> TimeToTreatment:
     def days(a: date | None, b: date | None) -> int | None:
         return (b - a).days if a and b else None
 
-    return TimeToTreatment(
-        t1=days(m.symptom_onset, referred),
-        t2=days(referred, m.mdt_held),
-        t3=days(m.mdt_held, m.treatment_start),
-    )
+    t1, t2, t3 = days(m.symptom_onset, referred), days(referred, m.mdt_held), days(m.mdt_held, m.treatment_start)
+    total = t1 + t2 + t3 if None not in (t1, t2, t3) else None
+    return TimeToTreatment(t1=t1, t2=t2, t3=t3, total=total)
 
 
 def next_step(tasks: list[Task]) -> Task | None:
@@ -113,7 +96,6 @@ def start_task_set(case: Case, task_set: TaskSet, owners: dict[str, str], now: d
 
 
 __all__ = [
-    "TimeToTreatment",
     "TransitionError",
     "next_step",
     "open_tasks",

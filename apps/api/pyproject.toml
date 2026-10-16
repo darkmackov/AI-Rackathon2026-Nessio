@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.143.2",
   "uvicorn>=0.54.0",
+  "python-multipart>=0.0.32",
   "onko-contracts",
   "onko-cases",
   "onko-repository",

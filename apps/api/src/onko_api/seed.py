@@ -14,6 +14,7 @@ from onko_contracts import (
     Finding,
     Handover,
     Milestones,
+    Priority,
     TaskSet,
     TaskStatus,
     TaskTemplate,
@@ -34,19 +35,19 @@ PANCREAS_TASK_SET = TaskSet(
     created_by="koordinator",
     steps=[
         TaskTemplate(key="ct", title="CT břicha a hrudníku, pankreatický protokol (KOC 1)", kind="imaging",
-                     owner_role="external", due_offset_days=6),
+                     owner_role="imaging_site", due_offset_days=6),
         TaskTemplate(key="eus", title="EUS-FNB ložiska hlavy pankreatu", kind="biopsy",
                      owner_role="coordinator", due_offset_days=10, depends_on=["ct"]),
         TaskTemplate(key="lab", title="Kontrolní odběry: KO, biochemie, nádorové markery", kind="lab",
                      owner_role="coordinator", due_offset_days=13),
         TaskTemplate(key="histo", title="Výsledek histologie", kind="histology",
-                     owner_role="external", due_offset_days=17, depends_on=["eus"]),
+                     owner_role="pathology", due_offset_days=17, depends_on=["eus"]),
         TaskTemplate(key="mdt", title="MDT pro nádory GIT", kind="mdt", owner_role="coordinator",
                      due_offset_days=19, depends_on=["ct", "lab", "histo"]),
         TaskTemplate(key="pain", title="Algeziologie (KOC 1)", kind="consult",
-                     owner_role="external", due_offset_days=24),
+                     owner_role="pain_clinic", due_offset_days=24),
         TaskTemplate(key="psych", title="Klinický psycholog", kind="consult",
-                     owner_role="external", due_offset_days=25),
+                     owner_role="psycho_oncology", due_offset_days=25),
     ],
 )
 
@@ -65,20 +66,30 @@ def seed_reference_case(repo: CaseRepository) -> None:
         id=CASE_ID,
         patient_name="Alena Procházková",
         diagnosis_label="C25.0 Duktální adenokarcinom hlavy pankreatu",
-        koc="KOC Nemocnice Lipová",
+        koc_id="koc2-lipova",
+        mdt_board_id="mdt-git-lipova",
         referring_doctor_id="pl-reznicek",
         coordinator_id="koordinator",
         state=CaseState.READY_FOR_MDT,
+        priority=Priority.HIGH,  # the GP asked for urgent handling (07)
         mdt_date=date(2026, 10, 21),
         created_at=created,
         milestones=Milestones(symptom_onset=date(2026, 8, 15), referred_at=created),
     )
-    owners = {"coordinator": "koordinator", "external": "externi-pracoviste"}
+    # Owners are directory ids (data/demo/directory.json): people or organisations.
+    owners = {
+        "coordinator": "koordinator",
+        "imaging_site": "koc1-severni",
+        "pathology": "pato-pokorny",
+        "pain_clinic": "koc1-severni",
+        "psycho_oncology": "psycholog-vesela",
+    }
+    outside_koc2 = {"koc1-severni"}
     tasks = start_task_set(case, PANCREAS_TASK_SET, owners, created)
     tasks = [
         t.model_copy(update={
             "status": TaskStatus.DONE if t.id.rsplit("-", 1)[-1] in DONE_BY_MDT else TaskStatus.PLANNED,
-            "external": t.owner == "externi-pracoviste",
+            "external": t.owner in outside_koc2,
         })
         for t in tasks
     ]

@@ -65,7 +65,7 @@
     "fields": [
       "diagnosis_code"
     ],
-    "message_cs": "Kód MKN-10 C25.0 uvedl PL jako suspektní, histologie uvádí jen MKN-O 8500/3. Definitivní kód musí potvrdit lékař.",
+    "message_cs": "Kód MKN-10 C25.0 uvedl PL jako suspektní, histologie uvádí jen MKN-O 8500/3. Definitivní kód zapíše koordinátor(ka) podle závěru MDT.",
     "evidence": [
       {
         "document_id": "07",

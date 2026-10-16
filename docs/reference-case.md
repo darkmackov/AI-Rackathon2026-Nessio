@@ -4,7 +4,7 @@ This is the challenge's test patient. **It is test and demo data, not logic.** T
 
 | File | Contents |
 |---|---|
-| [`reference/manifest.json`](../data/vzp-structured/reference/manifest.json) | Metadata for all 13 reports. `received_at`: 07 on 2. 10. 2026 14:00 (the real referral date), 01–06 on 2. 10. 16:00 (requested and supplied by the GP the same day; that time is simulated, Q-C10), 08–13 on their document dates |
+| [`reference/manifest.json`](../data/vzp-structured/reference/manifest.json) | Metadata for all 13 reports. `received_at`: 07 on 2. 10. 2026 14:00 (the real referral date), 01–06 on 2. 10. 16:00 (requested from the GP and uploaded by the coordinator the same day; that time is simulated, Q-C10), 08–13 on their document dates |
 | [`reference/expected_handover.json`](../data/vzp-structured/reference/expected_handover.json) | The correct handover **as of the MDT on 21. 10. 2026**, with verbatim evidence |
 | [`reference/expected_findings.json`](../data/vzp-structured/reference/expected_findings.json) | The gaps and conflicts a good check should raise |
 | [`reports/*.md`](../data/vzp-structured/reports) | Text of the reports (tables as Markdown) |
@@ -28,7 +28,7 @@ timeline
   4. 9. 2026 : 04 GP epicrisis, antibiotics, referral to gastroenterology
   15. 9. 2026 : 05 Gastroenterology (Poliklinika Jižní)
   29. 9. 2026 : 06 Abdominal ultrasound, lesion in the head of the pancreas
-  2. 10. 2026 : 07 GP referral to KOC 2 (+ 01–06 attached in our flow)
+  2. 10. 2026 : 07 GP referral to KOC 2; coordinator requests 01–06 and uploads them
   8. 10. 2026 : 08 CT at KOC 1 (no slot at KOC 2)
   12. 10. 2026 : 09 EUS-FNB at KOC 2
   15. 10. 2026 : 10 Follow-up labs + tumour markers
@@ -54,7 +54,7 @@ timeline
 
 **In the brief:** the GP sends 07 alone (it **lists** results without attaching them), and the coordinator requests 01–06.
 
-**In our flow (Q-F6, Q-F22):** the GP sends 07 and validates the extracted handover; gaps are only soft prompts. The coordinator takes over, sees that 07 references 5 results that aren't attached (F09), and requests each report from whoever holds it. Here that's the GP, who ordered 02–04, was copied on 01 and 05, and knows the UZ result. The GP uploads 01–06 and confirms the updated handover.
+**In our flow (Q-F6, Q-F22):** the GP sends 07 and validates the extracted handover; gaps are only soft prompts. The coordinator takes over, sees that 07 references 5 results that aren't attached (F09), and requests each report from whoever holds it. Here that's the GP, who ordered 02–04, was copied on 01 and 05, and knows the UZ result. In the MVP the reply comes outside the app and the coordinator uploads 01–06; the in-app request/reply flow is Phase 2 (Q-F23).
 
 Then the coordinator:
 1. Starts the task set.
@@ -70,11 +70,11 @@ Then the coordinator:
 | F02 | Patient email missing | required field missing |
 | F03 | Referring doctor email missing (only a phone) | required field missing (MDT_zapis) |
 | F04 | MDT members missing | required field missing (MDT_zapis); filled from the board roster |
-| F05 | MKN-10 C25.0 only *suspected* by the GP; histology gives MKN-O 8500/3 | provisional vs confirmed diagnosis |
+| F05 | MKN-10 C25.0 only *suspected* by the GP; histology gives MKN-O 8500/3. The coordinator records the definitive code from the MDT conclusion | provisional vs confirmed diagnosis |
 | F06 | Cholestasis persists, biliary drainage not documented | LLM clinical review (advisory) |
 | F07 | EUS-FNB on **12. 10.**, but the "last apixaban dose" is on **18. 10.** | temporal impossibility |
 | F08 | Histology: sample taken **20. 10.**, issued **19. 10.**, procedure on 12. 10. | temporal impossibility |
-| F09 | The referral lists 5 examinations without results; the coordinator requests them from whoever holds them (here the GP), resolved when 01–06 arrive | unattached reference |
+| F09 | The referral lists 5 examinations without results; the coordinator creates a request task to whoever holds them (here the GP), resolved when the coordinator uploads 01–06 | unattached reference |
 | F10 | Weight 69 → 65 kg | trend |
 | F11 | Bilirubin 38 → 23, CRP 86 → 18, Hb 124 → 118 | trend |
 | F12 | Last weight is from 15. 9., 5 weeks before the MDT, while the patient is losing weight | stale value (Q-C6) |
@@ -95,4 +95,15 @@ Then the coordinator:
 | Patient wishes | Consents to sharing with the daughter (07) | the wish in 13 comes after the MDT |
 
 ## Examinations in the handover
-All 8 examinations before the MDT are listed (Q-C7), including the GP's own: 01 cardiology, 04 GP (1. 9.), 03 X-ray, 05 gastroenterology, 06 UZ, 07 GP (2. 10.), 08 CT, 09 EUS-FNB. Each `result_full_text` holds all clinical sections verbatim (findings, ZÁVĚR, DOPORUČENÍ) without the header and signature (Q-C8). Labs (02, 10) and histology (11) have their own fields.
+All 8 examinations before the MDT are listed (Q-C7), including the GP's own: 01 cardiology, 04 GP (1. 9.), 03 X-ray, 05 gastroenterology, 06 UZ, 07 GP (2. 10.), 08 CT, 09 EUS-FNB. Each `result_full_text` holds all clinical sections verbatim, without the administrative header and signature (Q-C8):
+
+| Report | Sections included |
+|---|---|
+| 01 | DIAGNÓZY → ZÁVĚR A DOPORUČENÍ |
+| 03, 06, 08 | POPIS → ZÁVĚR |
+| 04 | EPIKRÍZA → DOPORUČENÍ (incl. ANAMNÉZA) |
+| 05 | SUBJEKTIVNĚ → DOPORUČENÍ |
+| 07 | EPIKRÍZA + ANAMNÉZA |
+| 09 | PŘÍPRAVA → DOPORUČENÍ |
+
+07's PROVEDENÁ VYŠETŘENÍ list drives finding F09, and its ŽÁDOST is the source for the MDT question. Labs (02, 10) and histology (11) have their own fields.

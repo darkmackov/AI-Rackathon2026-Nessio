@@ -12,9 +12,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from onko_contracts import Case, DocumentMeta, Finding, Handover, Task
+from onko_contracts import Case, CaseState, DocumentMeta, Finding, Handover, QueueColumn, Task
 from onko_repository import CaseRepository, InMemoryRepository, IrisSettings
 
+from .routes import router
 from .seed import seed_reference_case
 
 repo: CaseRepository = InMemoryRepository()
@@ -43,19 +44,37 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(router)
 
 
-@app.get("/health")
+@app.get("/health", tags=["system"])
 def health() -> dict[str, bool]:
     return {"ok": True, "iris_configured": _iris_configured()}
 
 
-@app.get("/cases")
-def list_cases() -> list[Case]:
-    return repo.list_cases()
+@app.get("/cases", tags=["cases"])
+def list_cases(
+    referring_doctor_id: str | None = None,
+    koc_id: str | None = None,
+    state: CaseState | None = None,
+    queue: QueueColumn | None = None,
+) -> list[Case]:
+    """Coordinator dashboard (filter by koc_id) or the GP's own referrals (referring_doctor_id).
+    Drafts (koncept) only appear when filtering by their referring doctor."""
+    cases = repo.list_cases()
+    if referring_doctor_id is None:
+        cases = [c for c in cases if c.state is not CaseState.DRAFT]
+    return [
+        c
+        for c in cases
+        if (referring_doctor_id is None or c.referring_doctor_id == referring_doctor_id)
+        and (koc_id is None or c.koc_id == koc_id)
+        and (state is None or c.state is state)
+        and (queue is None or c.queue is queue)
+    ]
 
 
-@app.get("/cases/{case_id}")
+@app.get("/cases/{case_id}", tags=["cases"])
 def get_case(case_id: str) -> Case:
     try:
         return repo.get_case(case_id)
@@ -63,7 +82,7 @@ def get_case(case_id: str) -> Case:
         raise HTTPException(404, "case not found") from None
 
 
-@app.get("/cases/{case_id}/handover")
+@app.get("/cases/{case_id}/handover", tags=["handover"])
 def get_handover(case_id: str, snapshot: bool = False) -> Handover:
     handover = repo.get_handover(case_id, snapshot=snapshot)
     if handover is None:
@@ -71,22 +90,22 @@ def get_handover(case_id: str, snapshot: bool = False) -> Handover:
     return handover
 
 
-@app.get("/cases/{case_id}/findings")
+@app.get("/cases/{case_id}/findings", tags=["findings"])
 def list_findings(case_id: str) -> list[Finding]:
     return repo.list_findings(case_id)
 
 
-@app.get("/cases/{case_id}/tasks")
+@app.get("/cases/{case_id}/tasks", tags=["tasks"])
 def list_tasks(case_id: str) -> list[Task]:
     return repo.list_tasks(case_id)
 
 
-@app.get("/cases/{case_id}/documents")
+@app.get("/cases/{case_id}/documents", tags=["documents"])
 def list_documents(case_id: str) -> list[DocumentMeta]:
     return repo.list_documents(case_id)
 
 
-@app.get("/documents/{document_id}/text")
+@app.get("/documents/{document_id}/text", tags=["documents"])
 def document_text(document_id: str) -> dict[str, str]:
     try:
         return {"id": document_id, "text": repo.document_text(document_id)}
