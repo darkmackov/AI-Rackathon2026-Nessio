@@ -23,7 +23,7 @@ export default function FindingsPanel({ caseId, names, documentNames, handover, 
   const open = sorted.filter((finding) => !finding.resolved)
   const resolved = sorted.filter((finding) => finding.resolved)
   const fieldLabel = (path: string) => sectionOf(path)?.fields.find(([field]) => field === path)?.[1]
-  const card = (finding: Finding) => <Paper withBorder p="sm" key={finding.id} id={`finding-${finding.id}`} style={{ scrollMarginTop: 80 }}>
+  const card = (finding: Finding) => <Paper withBorder p="sm" key={finding.id} id={`finding-${finding.id}`}>
     <Stack gap={6}>
       <Group gap="xs">
         <SeverityBadge severity={finding.severity} />
@@ -49,7 +49,7 @@ export default function FindingsPanel({ caseId, names, documentNames, handover, 
   </Paper>
   return <Stack component="section" aria-labelledby="findings-heading" gap="sm">
     <Title order={2} size="h4" id="findings-heading">{t('caseDetail.findings')}</Title>
-    {findings.isPending && <LoadingState />}
+    {findings.isPending && <LoadingState rows={4} />}
     {findings.isError && <QueryError error={findings.error} pending={findings.isFetching} retry={() => { void findings.refetch() }} />}
     {findings.isSuccess && !sorted.length && <EmptyState title={t('caseDetail.noFindings')} />}
     {open.map(card)}

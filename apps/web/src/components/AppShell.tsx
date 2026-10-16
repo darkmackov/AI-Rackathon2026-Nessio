@@ -1,4 +1,4 @@
-import { Anchor, AppShell as MantineAppShell, Badge, Button, Container, Group, Menu, Tooltip } from '@mantine/core'
+import { Anchor, AppShell as MantineAppShell, Badge, Box, Button, Container, Group, Menu, Tooltip } from '@mantine/core'
 import { Link, Outlet } from '@tanstack/react-router'
 import { IconCheck, IconFlask, IconLanguage } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -48,7 +48,8 @@ export default function AppShell() {
               ? <>
                 <Group gap="xs" visibleFrom="sm"><DemoClock compact /></Group>
                 <Tooltip label={mode}>
-                  <Button variant="light" size="compact-md" leftSection={<IconFlask size={16} aria-hidden />} onClick={() => setDemoOpen(true)}>{t('demo')}</Button>
+                  <Button variant="light" size="compact-md" aria-label={t('demo')} leftSection={<IconFlask size={16} aria-hidden />} onClick={() => setDemoOpen(true)}
+                    styles={{ section: { marginInlineEnd: 0 } }}><Box component="span" visibleFrom="sm" ml={6}>{t('demo')}</Box></Button>
                 </Tooltip>
               </>
               : <Badge variant="light" color={apiMode === 'mock' ? 'blue' : 'gray'} leftSection={<IconFlask size={12} aria-hidden />}>{mode}</Badge>}

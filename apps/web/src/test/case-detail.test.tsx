@@ -31,7 +31,7 @@ async function detail(user: ReturnType<typeof userEvent.setup>) {
   await coordinator(user)
   await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
   await screen.findByRole('heading', { level: 1, name: 'Alena Procházková' })
-  await screen.findByRole('heading', { name: 'Stav případu' })
+  await screen.findByRole('heading', { name: 'Údaje o případu' })
 }
 
 async function openTab(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
@@ -39,12 +39,12 @@ async function openTab(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
 }
 
 async function findings(user: ReturnType<typeof userEvent.setup>) {
-  await openTab(user, /^Nálezy/)
+  await openTab(user, /^K řešení/)
   await screen.findByRole('heading', { name: 'Chybějící údaje a rozpory' })
 }
 
 async function fullHandover(user: ReturnType<typeof userEvent.setup>) {
-  await openTab(user, /^Handover/)
+  await openTab(user, /^Předávka/)
   await user.click(await screen.findByRole('button', { name: 'Rozbalit vše' }))
 }
 
@@ -99,12 +99,12 @@ describe('S1 read-only coordinator UI', () => {
     const user = userEvent.setup()
     await coordinator(user)
     await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
-    expect(await screen.findByText('Handover zatím není dostupný.')).toBeVisible()
-    await openTab(user, /^Nálezy/)
+    expect((await screen.findAllByText('Předávka zatím není dostupná.'))[0]).toBeVisible()
+    await openTab(user, /^K řešení/)
     expect(await screen.findByText('Nejsou zaznamenány žádné nedostatky ani rozpory.')).toBeVisible()
     await user.click(screen.getByRole('tab', { name: 'Dokumenty' }))
     expect(await screen.findByText('Případ zatím nemá žádné dokumenty.')).toBeVisible()
-    await user.click(screen.getByRole('tab', { name: 'Úkoly / cesta' }))
+    await user.click(screen.getByRole('tab', { name: 'Úkoly' }))
     expect(await screen.findByText('Případ zatím nemá žádné úkoly.')).toBeVisible()
   })
 
@@ -162,7 +162,7 @@ describe('S1 read-only coordinator UI', () => {
     expect(await screen.findByText('Originální soubor byl připraven ke stažení.')).toBeVisible()
     expect(create).toHaveBeenCalledWith(expect.any(Blob))
     expect(clicked).toHaveBeenCalledOnce()
-    await user.click(screen.getByRole('tab', { name: 'Úkoly / cesta' }))
+    await user.click(screen.getByRole('link', { name: /Zpět na pracovní frontu/ }))
     expect(revoke).toHaveBeenCalledWith('blob:test-original')
   })
 
@@ -196,7 +196,7 @@ describe('S1 read-only coordinator UI', () => {
     expect(screen.getAllByText('Zatím nepotvrzeno')).toHaveLength(2)
     await findings(user)
     expect(screen.getByText('Poradní upozornění')).toBeVisible()
-    await openTab(user, /^Handover/)
+    await openTab(user, /^Předávka/)
     expect((await screen.findAllByRole('button', { name: 'Doplnit' })).every((button) => button.hasAttribute('disabled'))).toBe(true)
     await user.click(screen.getByRole('link', { name: /Zpět na pracovní frontu/ }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Pracovní fronta koordinátora' })).toBeVisible()
@@ -237,7 +237,7 @@ describe('S1 read-only coordinator UI', () => {
     renderApp()
     const user = userEvent.setup()
     await detail(user)
-    await user.click(screen.getByRole('tab', { name: 'Úkoly / cesta' }))
+    await user.click(screen.getByRole('tab', { name: 'Úkoly' }))
     const rows = (await screen.findAllByRole('row')).filter((row) => row.id.startsWith('task-'))
     expect(rows).toHaveLength(7)
     expect(screen.getByRole('button', { name: 'Spustit sadu úkolů' })).toBeDisabled()
@@ -286,6 +286,25 @@ describe('S1 read-only coordinator UI', () => {
     } finally { server.events.removeListener('request:start', listener) }
   })
 
+  it('shows where the case is, who is on the move, by when and what needs attention in the header', async () => {
+    const { router } = renderApp()
+    const user = userEvent.setup()
+    await detail(user)
+    const header = screen.getByRole('region', { name: 'Alena Procházková' })
+    expect(within(header).getByText('Připraveno k MDT')).toBeVisible()
+    expect(within(header).getByText('Vysoká')).toBeVisible()
+    expect(within(header).getByRole('button', { name: 'Kontakty: Bc. Lucie Dvořáková' })).toBeVisible()
+    expect(within(header).getByText('MDT pro nádory GIT')).toBeVisible()
+    expect(within(header).getByText(/^21\. 10\. 2026/)).toBeVisible()
+    for (const name of ['Převzít', 'Vrátit lékaři', 'Odložit']) expect(within(header).getByRole('button', { name })).toBeDisabled()
+    const attention = await within(header).findByRole('group', { name: 'K řešení:' })
+    expect(within(attention).getByRole('link', { name: '1 blokující nález' })).toBeVisible()
+    await user.click(within(attention).getByRole('link', { name: '6 upozornění' }))
+    expect(router.state.location.search).toMatchObject({ tab: 'findings' })
+    await user.click(within(attention).getByRole('link', { name: /chybějící/ }))
+    expect(router.state.location.search).toMatchObject({ tab: 'handover' })
+  })
+
   it('opens on the overview and counts unresolved findings on the findings tab', async () => {
     const { router } = renderApp()
     const user = userEvent.setup()
@@ -293,7 +312,7 @@ describe('S1 read-only coordinator UI', () => {
     expect(router.state.location.search).toMatchObject({ tab: 'overview' })
     expect(screen.getByRole('tab', { name: /^Přehled/ })).toHaveAttribute('aria-selected', 'true')
     const unresolved = referenceFindings.filter((finding) => !finding.resolved).length
-    expect(screen.getByRole('tab', { name: new RegExp(`^Nálezy\\s*${unresolved}$`) })).toBeVisible()
+    expect(screen.getByRole('tab', { name: new RegExp(`^K řešení\\s*${unresolved}$`) })).toBeVisible()
   })
 
   it('opens only handover sections with gaps or conflicts until the user expands them', async () => {
@@ -306,7 +325,7 @@ describe('S1 read-only coordinator UI', () => {
     renderApp()
     const user = userEvent.setup()
     await detail(user)
-    await openTab(user, /^Handover/)
+    await openTab(user, /^Předávka/)
     const history = await screen.findByRole('button', { name: /^Anamnézy a stav/ })
     const other = screen.getByRole('button', { name: /^Další sdělení/ })
     expect(history).toHaveAttribute('aria-expanded', 'true')

@@ -62,7 +62,7 @@ export default function ClinicalValue({ label, path, value, names, documentNames
   const status = value?.status ?? 'missing'
   // A found empty value ('' or []) is shown explicitly, never as a blank (UX-3).
   const shown = value?.value != null ? formatted ?? displayValue(value.value) : null
-  return <Box id={`field-${path}`} py="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-3)', scrollMarginTop: 80 }}>
+  return <Box id={`field-${path}`} py="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
     <Grid gap="xs">
       <Grid.Col span={{ base: 12, sm: 4 }}>
         <Text fw={600} size="sm">{label}</Text>

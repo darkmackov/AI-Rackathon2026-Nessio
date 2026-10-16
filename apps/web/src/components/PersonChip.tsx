@@ -29,7 +29,7 @@ export function PersonLabel({ name, size = 'sm', secondary, textVisibleFrom }: {
   return <Group gap={8} wrap="nowrap">
     <Avatar name={name} color="initials" size={avatarSize[size]} aria-hidden />
     <Box miw={0} visibleFrom={textVisibleFrom}>
-      <Text size={size as MantineSize} fw={500} lh={1.25}>{name}</Text>
+      <Text size={size as MantineSize} fw={500} lh={1.25} style={{ overflowWrap: 'break-word' }}>{name}</Text>
       {secondary && <Text size="xs" c="dimmed" lh={1.25}>{secondary}</Text>}
     </Box>
   </Group>

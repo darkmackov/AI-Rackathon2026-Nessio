@@ -49,8 +49,8 @@ function DocumentTable({ item, documents, names, openSource, onEdit, editDisable
 }) {
   const { t, i18n } = useTranslation()
   const sorted = [...documents].sort((a, b) => (a.document_date ?? '9999').localeCompare(b.document_date ?? '9999') || a.filename.localeCompare(b.filename))
-  return <Table.ScrollContainer minWidth={760}><Table withTableBorder verticalSpacing="sm" fz="sm"><Table.Thead><Table.Tr>
-    {['caseDetail.document', 'documents.documentDate', 'documents.metadata.facility', 'caseDetail.actions'].map((label) => <Table.Th key={label}>{t(label)}</Table.Th>)}
+  return <Table.ScrollContainer minWidth={640}><Table withTableBorder verticalSpacing="sm" fz="sm"><Table.Thead><Table.Tr>
+    {['caseDetail.document', 'documents.documentDate', 'documents.metadata.facility', 'caseDetail.actions'].map((label) => <Table.Th key={label} style={{ overflowWrap: 'normal' }}>{t(label)}</Table.Th>)}
   </Table.Tr></Table.Thead><Table.Tbody>
     {sorted.map((document) => <Table.Tr key={document.id} style={{ verticalAlign: 'top' }}>
       <Table.Td w="38%">
@@ -96,7 +96,7 @@ export default function DocumentsTab({ item, names, openSource }: { item: Case; 
     <DocumentJobs caseId={item.id} actorId={actor} documents={documents.data ?? []} disabled={busy} />
     <Stack component="section" aria-labelledby={listHeading} gap="sm">
       <Title order={2} size="h4" id={listHeading}>{t('documents.list')}</Title>
-      {documents.isPending && <LoadingState />}
+      {documents.isPending && <LoadingState rows={5} />}
       {documents.isError && <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} />}
       {documents.isSuccess && !documents.data.length && <EmptyState title={t('documents.empty')} description={t('documents.emptyHelp')} />}
       {documents.isSuccess && documents.data.length > 0 && <DocumentTable item={item} documents={documents.data} names={names} openSource={openSource} onEdit={setEditingId} editDisabled={busy} />}

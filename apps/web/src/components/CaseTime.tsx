@@ -42,13 +42,13 @@ export default function CaseTime({ item, compact = false }: { item: Case; compac
     {clock.isError && <QueryError error={clock.error} pending={clock.isFetching} retry={() => { void clock.refetch() }} />}
     {day && times.isPending && <LoadingState />}
     {times.isError && <QueryError error={times.error} pending={times.isFetching} retry={() => { void times.refetch() }} />}
-    {times.data && <SimpleGrid cols={compact ? 2 : { base: 2, md: 4 }} spacing="xs">
-      {values.map((value, index) => <Paper key={index} p="xs" bg="gray.0" withBorder>
+    {times.data && <SimpleGrid cols={compact ? 2 : { base: 2, sm: 4 }} spacing={6} verticalSpacing={6}>
+      {values.map((value, index) => <Paper key={index} px="xs" py={4} bg="gray.0" withBorder>
         <Text size="xs" fw={600}>{t(`caseDetail.t${index + 1}`)}</Text>
         <Text fw={650} size="sm">{value != null ? t('caseDetail.days', { count: value }) : '—'}</Text>
         <Text size="xs" c="dimmed">{t(`caseDetail.${intervalState(index, value)}`)}</Text>
       </Paper>)}
-      <Paper p="xs" bg="blue.0" withBorder><Text size="xs" fw={600}>{t('caseDetail.total')}</Text><Text fw={650} size="sm">{times.data.total != null ? t('caseDetail.days', { count: times.data.total }) : '—'}</Text><Text size="xs" c="dimmed">{t(`caseDetail.${times.data.total == null ? 'unknownInterval' : m?.treatment_start ? 'completed' : 'ongoing'}`)}</Text></Paper>
+      <Paper px="xs" py={4} bg="blue.0" withBorder><Text size="xs" fw={600}>{t('caseDetail.total')}</Text><Text fw={650} size="sm">{times.data.total != null ? t('caseDetail.days', { count: times.data.total }) : '—'}</Text><Text size="xs" c="dimmed">{t(`caseDetail.${times.data.total == null ? 'unknownInterval' : m?.treatment_start ? 'completed' : 'ongoing'}`)}</Text></Paper>
     </SimpleGrid>}
   </Stack>
 }

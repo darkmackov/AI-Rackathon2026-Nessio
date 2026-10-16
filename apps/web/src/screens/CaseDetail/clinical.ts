@@ -41,6 +41,13 @@ export function problemCount(fields: Record<string, SourcedValue | undefined>, s
   return section.fields.filter(([path]) => (fields[path]?.status ?? 'missing') !== 'found').length
 }
 
+// Display counts for the attention strip; the statuses come from the API as they are (WEB-6).
+export function fieldStatusCounts(handover: Handover) {
+  const fields = handoverFields(handover)
+  const statuses = handoverSections.flatMap((section) => section.fields.map(([path]) => fields[path]?.status ?? 'missing'))
+  return { missing: statuses.filter((status) => status === 'missing').length, conflict: statuses.filter((status) => status === 'conflict').length }
+}
+
 export function problemSections(handover: Handover) {
   const fields = handoverFields(handover)
   return handoverSections.filter((section) => problemCount(fields, section) > 0).map((section) => section.key)
