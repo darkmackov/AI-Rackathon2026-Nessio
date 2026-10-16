@@ -2,7 +2,7 @@
 
 Rakathon 2026. **VZP: Cesta pacienta bez ztráty informací** + **InterSystems challenge**.
 
-A tool for the KOC coordinator and the referring doctor: GP referral without forms → AI handover with sources and flagged gaps → journey with an owner and due date for every step → MDT record and conclusion → confirmed delivery back to the GP. Built on InterSystems IRIS for Health in Azure (FHIR R4 with EU/CZ profiles; Vector Search in Phase 2) and our own OpenAI-compatible models.
+A tool for the KOC coordinator and the referring doctor: GP referral without forms → AI handover with sources and flagged gaps → journey with an owner and due date for every step → MDT record and conclusion → confirmed delivery back to the GP. Built on InterSystems IRIS for Health in Azure (FHIR R4 with EU/CZ profiles for storage and exchange, Vector Search for evidence and MKN-10 code suggestions) and our own OpenAI-compatible models.
 
 ## Start here
 | Doc | What |

@@ -11,5 +11,5 @@ Root rules: [AGENTS.md](../../AGENTS.md). Conventions: [docs/conventions/](../..
 **Rules:**
 - Follow PER-1 … PER-12 in data.md. The port speaks domain models only.
 - `adapters/memory.py` is the behavioural reference. `adapters/iris.py` must pass the same tests.
-- The FHIR projection follows `docs/data-model.md` exactly. Add new resources, profiles or identifier systems there first. Vector chunks are Phase 2.
+- The FHIR projection follows `docs/data-model.md` exactly. Add new resources, profiles or identifier systems there first. Vector chunks (`VECTOR` column) and the FHIR exchange resources are MVP slices S8 and S9 (Q-I19, Q-I20). IRIS is reached through the SQL driver and FHIR REST only, no ObjectScript (Q-I18).
 - Secrets only through `settings.py` (`SecretStr`). Never log or commit them.
