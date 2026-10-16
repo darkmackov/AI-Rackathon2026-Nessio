@@ -20,11 +20,11 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | ID | Question | Decision | Lands in |
 |---|---|---|---|
 | Q-F1 | How does the coordinator know which documents to request? | **The coordinator coordinates everything.** AI suggestions are a bonus feature and must be high-precision: better no suggestion than nonsense | product.md › Where requests and tasks come from |
-| Q-F2 | Who defines task sets? | KOC staff, in the UI. One set seeded from the reference case | `TaskSet`, seed.py |
+| Q-F2 | Who defines task sets? | KOC staff, in the UI; in practice the coordinator (Q-F21). One set seeded from the reference case | `TaskSet`, seed.py |
 | Q-F3 | May AI propose tasks from the referral text? | Yes, as dismissible proposals (under the Q-F1 precision bar) | product.md |
-| Q-F4 | How do requested documents arrive? | The coordinator uploads them (in the demo: simulated replies) | product.md, demo-script.md |
-| Q-F5 | Who validates the handover? | **The referring doctor owns the handover** (Q-F22): they validate it when sending and again after supplying requested reports. The **coordinator** confirms the MDT snapshot (see Q-F21) | `Handover.validated_by_referrer`, `Handover.confirmed_by_coordinator` |
-| Q-F6 | How does the referral start, and who gets the requests for 01–06? | **The GP sends 07; the KOC then requests 01–06 from whoever holds each report** (corrected 16. 10.). In the reference case that's the GP, who ordered 02–04, was copied on 01 and 05, and knows the UZ result. Otherwise the request goes to the producing facility. The brief doesn't say who the coordinator asked ("vyžádal si … zprávy (01-06)"); its capability text says "z jiných pracovišť" (from other facilities). "Whoever holds it" covers both readings. Everything from 08 on is arranged by the KOC | product.md, demo-script.md, reference-case.md, manifest `received_at` |
+| Q-F4 | How do requested documents arrive? | Outside the app; the coordinator uploads them (Q-F23) | product.md, demo-script.md |
+| Q-F5 | Who validates the handover? | **The referring doctor owns the handover** (Q-F22): they validate it when sending (re-confirming after additional documents is Phase 2, Q-F23). The **coordinator** confirms the MDT snapshot (see Q-F21) | `Handover.validated_by_referrer`, `Handover.confirmed_by_coordinator` |
+| Q-F6 | How does the referral start, and who gets the requests for 01–06? | **The GP sends 07; the KOC then requests 01–06 from whoever holds each report** (corrected 16. 10.). In the reference case that's the GP, who ordered 02–04, was copied on 01 and 05, and knows the UZ result. Otherwise the request goes to the producing facility. The brief doesn't say who the coordinator asked ("vyžádal si … zprávy (01-06)"); its capability text says "z jiných pracovišť" (from other facilities). "Whoever holds it" covers both readings. Everything from 08 on is arranged by the KOC. The request/reply flow itself is Phase 2 (Q-F23) | product.md, demo-script.md, reference-case.md, manifest `received_at` |
 | Q-F7 | Triage, rejection? | The coordinator accepts; no rejection or redirect | state machine unchanged |
 | Q-F9 | What is "Odložený pacient"? | **A manual flag** set by the coordinator, with a reason and an optional resume date | `Case.on_hold`, `onko_cases.put_on_hold/resume` |
 | Q-F10 | Which reviewing doctor? | The patient's insurer's revizní lékař (code 211 = ZPMV here), but **not in the MVP** | `MessageKind.REVIEW_FEED`, delivery.md Phase 2 |
@@ -37,9 +37,23 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-F17 | Deadline notifications? | In-app only | `MessageKind.NOTIFICATION` |
 | Q-F18 | Time to treatment? | **In the MVP**: T1 symptom → referral, T2 referral → MDT, T3 MDT → treatment | `Case.milestones`, `onko_cases.time_to_treatment` |
 | Q-F19 | KOC list? | Fictional, from the data (KOC 1 Severní, KOC 2 Lipová) | seed |
-| Q-F20 | UI language? | **Czech + English** (i18n in the web app) | delivery.md stream E |
+| Q-F20 | UI language? | **Czech + English UI**; data stays Czech (Q-A6) | delivery.md stream E |
+| Q-F23 | Which handover flows are in the MVP? | **Two flows:** (1) **initial GP handover**: referral, AI extraction, the GP validates with soft prompts, sends. **In the MVP.** (2) **Additional document handovers** from the GP or others: request → reply in an inbox → upload → re-confirm. **Not in the MVP (Phase 2).** In the MVP the coordinator logs a request task and **uploads** the reports that arrive by other channels (01–06, 08–11) | product.md, demo-script.md, delivery.md |
 | Q-F22 | Does the GP gap-fill before sending? | **The referring doctor completes and validates the handover.** Remaining gaps (ECOG, emails, …) are **soft "fill in if you know" prompts**, never blocking the GP. Referenced reports are not demanded at sending; the KOC requests them afterwards | product.md screen 1, demo-script.md |
 | Q-F21 | Is the coordinator the only KOC-side user? | **Yes: the users are the GP and the coordinator.** MDT doctors appear as roster/signatory information only | product.md roles |
+
+## A: API design (decided 16. 10.)
+
+| ID | Question | Decision | Lands in |
+|---|---|---|---|
+| Q-A1 | Slow AI work vs request/response? | **Async jobs**: uploads and drafts return a `Job`, the UI polls `GET /jobs/{id}` | `onko_contracts.Job`, api.md |
+| Q-A2 | Provenance of manually entered values? | `Sourced.origin` = `ai` (needs evidence) / `manual` (needs `entered`), enforced by the contract | `onko_contracts.common` |
+| Q-A3 | MDT record and conclusion structures? | Modelled per `MDT_zapis` / `MDT_zaver` | `onko_contracts.mdt` |
+| Q-A4 | Recording finding resolutions? | `Finding.resolution` {kind resolved / overridden / dismissed, note, by, at}; an override needs a note | `onko_contracts.findings` |
+| Q-A5 | People and places? | Directory of organisations + actors + MDT boards, seeded | `onko_contracts.directory`, `mdt.MdtBoard` |
+| Q-A6 | Multilingual scope? | **UI only**. Data, findings, notes and drafts stay Czech (`message_cs`) | refines Q-F20 |
+| Q-A7 | Where the MVP keeps its state? | **IRIS** (app state as JSON documents), projected to FHIR only where needed | architecture.md, slices.md S7 |
+| Q-A8 | Who sets document metadata (type, date, facility)? | **AI-extracted** by the ingest job; optional in `DocumentMeta` until then | `onko_contracts.documents` |
 
 ## C: Clinical and data interpretation
 
@@ -53,7 +67,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-C6 | Stale weight? | Use 65 kg and add an info finding that it's 5 weeks old | F12 |
 | Q-C7 | Which examinations to list? | **All of them**, including the GP's own examinations (04 on 1. 9., 07 on 2. 10.) | expected_handover `examinations` |
 | Q-C8 | What is "popis výsledků v plném znění"? | **All clinical sections verbatim** (findings, ZÁVĚR, DOPORUČENÍ). The administrative header and signature are dropped and kept as metadata | `Examination.result_full_text`, enforced verbatim by a test |
-| Q-C9 | Confirm MKN-10 C25.0? | Yes, a review finding until the coordinator confirms it | F05 |
+| Q-C9 | Confirm MKN-10 C25.0? | Yes: provisional, with a review finding, until the coordinator records the definitive code from the MDT conclusion | F05 |
 | Q-C10 | `received_at` dates? | 07 on 2. 10. 2026 14:00 (the real referral date). 01–06 on **2. 10. 16:00**: the request and the GP's reply on the same day, as close to the original dates as possible. **Checked against the materials:** the brief gives no arrival date for 01–06, so this time is simulated. 08–13 on their document dates | manifest.json |
 
 ## I: IRIS, FHIR and infrastructure
@@ -133,4 +147,9 @@ Q-W1 to Q-W3 (UI library, router, i18n) are still open, see the top of this page
 | D-4 | Extra transition *Kompletní → Čeká na podklady* |
 | D-5 | FHIR: case = `EpisodeOfCare` + `CarePlan`; findings = `DetectedIssue`; task sets = `PlanDefinition`; evidence = `cz-provenance` |
 | D-6 | Severity scale info / warning / blocker, and the severities in `expected_findings.json` |
+| D-8 | Extra pre-referral state `koncept` (GP draft, not on the KOC dashboard) before *Odesláno* |
+| D-9 | Current user passed as `X-Actor-Id` header (role switcher); no real auth in the MVP |
+| D-10 | An app clock (`/demo/clock`) and `received_at` on uploads let the 2.–27. 10. story play in minutes; every "now" uses the clock |
+| D-11 | Priority (`normal` / `high` / `urgent`) on cases and tasks (slide 9); the reference case is `high` (the GP asked for urgent handling) |
+| D-12 | The demo directory is fictional apart from the reference-case people and facilities; insurer codes are the real public ones |
 | D-7 | Seeded task set "Karcinom pankreatu – diagnostika do MDT": CT → EUS-FNB → histology, labs, MDT, then pain clinic and psychologist; due offsets are ours |

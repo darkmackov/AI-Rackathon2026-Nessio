@@ -13,6 +13,7 @@ from .common import Model
 class CaseState(StrEnum):
     """The 8 case states from the VZP brief (slide 10)."""
 
+    DRAFT = "koncept"  # GP is preparing the referral; not on the KOC dashboard
     SENT = "odeslano"
     TRIAGE = "v_triage"
     WAITING_FOR_DOCUMENTS = "ceka_na_podklady"
@@ -24,6 +25,7 @@ class CaseState(StrEnum):
 
 
 ALLOWED_TRANSITIONS: dict[CaseState, set[CaseState]] = {
+    CaseState.DRAFT: {CaseState.SENT},
     CaseState.SENT: {CaseState.TRIAGE},
     CaseState.TRIAGE: {CaseState.WAITING_FOR_DOCUMENTS, CaseState.COMPLETE},
     CaseState.WAITING_FOR_DOCUMENTS: {CaseState.COMPLETE},
@@ -43,6 +45,14 @@ class QueueColumn(StrEnum):
     ON_HOLD = "odlozeny"  # set manually by the coordinator (Q-F9)
 
 
+class Priority(StrEnum):
+    """Slide 9: 'pacienti, priority, úkoly'."""
+
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
 class TaskStatus(StrEnum):
     PLANNED = "planned"
     BOOKED = "booked"  # objednáno, has a date
@@ -56,11 +66,18 @@ class Task(Model):
     title: str
     kind: str = Field(description="e.g. imaging, biopsy, lab, consult, request_documents, mdt")
     location: str | None = None
-    owner: str = Field(description="Actor id of whoever is 'na tahu' (on the move)")
+    owner: str = Field(description="Actor or organization id of whoever is 'na tahu' (on the move)")
+    priority: Priority = Priority.NORMAL
     due: datetime | None = None
     status: TaskStatus = TaskStatus.PLANNED
     depends_on: list[str] = Field(default_factory=list, description="Task ids that must be done first")
-    external: bool = Field(default=False, description="Waiting on someone outside the KOC")
+    external: bool = Field(
+        default=False,
+        description="Performed outside the KOC (e.g. CT at KOC 1). Informational; on hold is manual (Q-F9)",
+    )
+    finding_id: str | None = Field(
+        default=None, description="Finding this task resolves, e.g. a request task for F09 (Q-F23)"
+    )
     result_document_id: str | None = None
 
 
@@ -101,14 +118,26 @@ class Milestones(Model):
     treatment_start: date | None = None
 
 
+class TimeToTreatment(Model):
+    """Slide 4: T1 symptom -> referral, T2 referral -> MDT, T3 MDT -> treatment, in days.
+    A part is None until both of its dates are known."""
+
+    t1: int | None = None
+    t2: int | None = None
+    t3: int | None = None
+    total: int | None = None
+
+
 class Case(Model):
     id: str
     patient_name: str
     diagnosis_label: str | None = None
-    koc: str
+    koc_id: str = Field(description="Organization id of the receiving KOC")
+    mdt_board_id: str | None = None
     referring_doctor_id: str
     coordinator_id: str | None = None
     state: CaseState = CaseState.SENT
+    priority: Priority = Priority.NORMAL
     queue: QueueColumn = QueueColumn.NEW
     on_move: str | None = Field(default=None, description="Actor id responsible for the next step")
     next_step: str | None = None

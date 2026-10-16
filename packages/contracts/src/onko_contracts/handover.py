@@ -10,7 +10,7 @@ import datetime as dt
 
 from pydantic import Field
 
-from .common import Evidence, Model, Sourced, Stamp
+from .common import Evidence, Model, Origin, Sourced, Stamp
 
 HANDOVER_SCHEMA_VERSION = "1"
 
@@ -46,7 +46,9 @@ class Examination(Model):
     place: str
     type: str
     result_full_text: str
+    origin: Origin = Origin.AI
     evidence: list[Evidence] = Field(default_factory=list)
+    entered: Stamp | None = None
 
 
 class LabValue(Model):
@@ -61,7 +63,9 @@ class LabPanel(Model):
     date: dt.date
     place: str
     values: list[LabValue]
+    origin: Origin = Origin.AI
     evidence: list[Evidence] = Field(default_factory=list)
+    entered: Stamp | None = None
 
 
 class Handover(Model):

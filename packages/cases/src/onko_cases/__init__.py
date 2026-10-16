@@ -6,7 +6,7 @@ Public API: only what `__all__` lists. Layout: docs/conventions/implementation.m
 
 from __future__ import annotations
 
-from .models import TimeToTreatment, TransitionError
+from .models import TransitionError
 from .service import (
     next_step,
     open_tasks,
@@ -20,7 +20,6 @@ from .service import (
 )
 
 __all__ = [
-    "TimeToTreatment",
     "TransitionError",
     "next_step",
     "open_tasks",

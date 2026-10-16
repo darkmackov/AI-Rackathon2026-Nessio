@@ -13,9 +13,10 @@ from onko_contracts import (
     Task,
     TaskSet,
     TaskStatus,
+    TimeToTreatment,
 )
 
-from .models import TimeToTreatment, TransitionError
+from .models import TransitionError
 
 
 def transition(case: Case, to: CaseState) -> Case:
@@ -36,7 +37,7 @@ def ready_tasks(tasks: list[Task]) -> list[Task]:
 
 def queue_column(case: Case) -> QueueColumn:
     """Dashboard column. 'Odložený' is a manual coordinator flag (Q-F9), not derived."""
-    if case.state in (CaseState.SENT, CaseState.TRIAGE):
+    if case.state in (CaseState.DRAFT, CaseState.SENT, CaseState.TRIAGE):
         return QueueColumn.NEW
     if case.on_hold is not None:
         return QueueColumn.ON_HOLD
@@ -61,11 +62,9 @@ def time_to_treatment(case: Case) -> TimeToTreatment:
     def days(a: date | None, b: date | None) -> int | None:
         return (b - a).days if a and b else None
 
-    return TimeToTreatment(
-        t1=days(m.symptom_onset, referred),
-        t2=days(referred, m.mdt_held),
-        t3=days(m.mdt_held, m.treatment_start),
-    )
+    t1, t2, t3 = days(m.symptom_onset, referred), days(referred, m.mdt_held), days(m.mdt_held, m.treatment_start)
+    total = t1 + t2 + t3 if None not in (t1, t2, t3) else None
+    return TimeToTreatment(t1=t1, t2=t2, t3=t3, total=total)
 
 
 def next_step(tasks: list[Task]) -> Task | None:

@@ -2,7 +2,7 @@
 
 Rakathon 2026. **VZP: Cesta pacienta bez ztráty informací** + **InterSystems challenge**.
 
-A tool for the KOC coordinator and doctors: GP referral without forms → AI handover with sources and flagged gaps → journey with an owner and due date for every step → MDT record and conclusion → confirmed delivery back to the GP. Built on InterSystems IRIS for Health in Azure (FHIR R4 with EU/CZ profiles, Vector Search) and our own OpenAI-compatible models.
+A tool for the KOC coordinator and the referring doctor: GP referral without forms → AI handover with sources and flagged gaps → journey with an owner and due date for every step → MDT record and conclusion → confirmed delivery back to the GP. Built on InterSystems IRIS for Health in Azure (FHIR R4 with EU/CZ profiles; Vector Search in Phase 2) and our own OpenAI-compatible models.
 
 ## Start here
 | Doc | What |
@@ -10,6 +10,8 @@ A tool for the KOC coordinator and doctors: GP referral without forms → AI han
 | [docs/product.md](docs/product.md) | What we build: roles, case states, screens, demo checklist |
 | [docs/architecture.md](docs/architecture.md) | Modules, contracts, AI pipeline, IRIS runtime |
 | [docs/data-model.md](docs/data-model.md) | Domain models ↔ FHIR R4 (HL7 Europe + CZ Core) |
+| [docs/api.md](docs/api.md) | Every endpoint: request, response, status |
+| [docs/slices.md](docs/slices.md) | Vertical slices and the order we build them |
 | [docs/delivery.md](docs/delivery.md) | Phases, parallel streams, extension order |
 | [docs/reference-case.md](docs/reference-case.md) | The test patient, expected results, traps |
 | [docs/demo-script.md](docs/demo-script.md) | The demo, click by click |

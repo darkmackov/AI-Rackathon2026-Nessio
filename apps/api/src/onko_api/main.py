@@ -1,6 +1,4 @@
-"""FastAPI app. Thin layer over the modules.
-
-Routes take and return DTOs from `onko_contracts.dto` only; domain models are mapped in `mappers`.
+"""FastAPI app. Thin layer over the modules; all models come from onko_contracts.
 
 Run:  uv run uvicorn onko_api.main:app --reload
 Data: in-memory fake seeded with the reference case until IrisRepository lands
@@ -14,18 +12,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from onko_contracts.dto import (
-    CaseDto,
-    DocumentMetaDto,
-    DocumentTextDto,
-    FindingDto,
-    HandoverDto,
-    HealthDto,
-    TaskDto,
-)
+from onko_contracts import Case, CaseState, DocumentMeta, Finding, Handover, QueueColumn, Task
 from onko_repository import CaseRepository, InMemoryRepository, IrisSettings
 
-from .mappers import case_to_dto, document_meta_to_dto, finding_to_dto, handover_to_dto, task_to_dto
+from .routes import router
 from .seed import seed_reference_case
 
 repo: CaseRepository = InMemoryRepository()
@@ -54,52 +44,70 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(router)
 
 
-@app.get("/health")
-def health() -> HealthDto:
-    return HealthDto(ok=True, iris_configured=_iris_configured())
+@app.get("/health", tags=["system"])
+def health() -> dict[str, bool]:
+    return {"ok": True, "iris_configured": _iris_configured()}
 
 
-@app.get("/cases")
-def list_cases() -> list[CaseDto]:
-    return [case_to_dto(c) for c in repo.list_cases()]
+@app.get("/cases", tags=["cases"])
+def list_cases(
+    referring_doctor_id: str | None = None,
+    koc_id: str | None = None,
+    state: CaseState | None = None,
+    queue: QueueColumn | None = None,
+) -> list[Case]:
+    """Coordinator dashboard (filter by koc_id) or the GP's own referrals (referring_doctor_id).
+    Drafts (koncept) only appear when filtering by their referring doctor."""
+    cases = repo.list_cases()
+    if referring_doctor_id is None:
+        cases = [c for c in cases if c.state is not CaseState.DRAFT]
+    return [
+        c
+        for c in cases
+        if (referring_doctor_id is None or c.referring_doctor_id == referring_doctor_id)
+        and (koc_id is None or c.koc_id == koc_id)
+        and (state is None or c.state is state)
+        and (queue is None or c.queue is queue)
+    ]
 
 
-@app.get("/cases/{case_id}")
-def get_case(case_id: str) -> CaseDto:
+@app.get("/cases/{case_id}", tags=["cases"])
+def get_case(case_id: str) -> Case:
     try:
-        return case_to_dto(repo.get_case(case_id))
+        return repo.get_case(case_id)
     except KeyError:
         raise HTTPException(404, "case not found") from None
 
 
-@app.get("/cases/{case_id}/handover")
-def get_handover(case_id: str, snapshot: bool = False) -> HandoverDto:
+@app.get("/cases/{case_id}/handover", tags=["handover"])
+def get_handover(case_id: str, snapshot: bool = False) -> Handover:
     handover = repo.get_handover(case_id, snapshot=snapshot)
     if handover is None:
         raise HTTPException(404, "no handover yet")
-    return handover_to_dto(handover)
+    return handover
 
 
-@app.get("/cases/{case_id}/findings")
-def list_findings(case_id: str) -> list[FindingDto]:
-    return [finding_to_dto(f) for f in repo.list_findings(case_id)]
+@app.get("/cases/{case_id}/findings", tags=["findings"])
+def list_findings(case_id: str) -> list[Finding]:
+    return repo.list_findings(case_id)
 
 
-@app.get("/cases/{case_id}/tasks")
-def list_tasks(case_id: str) -> list[TaskDto]:
-    return [task_to_dto(t) for t in repo.list_tasks(case_id)]
+@app.get("/cases/{case_id}/tasks", tags=["tasks"])
+def list_tasks(case_id: str) -> list[Task]:
+    return repo.list_tasks(case_id)
 
 
-@app.get("/cases/{case_id}/documents")
-def list_documents(case_id: str) -> list[DocumentMetaDto]:
-    return [document_meta_to_dto(m) for m in repo.list_documents(case_id)]
+@app.get("/cases/{case_id}/documents", tags=["documents"])
+def list_documents(case_id: str) -> list[DocumentMeta]:
+    return repo.list_documents(case_id)
 
 
-@app.get("/documents/{document_id}/text")
-def document_text(document_id: str) -> DocumentTextDto:
+@app.get("/documents/{document_id}/text", tags=["documents"])
+def document_text(document_id: str) -> dict[str, str]:
     try:
-        return DocumentTextDto(id=document_id, text=repo.document_text(document_id))
+        return {"id": document_id, "text": repo.document_text(document_id)}
     except KeyError:
         raise HTTPException(404, "document not found") from None

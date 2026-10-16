@@ -6,7 +6,8 @@ from onko_contracts import Channel, Message
 
 
 class InAppInbox:
-    """Messages land in the recipient's inbox in the app. Storage via repository. TODO stream C."""
+    """Messages land in the recipient's in-app inbox (MVP: the GP receiving the MDT result).
+    Storage via repository. TODO stream C."""
 
     channel = Channel.IN_APP
 

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .common import Evidence, Model
 
@@ -30,6 +31,25 @@ class SuggestedAction(StrEnum):
     REVIEW = "review"  # a human must look and decide
 
 
+class ResolutionKind(StrEnum):
+    RESOLVED = "resolved"  # the gap was filled / the conflict clarified
+    OVERRIDDEN = "overridden"  # a blocker accepted as-is, with a note (Q-C2)
+    DISMISSED = "dismissed"  # not a real problem
+
+
+class Resolution(Model):
+    kind: ResolutionKind
+    note: str | None = None
+    by: str
+    at: datetime
+
+    @model_validator(mode="after")
+    def _note_for_override(self) -> Resolution:
+        if self.kind is ResolutionKind.OVERRIDDEN and not self.note:
+            raise ValueError("an override needs a note")
+        return self
+
+
 class Finding(Model):
     id: str
     kind: FindingKind
@@ -45,3 +65,4 @@ class Finding(Model):
         default=True, description="A blocker the coordinator may override with a note (Q-C2)"
     )
     resolved: bool = False
+    resolution: Resolution | None = Field(default=None, description="Who resolved it, how, why")

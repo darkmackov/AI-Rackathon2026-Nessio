@@ -5,9 +5,106 @@ export type ClientOptions = {
 };
 
 /**
- * CaseDto
+ * Actor
+ *
+ * A person taking part in the case. Users are the referring doctor and the coordinator;
+ * MDT members and reviewing doctors are information only (Q-F21).
  */
-export type CaseDto = {
+export type Actor = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Role
+     *
+     * referring_doctor | coordinator | specialist | mdt_member | reviewing_doctor
+     */
+    role: string;
+    /**
+     * Organization Id
+     */
+    organization_id?: string | null;
+    /**
+     * Phone
+     */
+    phone?: string | null;
+    /**
+     * Email
+     */
+    email?: string | null;
+};
+
+/**
+ * AuditEvent
+ */
+export type AuditEvent = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Case Id
+     */
+    case_id: string;
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Actor Id
+     */
+    actor_id: string;
+    /**
+     * Action
+     */
+    action: string;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+};
+
+/**
+ * Body_upload_document
+ */
+export type BodyUploadDocument = {
+    /**
+     * File
+     */
+    file: Blob | File;
+    /**
+     * Received At
+     *
+     * Demo backdating; default = app clock now (see /demo/clock)
+     */
+    received_at?: string | null;
+};
+
+/**
+ * Body_upload_mdt_conclusion
+ */
+export type BodyUploadMdtConclusion = {
+    /**
+     * File
+     */
+    file: Blob | File;
+    /**
+     * Received At
+     *
+     * Demo backdating; default = app clock now (see /demo/clock)
+     */
+    received_at?: string | null;
+};
+
+/**
+ * Case
+ */
+export type Case = {
     /**
      * Id
      */
@@ -19,11 +116,17 @@ export type CaseDto = {
     /**
      * Diagnosis Label
      */
-    diagnosis_label: string | null;
+    diagnosis_label?: string | null;
     /**
-     * Koc
+     * Koc Id
+     *
+     * Organization id of the receiving KOC
      */
-    koc: string;
+    koc_id: string;
+    /**
+     * Mdt Board Id
+     */
+    mdt_board_id?: string | null;
     /**
      * Referring Doctor Id
      */
@@ -31,27 +134,28 @@ export type CaseDto = {
     /**
      * Coordinator Id
      */
-    coordinator_id: string | null;
-    state: CaseState;
-    queue: QueueColumn;
+    coordinator_id?: string | null;
+    state?: CaseState;
+    priority?: Priority;
+    queue?: QueueColumn;
     /**
      * On Move
      *
      * Actor id responsible for the next step
      */
-    on_move: string | null;
+    on_move?: string | null;
     /**
      * Next Step
      */
-    next_step: string | null;
+    next_step?: string | null;
     /**
      * Next Due
      */
-    next_due: string | null;
+    next_due?: string | null;
     /**
      * Mdt Date
      */
-    mdt_date: string | null;
+    mdt_date?: string | null;
     /**
      * Created At
      */
@@ -59,8 +163,8 @@ export type CaseDto = {
     /**
      * Manual 'odloženo' flag (Q-F9)
      */
-    on_hold: OnHoldDto | null;
-    milestones: MilestonesDto;
+    on_hold?: OnHold | null;
+    milestones?: Milestones;
 };
 
 /**
@@ -68,22 +172,117 @@ export type CaseDto = {
  *
  * The 8 case states from the VZP brief (slide 10).
  */
-export type CaseState = 'odeslano' | 'v_triage' | 'ceka_na_podklady' | 'kompletni' | 'pripraveno_k_mdt' | 'zaver_mdt' | 'zpetna_vazba_odeslana' | 'uzavreno';
+export type CaseState = 'koncept' | 'odeslano' | 'v_triage' | 'ceka_na_podklady' | 'kompletni' | 'pripraveno_k_mdt' | 'zaver_mdt' | 'zpetna_vazba_odeslana' | 'uzavreno';
 
 /**
- * ContactsDto
+ * CaseTransition
  */
-export type ContactsDto = {
-    patient_phone: SourcedDtoStr;
-    patient_email: SourcedDtoStr;
-    contact_person: SourcedDtoStr;
-    contact_person_phone: SourcedDtoStr;
+export type CaseTransition = {
+    to: CaseState;
+    /**
+     * Note
+     */
+    note?: string | null;
 };
 
 /**
- * DocumentMetaDto
+ * CaseUpdate
+ *
+ * Partial case update; omitted fields stay unchanged.
  */
-export type DocumentMetaDto = {
+export type CaseUpdate = {
+    priority?: Priority | null;
+    /**
+     * Coordinator Id
+     *
+     * Reassign the coordinator
+     */
+    coordinator_id?: string | null;
+    /**
+     * Mdt Board Id
+     */
+    mdt_board_id?: string | null;
+    /**
+     * Mdt Date
+     *
+     * Planned MDT date (shown on the dashboard)
+     */
+    mdt_date?: string | null;
+};
+
+/**
+ * Channel
+ */
+export type Channel = 'in_app' | 'email' | 'sms';
+
+/**
+ * ConclusionSource
+ */
+export type ConclusionSource = 'written' | 'uploaded';
+
+/**
+ * Contacts
+ */
+export type Contacts = {
+    patient_phone?: SourcedStr;
+    patient_email?: SourcedStr;
+    /**
+     * Name + relation
+     */
+    contact_person?: SourcedStr;
+    contact_person_phone?: SourcedStr;
+};
+
+/**
+ * DemoClock
+ *
+ * The app's notion of 'now'. The reference case runs 2.–27. 10. 2026 while a demo runs in
+ * minutes, so stamps, received_at, due/overdue and time to treatment use this clock.
+ */
+export type DemoClock = {
+    /**
+     * Now
+     */
+    now: string;
+    /**
+     * Simulated
+     *
+     * False = wall clock
+     */
+    simulated: boolean;
+};
+
+/**
+ * DemoClockSet
+ */
+export type DemoClockSet = {
+    /**
+     * Now
+     *
+     * None = back to the wall clock
+     */
+    now?: string | null;
+};
+
+/**
+ * DemoReset
+ */
+export type DemoReset = {
+    scenario: DemoScenario;
+};
+
+/**
+ * DemoScenario
+ */
+export type DemoScenario = 'empty' | 'reference_at_mdt';
+
+/**
+ * DocumentMeta
+ *
+ * Metadata of an uploaded document. Everything except filename/received_at is AI-extracted
+ * after upload (decision 16. 10.: AI extract), so it is optional until the ingest job finishes.
+ */
+export type DocumentMeta = {
     /**
      * Id
      */
@@ -91,7 +290,7 @@ export type DocumentMetaDto = {
     /**
      * Case Id
      */
-    case_id: string | null;
+    case_id?: string | null;
     /**
      * Filename
      */
@@ -99,52 +298,82 @@ export type DocumentMetaDto = {
     /**
      * Title
      */
-    title: string;
-    doc_type: DocumentType;
+    title?: string | null;
+    doc_type?: DocumentType;
     /**
      * Document Date
+     *
+     * Date of the examination / issue
      */
-    document_date: string;
+    document_date?: string | null;
     /**
      * Facility
      */
-    facility: string;
+    facility?: string | null;
     /**
      * Department
      */
-    department: string | null;
+    department?: string | null;
     /**
      * Author
      */
-    author: string | null;
+    author?: string | null;
     /**
      * Ordered By
+     *
+     * Indikující / odesílající lékař
      */
-    ordered_by: string | null;
+    ordered_by?: string | null;
     /**
      * Received At
      *
-     * When the document entered the case
+     * When the document entered the case; drives the MDT snapshot
      */
-    received_at: string | null;
+    received_at?: string | null;
+    /**
+     * Uploaded By
+     *
+     * Actor id
+     */
+    uploaded_by?: string | null;
     /**
      * Mime Type
      */
-    mime_type: string;
+    mime_type?: string;
 };
 
 /**
- * DocumentTextDto
+ * DocumentMetaUpdate
+ *
+ * Correct AI-extracted document metadata (dates drive examinations and the MDT cut-off).
+ * Omitted fields stay unchanged.
  */
-export type DocumentTextDto = {
+export type DocumentMetaUpdate = {
     /**
-     * Id
+     * Title
      */
-    id: string;
+    title?: string | null;
+    doc_type?: DocumentType | null;
     /**
-     * Text
+     * Document Date
      */
-    text: string;
+    document_date?: string | null;
+    /**
+     * Facility
+     */
+    facility?: string | null;
+    /**
+     * Department
+     */
+    department?: string | null;
+    /**
+     * Author
+     */
+    author?: string | null;
+    /**
+     * Ordered By
+     */
+    ordered_by?: string | null;
 };
 
 /**
@@ -153,9 +382,51 @@ export type DocumentTextDto = {
 export type DocumentType = 'referral' | 'epicrisis' | 'outpatient_report' | 'lab' | 'imaging' | 'procedure' | 'histology' | 'mdt_record' | 'mdt_conclusion' | 'other';
 
 /**
- * EvidenceDto
+ * DraftCreate
  */
-export type EvidenceDto = {
+export type DraftCreate = {
+    kind: DraftKind;
+};
+
+/**
+ * DraftKind
+ */
+export type DraftKind = 'epicrisis_summary' | 'mdt_question' | 'mdt_results' | 'mdt_conclusion';
+
+/**
+ * DueNotice
+ *
+ * In-app deadline notification derived from tasks (Q-F17).
+ */
+export type DueNotice = {
+    /**
+     * Task Id
+     */
+    task_id: string;
+    /**
+     * Case Id
+     */
+    case_id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Due
+     */
+    due: string;
+    /**
+     * Overdue
+     */
+    overdue: boolean;
+};
+
+/**
+ * Evidence
+ *
+ * Where an AI value came from: a verbatim quote from a case document.
+ */
+export type Evidence = {
     /**
      * Document Id
      */
@@ -169,13 +440,30 @@ export type EvidenceDto = {
     /**
      * Document Date
      */
-    document_date: string | null;
+    document_date?: string | null;
+    /**
+     * Start
+     *
+     * Char offset of the quote in the document text
+     */
+    start?: number | null;
+    /**
+     * End
+     *
+     * Char offset after the quote
+     */
+    end?: number | null;
 };
 
 /**
- * ExaminationDto
+ * Examination
+ *
+ * Provedené vyšetření: date, place, type, full result text.
+ *
+ * `result_full_text` = all clinical sections verbatim (findings, ZÁVĚR, DOPORUČENÍ), without the
+ * administrative header and signature (Q-C8). GP examinations are included too (Q-C7).
  */
-export type ExaminationDto = {
+export type Examination = {
     /**
      * Date
      */
@@ -192,23 +480,61 @@ export type ExaminationDto = {
      * Result Full Text
      */
     result_full_text: string;
+    origin?: Origin;
     /**
      * Evidence
      */
-    evidence: Array<EvidenceDto>;
+    evidence?: Array<Evidence>;
+    entered?: Stamp | null;
+};
+
+/**
+ * ExaminationCreate
+ *
+ * Manually add an examination to the handover (origin=manual).
+ */
+export type ExaminationCreate = {
+    /**
+     * Date
+     */
+    date: string;
+    /**
+     * Place
+     */
+    place: string;
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Result Full Text
+     */
+    result_full_text: string;
+};
+
+/**
+ * FeedbackSend
+ *
+ * Send the confirmed MDT conclusion (+ original context) to the referring doctor.
+ */
+export type FeedbackSend = {
+    /**
+     * Note
+     */
+    note?: string | null;
 };
 
 /**
  * FieldStatus
  *
- * Extraction state of one handover value.
+ * State of one handover value.
  */
 export type FieldStatus = 'found' | 'missing' | 'conflict';
 
 /**
- * FindingDto
+ * Finding
  */
-export type FindingDto = {
+export type Finding = {
     /**
      * Id
      */
@@ -220,7 +546,7 @@ export type FindingDto = {
      *
      * Handover paths, e.g. 'performance_status'
      */
-    fields: Array<string>;
+    fields?: Array<string>;
     /**
      * Message Cs
      */
@@ -228,30 +554,47 @@ export type FindingDto = {
     /**
      * Evidence
      */
-    evidence: Array<EvidenceDto>;
-    suggested_action: SuggestedAction;
+    evidence?: Array<Evidence>;
+    suggested_action?: SuggestedAction;
     /**
      * Advisory
      *
-     * Clinical-judgement hint, not a data gap (Q-C3)
+     * Clinical-judgement hint from the LLM review, not a data gap (Q-C3)
      */
-    advisory: boolean;
+    advisory?: boolean;
     /**
      * Overridable
      *
-     * A blocker the coordinator may override (Q-C2)
+     * A blocker the coordinator may override with a note (Q-C2)
      */
-    overridable: boolean;
+    overridable?: boolean;
     /**
      * Resolved
      */
-    resolved: boolean;
+    resolved?: boolean;
+    /**
+     * Who resolved it, how, why
+     */
+    resolution?: Resolution | null;
 };
 
 /**
  * FindingKind
  */
 export type FindingKind = 'missing' | 'conflict' | 'temporal' | 'identity' | 'unattached_reference' | 'trend';
+
+/**
+ * FindingResolve
+ */
+export type FindingResolve = {
+    kind: ResolutionKind;
+    /**
+     * Note
+     *
+     * Required for kind=overridden (Q-C2)
+     */
+    note?: string | null;
+};
 
 /**
  * HTTPValidationError
@@ -264,79 +607,198 @@ export type HttpValidationError = {
 };
 
 /**
- * HandoverDto
+ * Handover
  */
-export type HandoverDto = {
+export type Handover = {
     /**
      * Schema Version
      */
-    schema_version: string;
+    schema_version?: string;
     /**
      * Case Id
      */
     case_id: string;
     /**
      * As Of
+     *
+     * Snapshot date; only documents received by then are used
      */
     as_of: string;
-    patient: PatientDetailsDto;
-    contacts: ContactsDto;
-    diagnosis: SourcedDtoStr;
+    patient?: PatientDetails;
+    contacts?: Contacts;
+    diagnosis?: SourcedStr;
     /**
      * MKN-10 / ICD-10
      */
-    diagnosis_code: SourcedDtoStr;
+    diagnosis_code?: SourcedStr;
     /**
-     * Referring doctor's epikríza, verbatim
+     * Referring doctor's epikríza, verbatim (Q-F15)
      */
-    epicrisis_source: SourcedDtoStr;
+    epicrisis_source?: SourcedStr;
     /**
-     * Final epikríza confirmed by the coordinator
+     * Final epikríza: AI summary proposal shown side by side, written/confirmed by the coordinator
      */
-    epicrisis: SourcedDtoStr;
-    mdt_question: SourcedDtoStr;
-    comorbidities: SourcedDtoListStr;
-    medications: SourcedDtoListStr;
-    allergies: SourcedDtoStr;
+    epicrisis?: SourcedStr;
+    /**
+     * Požadavek / otázka na MDT; written by the coordinator, optional AI prefill (Q-F14)
+     */
+    mdt_question?: SourcedStr;
+    /**
+     * OA
+     */
+    comorbidities?: SourcedListStr;
+    /**
+     * FA
+     */
+    medications?: SourcedListStr;
+    /**
+     * AA
+     */
+    allergies?: SourcedStr;
     /**
      * ECOG / Karnofsky
      */
-    performance_status: SourcedDtoStr;
-    weight_kg: SourcedDtoFloat;
-    height_cm: SourcedDtoFloat;
-    symptoms: SourcedDtoStr;
+    performance_status?: SourcedStr;
+    weight_kg?: SourcedFloat;
+    height_cm?: SourcedFloat;
+    /**
+     * Symptoms and their onset
+     */
+    symptoms?: SourcedStr;
     /**
      * Examinations
      */
-    examinations: Array<ExaminationDto>;
+    examinations?: Array<Examination>;
     /**
      * Labs
+     *
+     * Including tumour markers
      */
-    labs: Array<LabPanelDto>;
-    histology: SourcedDtoStr;
-    other: SourcedDtoStr;
-    validated_by_referrer: StampDto | null;
-    confirmed_by_coordinator: StampDto | null;
+    labs?: Array<LabPanel>;
+    histology?: SourcedStr;
+    /**
+     * Jiná sdělení incl. patient wishes
+     */
+    other?: SourcedStr;
+    /**
+     * Referring doctor validated the AI proposal before sending (Q-F5)
+     */
+    validated_by_referrer?: Stamp | null;
+    /**
+     * Coordinator confirmed the MDT snapshot (Q-F5, Q-F21)
+     */
+    confirmed_by_coordinator?: Stamp | null;
 };
 
 /**
- * HealthDto
+ * HandoverFieldUpdate
+ *
+ * Manual entry into one handover field ('Doplnit'), or marking it 'Není k dispozici'.
+ * Creates a Sourced value with origin=manual and `entered` = current actor.
  */
-export type HealthDto = {
+export type HandoverFieldUpdate = {
     /**
-     * Ok
+     * Path
+     *
+     * Dotted field path, e.g. 'performance_status' or 'contacts.patient_email'
      */
-    ok: boolean;
+    path: string;
     /**
-     * Iris Configured
+     * Value
      */
-    iris_configured: boolean;
+    value?: unknown | null;
+    /**
+     * Not Available
+     *
+     * Mark as not available instead of a value
+     */
+    not_available?: boolean;
+    /**
+     * Note
+     */
+    note?: string | null;
 };
 
 /**
- * LabPanelDto
+ * HoldSet
+ *
+ * 'Odložit': manual on-hold flag (Q-F9).
  */
-export type LabPanelDto = {
+export type HoldSet = {
+    /**
+     * Reason
+     */
+    reason: string;
+    /**
+     * Until
+     */
+    until?: string | null;
+};
+
+/**
+ * Job
+ */
+export type Job = {
+    /**
+     * Id
+     */
+    id: string;
+    kind: JobKind;
+    /**
+     * Case Id
+     */
+    case_id: string;
+    /**
+     * Document Id
+     */
+    document_id?: string | null;
+    /**
+     * Params
+     */
+    params?: {
+        [key: string]: unknown;
+    };
+    status?: JobStatus;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Started At
+     */
+    started_at?: string | null;
+    /**
+     * Finished At
+     */
+    finished_at?: string | null;
+    /**
+     * Error
+     */
+    error?: string | null;
+    /**
+     * Result
+     *
+     * e.g. {'text': ...} for drafts
+     */
+    result?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * JobKind
+ */
+export type JobKind = 'ingest_document' | 'draft' | 'suggest_tasks';
+
+/**
+ * JobStatus
+ */
+export type JobStatus = 'queued' | 'running' | 'done' | 'failed';
+
+/**
+ * LabPanel
+ */
+export type LabPanel = {
     /**
      * Date
      */
@@ -348,17 +810,19 @@ export type LabPanelDto = {
     /**
      * Values
      */
-    values: Array<LabValueDto>;
+    values: Array<LabValue>;
+    origin?: Origin;
     /**
      * Evidence
      */
-    evidence: Array<EvidenceDto>;
+    evidence?: Array<Evidence>;
+    entered?: Stamp | null;
 };
 
 /**
- * LabValueDto
+ * LabValue
  */
-export type LabValueDto = {
+export type LabValue = {
     /**
      * Name
      */
@@ -370,43 +834,457 @@ export type LabValueDto = {
     /**
      * Unit
      */
-    unit: string | null;
+    unit?: string | null;
     /**
      * Reference Range
      */
-    reference_range: string | null;
+    reference_range?: string | null;
     /**
      * Flag
+     *
+     * H / L as printed by the lab
      */
-    flag: string | null;
+    flag?: string | null;
 };
 
 /**
- * MilestonesDto
+ * MdtBoard
+ *
+ * A roster per MDT board, edited by the coordinator, pre-filled per session (Q-F13).
  */
-export type MilestonesDto = {
+export type MdtBoard = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Organization Id
+     */
+    organization_id: string;
+    /**
+     * Members
+     */
+    members?: Array<MdtMember>;
+};
+
+/**
+ * MdtBoardMembersUpdate
+ */
+export type MdtBoardMembersUpdate = {
+    /**
+     * Members
+     */
+    members: Array<MdtMember>;
+};
+
+/**
+ * MdtConclusion
+ *
+ * Závěr MDT (MDT_zaver layout), recorded by the coordinator (Q-F12, Q-F21).
+ */
+export type MdtConclusion = {
+    /**
+     * Case Id
+     */
+    case_id: string;
+    source?: ConclusionSource;
+    /**
+     * Document Id
+     *
+     * Uploaded report (source=uploaded)
+     */
+    document_id?: string | null;
+    /**
+     * Presented By
+     *
+     * Případ prezentoval
+     */
+    presented_by?: string | null;
+    /**
+     * Diagnosis Name
+     */
+    diagnosis_name?: string | null;
+    /**
+     * Diagnosis Code
+     *
+     * Definitive MKN-10 (resolves F05-type findings)
+     */
+    diagnosis_code?: string | null;
+    /**
+     * Clinical Assessment
+     */
+    clinical_assessment?: string | null;
+    /**
+     * Conclusion
+     */
+    conclusion?: string | null;
+    /**
+     * Recommendations
+     */
+    recommendations?: Array<string>;
+    /**
+     * Place
+     */
+    place?: string | null;
+    /**
+     * Date
+     */
+    date?: string | null;
+    /**
+     * Chair
+     *
+     * Předsedající MDT
+     */
+    chair?: string | null;
+    /**
+     * Copy To
+     */
+    copy_to?: Array<string>;
+    /**
+     * Ai Draft Used
+     */
+    ai_draft_used?: boolean;
+    /**
+     * Coordinator confirmed; required to send
+     */
+    confirmed?: Stamp | null;
+};
+
+/**
+ * MdtConclusionUpsert
+ *
+ * Written conclusion (MDT_zaver layout). For an uploaded MDT report use the upload endpoint.
+ */
+export type MdtConclusionUpsert = {
+    /**
+     * Presented By
+     */
+    presented_by?: string | null;
+    /**
+     * Diagnosis Name
+     */
+    diagnosis_name?: string | null;
+    /**
+     * Diagnosis Code
+     */
+    diagnosis_code?: string | null;
+    /**
+     * Clinical Assessment
+     */
+    clinical_assessment?: string | null;
+    /**
+     * Conclusion
+     */
+    conclusion?: string | null;
+    /**
+     * Recommendations
+     */
+    recommendations?: Array<string>;
+    /**
+     * Place
+     */
+    place?: string | null;
+    /**
+     * Date
+     */
+    date?: string | null;
+    /**
+     * Chair
+     */
+    chair?: string | null;
+    /**
+     * Copy To
+     */
+    copy_to?: Array<string>;
+    /**
+     * Ai Draft Used
+     */
+    ai_draft_used?: boolean;
+};
+
+/**
+ * MdtMember
+ */
+export type MdtMember = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Specialty
+     */
+    specialty: string;
+    /**
+     * Actor Id
+     */
+    actor_id?: string | null;
+};
+
+/**
+ * MdtRecord
+ *
+ * Zápis k jednání MDT, sections 1–5 of MDT_zapis, built from the frozen handover snapshot.
+ * Values missing in the snapshot stay None (rendered as 'neuvedeno').
+ */
+export type MdtRecord = {
+    /**
+     * Case Id
+     */
+    case_id: string;
+    /**
+     * Mdt Date
+     */
+    mdt_date: string;
+    /**
+     * Board Id
+     */
+    board_id: string;
+    /**
+     * Members
+     */
+    members: Array<MdtMember>;
+    /**
+     * Patient Name
+     */
+    patient_name?: string | null;
+    /**
+     * Insurance Code
+     */
+    insurance_code?: string | null;
+    /**
+     * Patient Phone
+     */
+    patient_phone?: string | null;
+    /**
+     * Patient Email
+     */
+    patient_email?: string | null;
+    /**
+     * Patient Address
+     */
+    patient_address?: string | null;
+    /**
+     * Weight Kg
+     */
+    weight_kg?: number | null;
+    /**
+     * Height Cm
+     */
+    height_cm?: number | null;
+    /**
+     * Referring Doctor Name
+     */
+    referring_doctor_name?: string | null;
+    /**
+     * Referring Doctor Phone
+     */
+    referring_doctor_phone?: string | null;
+    /**
+     * Referring Doctor Email
+     */
+    referring_doctor_email?: string | null;
+    /**
+     * Diagnosis Name
+     */
+    diagnosis_name?: string | null;
+    /**
+     * Diagnosis Code
+     */
+    diagnosis_code?: string | null;
+    /**
+     * Comorbidities
+     */
+    comorbidities?: Array<string>;
+    /**
+     * Results
+     */
+    results?: Array<MdtResultRow>;
+    /**
+     * Mdt Question
+     */
+    mdt_question?: string | null;
+    created: Stamp;
+};
+
+/**
+ * MdtRecordUpdate
+ *
+ * Edit the MDT record before the meeting (members, result one-liners, question).
+ * Omitted fields stay unchanged.
+ */
+export type MdtRecordUpdate = {
+    /**
+     * Members
+     */
+    members?: Array<MdtMember> | null;
+    /**
+     * Results
+     */
+    results?: Array<MdtResultRow> | null;
+    /**
+     * Mdt Question
+     */
+    mdt_question?: string | null;
+    /**
+     * Diagnosis Name
+     */
+    diagnosis_name?: string | null;
+    /**
+     * Diagnosis Code
+     */
+    diagnosis_code?: string | null;
+    /**
+     * Comorbidities
+     */
+    comorbidities?: Array<string> | null;
+};
+
+/**
+ * MdtResultRow
+ */
+export type MdtResultRow = {
+    /**
+     * Date
+     */
+    date: string;
+    /**
+     * Examination
+     */
+    examination: string;
+    /**
+     * Result
+     */
+    result: string;
+};
+
+/**
+ * MdtSnapshotCreate
+ *
+ * 'Připravit podklad pro MDT': freeze the handover, confirm it, build the MDT record.
+ * Fails with 409 while non-overridden blocker findings remain.
+ */
+export type MdtSnapshotCreate = {
+    /**
+     * Board Id
+     */
+    board_id: string;
+    /**
+     * Mdt Date
+     */
+    mdt_date: string;
+};
+
+/**
+ * Message
+ */
+export type Message = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Case Id
+     */
+    case_id: string;
+    kind: MessageKind;
+    channel?: Channel;
+    /**
+     * Sender Id
+     */
+    sender_id: string;
+    /**
+     * Recipient Ids
+     */
+    recipient_ids: Array<string>;
+    /**
+     * Subject
+     */
+    subject: string;
+    /**
+     * Body
+     */
+    body: string;
+    /**
+     * Attachment Document Ids
+     */
+    attachment_document_ids?: Array<string>;
+    /**
+     * Finding Id
+     *
+     * The gap this message relates to
+     */
+    finding_id?: string | null;
+    /**
+     * Sent At
+     */
+    sent_at?: string | null;
+    /**
+     * Simulated
+     *
+     * Recorded as sent but not delivered externally
+     */
+    simulated?: boolean;
+};
+
+/**
+ * MessageKind
+ */
+export type MessageKind = 'document_request' | 'info_request' | 'mdt_result' | 'review_feed' | 'patient_notice' | 'notification';
+
+/**
+ * Milestones
+ *
+ * Dates behind time to treatment = T1 + T2 + T3 (slide 4).
+ */
+export type Milestones = {
     /**
      * Symptom Onset
+     *
+     * First symptoms (from documents)
      */
-    symptom_onset: string | null;
+    symptom_onset?: string | null;
     /**
      * Referred At
+     *
+     * Referral sent to the KOC
      */
-    referred_at: string | null;
+    referred_at?: string | null;
     /**
      * Mdt Held
      */
-    mdt_held: string | null;
+    mdt_held?: string | null;
     /**
      * Treatment Start
      */
-    treatment_start: string | null;
+    treatment_start?: string | null;
 };
 
 /**
- * OnHoldDto
+ * MilestonesUpdate
+ *
+ * Dates for time to treatment that aren't set automatically.
  */
-export type OnHoldDto = {
+export type MilestonesUpdate = {
+    /**
+     * Symptom Onset
+     */
+    symptom_onset?: string | null;
+    /**
+     * Treatment Start
+     */
+    treatment_start?: string | null;
+};
+
+/**
+ * OnHold
+ *
+ * Set by the coordinator; puts the case in the 'Odložený' column.
+ */
+export type OnHold = {
     /**
      * Reason
      */
@@ -414,7 +1292,7 @@ export type OnHoldDto = {
     /**
      * Until
      */
-    until: string | null;
+    until?: string | null;
     /**
      * Set By
      */
@@ -426,21 +1304,96 @@ export type OnHoldDto = {
 };
 
 /**
- * PatientDetailsDto
+ * Organization
  */
-export type PatientDetailsDto = {
-    first_name: SourcedDtoStr;
-    last_name: SourcedDtoStr;
+export type Organization = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    kind: OrganizationKind;
+    /**
+     * Address
+     */
+    address?: string | null;
+    /**
+     * Phone
+     */
+    phone?: string | null;
+    /**
+     * Email
+     */
+    email?: string | null;
+    /**
+     * Identifiers
+     *
+     * e.g. {'icp': '72045318'} or {'kp': '211'} (CZ Core slices)
+     */
+    identifiers?: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * OrganizationKind
+ */
+export type OrganizationKind = 'koc' | 'clinic' | 'laboratory' | 'radiology' | 'gp_practice' | 'insurer';
+
+/**
+ * Origin
+ *
+ * Who produced a value.
+ */
+export type Origin = 'ai' | 'manual';
+
+/**
+ * PatientDetails
+ *
+ * Nacionále pacienta.
+ */
+export type PatientDetails = {
+    first_name?: SourcedStr;
+    last_name?: SourcedStr;
     /**
      * Rodné číslo
      */
-    birth_number: SourcedDtoStr;
-    birth_date: SourcedDtoDate;
-    age: SourcedDtoInt;
-    sex: SourcedDtoStr;
-    insurance_code: SourcedDtoStr;
-    address: SourcedDtoStr;
+    birth_number?: SourcedStr;
+    birth_date?: SourcedDate;
+    age?: SourcedInt;
+    sex?: SourcedStr;
+    /**
+     * Kód zdravotní pojišťovny, e.g. 111 = VZP, 211 = ZPMV
+     */
+    insurance_code?: SourcedStr;
+    address?: SourcedStr;
 };
+
+/**
+ * PatientNoticeCreate
+ *
+ * 'Informovat pacienta': recorded with simulated=True, never delivered (Q-F16).
+ */
+export type PatientNoticeCreate = {
+    /**
+     * Subject
+     */
+    subject: string;
+    /**
+     * Body
+     */
+    body: string;
+};
+
+/**
+ * Priority
+ *
+ * Slide 9: 'pacienti, priority, úkoly'.
+ */
+export type Priority = 'normal' | 'high' | 'urgent';
 
 /**
  * QueueColumn
@@ -450,121 +1403,236 @@ export type PatientDetailsDto = {
 export type QueueColumn = 'novy' | 'aktivni' | 'odlozeny';
 
 /**
+ * Receipt
+ *
+ * Confirmed delivery: 'Potvrzuji převzetí'.
+ */
+export type Receipt = {
+    /**
+     * Message Id
+     */
+    message_id: string;
+    /**
+     * Recipient Id
+     */
+    recipient_id: string;
+    /**
+     * Confirmed At
+     */
+    confirmed_at: string;
+};
+
+/**
+ * ReferralCreate
+ *
+ * Start a referral draft (state koncept).
+ */
+export type ReferralCreate = {
+    /**
+     * Koc Id
+     *
+     * Organization id of the receiving KOC (picker: /directory/organizations?kind=koc)
+     */
+    koc_id: string;
+};
+
+/**
+ * RequestTaskCreate
+ *
+ * 'Vyžádat' on a finding: creates a request task addressed to whoever holds the information.
+ * In the MVP the reply comes outside the app (Q-F23).
+ */
+export type RequestTaskCreate = {
+    /**
+     * Owner Id
+     *
+     * Actor or organization id expected to supply it
+     */
+    owner_id: string;
+    /**
+     * Title
+     *
+     * What is requested; default derived from the finding
+     */
+    title?: string | null;
+    /**
+     * Due
+     */
+    due?: string | null;
+    priority?: Priority;
+    /**
+     * Note
+     */
+    note?: string | null;
+};
+
+/**
+ * Resolution
+ */
+export type Resolution = {
+    kind: ResolutionKind;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * By
+     */
+    by: string;
+    /**
+     * At
+     */
+    at: string;
+};
+
+/**
+ * ResolutionKind
+ */
+export type ResolutionKind = 'resolved' | 'overridden' | 'dismissed';
+
+/**
  * Severity
  */
 export type Severity = 'info' | 'warning' | 'blocker';
 
 /**
- * SourcedDto[date]
+ * Sourced[date]
  */
-export type SourcedDtoDate = {
+export type SourcedDate = {
     /**
      * Value
      */
-    value: string | null;
-    status: FieldStatus;
+    value?: string | null;
+    status?: FieldStatus;
+    origin?: Origin;
     /**
      * Evidence
      */
-    evidence: Array<EvidenceDto>;
+    evidence?: Array<Evidence>;
+    /**
+     * Who typed it in (origin=manual)
+     */
+    entered?: Stamp | null;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note: string | null;
+    note?: string | null;
 };
 
 /**
- * SourcedDto[float]
+ * Sourced[float]
  */
-export type SourcedDtoFloat = {
+export type SourcedFloat = {
     /**
      * Value
      */
-    value: number | null;
-    status: FieldStatus;
+    value?: number | null;
+    status?: FieldStatus;
+    origin?: Origin;
     /**
      * Evidence
      */
-    evidence: Array<EvidenceDto>;
+    evidence?: Array<Evidence>;
+    /**
+     * Who typed it in (origin=manual)
+     */
+    entered?: Stamp | null;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note: string | null;
+    note?: string | null;
 };
 
 /**
- * SourcedDto[int]
+ * Sourced[int]
  */
-export type SourcedDtoInt = {
+export type SourcedInt = {
     /**
      * Value
      */
-    value: number | null;
-    status: FieldStatus;
+    value?: number | null;
+    status?: FieldStatus;
+    origin?: Origin;
     /**
      * Evidence
      */
-    evidence: Array<EvidenceDto>;
+    evidence?: Array<Evidence>;
+    /**
+     * Who typed it in (origin=manual)
+     */
+    entered?: Stamp | null;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note: string | null;
+    note?: string | null;
 };
 
 /**
- * SourcedDto[list[str]]
+ * Sourced[list[str]]
  */
-export type SourcedDtoListStr = {
+export type SourcedListStr = {
     /**
      * Value
      */
-    value: Array<string> | null;
-    status: FieldStatus;
+    value?: Array<string> | null;
+    status?: FieldStatus;
+    origin?: Origin;
     /**
      * Evidence
      */
-    evidence: Array<EvidenceDto>;
+    evidence?: Array<Evidence>;
+    /**
+     * Who typed it in (origin=manual)
+     */
+    entered?: Stamp | null;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note: string | null;
+    note?: string | null;
 };
 
 /**
- * SourcedDto[str]
+ * Sourced[str]
  */
-export type SourcedDtoStr = {
+export type SourcedStr = {
     /**
      * Value
      */
-    value: string | null;
-    status: FieldStatus;
+    value?: string | null;
+    status?: FieldStatus;
+    origin?: Origin;
     /**
      * Evidence
      */
-    evidence: Array<EvidenceDto>;
+    evidence?: Array<Evidence>;
+    /**
+     * Who typed it in (origin=manual)
+     */
+    entered?: Stamp | null;
     /**
      * Note
      *
      * Why missing / what conflicts, in Czech
      */
-    note: string | null;
+    note?: string | null;
 };
 
 /**
- * StampDto
+ * Stamp
  */
-export type StampDto = {
+export type Stamp = {
     /**
      * By
+     *
+     * Actor id
      */
     by: string;
     /**
@@ -579,9 +1647,9 @@ export type StampDto = {
 export type SuggestedAction = 'request' | 'fill_in' | 'review';
 
 /**
- * TaskDto
+ * Task
  */
-export type TaskDto = {
+export type Task = {
     /**
      * Id
      */
@@ -596,45 +1664,272 @@ export type TaskDto = {
     title: string;
     /**
      * Kind
+     *
+     * e.g. imaging, biopsy, lab, consult, request_documents, mdt
      */
     kind: string;
     /**
      * Location
      */
-    location: string | null;
+    location?: string | null;
     /**
      * Owner
      *
-     * Actor id of whoever is 'na tahu' (on the move)
+     * Actor or organization id of whoever is 'na tahu' (on the move)
      */
     owner: string;
+    priority?: Priority;
     /**
      * Due
      */
-    due: string | null;
-    status: TaskStatus;
+    due?: string | null;
+    status?: TaskStatus;
     /**
      * Depends On
      *
      * Task ids that must be done first
      */
-    depends_on: Array<string>;
+    depends_on?: Array<string>;
     /**
      * External
      *
-     * Waiting on someone outside the KOC
+     * Performed outside the KOC (e.g. CT at KOC 1). Informational; on hold is manual (Q-F9)
      */
-    external: boolean;
+    external?: boolean;
+    /**
+     * Finding Id
+     *
+     * Finding this task resolves, e.g. a request task for F09 (Q-F23)
+     */
+    finding_id?: string | null;
     /**
      * Result Document Id
      */
-    result_document_id: string | null;
+    result_document_id?: string | null;
+};
+
+/**
+ * TaskCreate
+ */
+export type TaskCreate = {
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Kind
+     *
+     * imaging | biopsy | lab | consult | request_documents | mdt | other
+     */
+    kind: string;
+    /**
+     * Owner Id
+     *
+     * Actor or organization id
+     */
+    owner_id: string;
+    /**
+     * Location
+     */
+    location?: string | null;
+    /**
+     * Due
+     */
+    due?: string | null;
+    priority?: Priority;
+    /**
+     * Depends On
+     */
+    depends_on?: Array<string>;
+    /**
+     * External
+     */
+    external?: boolean;
+};
+
+/**
+ * TaskSet
+ *
+ * A reusable set of steps for a diagnosis, created and edited by coordinators in the UI.
+ */
+export type TaskSet = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Diagnosis Codes
+     *
+     * e.g. ['C25']
+     */
+    diagnosis_codes?: Array<string>;
+    /**
+     * Steps
+     */
+    steps: Array<TaskTemplate>;
+    /**
+     * Created By
+     */
+    created_by?: string | null;
+};
+
+/**
+ * TaskSetStart
+ */
+export type TaskSetStart = {
+    /**
+     * Task Set Id
+     */
+    task_set_id: string;
+    /**
+     * Owners
+     *
+     * owner_role -> actor id
+     */
+    owners?: {
+        [key: string]: string;
+    };
+    /**
+     * Start
+     *
+     * Base for due offsets; default now
+     */
+    start?: string | null;
+};
+
+/**
+ * TaskSetUpsert
+ */
+export type TaskSetUpsert = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Diagnosis Codes
+     */
+    diagnosis_codes?: Array<string>;
+    /**
+     * Steps
+     */
+    steps: Array<TaskTemplate>;
 };
 
 /**
  * TaskStatus
  */
 export type TaskStatus = 'planned' | 'booked' | 'done' | 'cancelled';
+
+/**
+ * TaskTemplate
+ */
+export type TaskTemplate = {
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Owner Role
+     */
+    owner_role: string;
+    /**
+     * Due Offset Days
+     */
+    due_offset_days?: number | null;
+    /**
+     * Depends On
+     *
+     * Keys of other steps in the set
+     */
+    depends_on?: Array<string>;
+};
+
+/**
+ * TaskUpdate
+ *
+ * Partial update; omitted fields stay unchanged.
+ */
+export type TaskUpdate = {
+    /**
+     * Title
+     */
+    title?: string | null;
+    status?: TaskStatus | null;
+    /**
+     * Owner Id
+     */
+    owner_id?: string | null;
+    /**
+     * Location
+     */
+    location?: string | null;
+    /**
+     * Due
+     */
+    due?: string | null;
+    priority?: Priority | null;
+    /**
+     * Depends On
+     */
+    depends_on?: Array<string> | null;
+    /**
+     * External
+     */
+    external?: boolean | null;
+    /**
+     * Result Document Id
+     *
+     * Attach the arrived result
+     */
+    result_document_id?: string | null;
+};
+
+/**
+ * TimeToTreatment
+ *
+ * Slide 4: T1 symptom -> referral, T2 referral -> MDT, T3 MDT -> treatment, in days.
+ * A part is None until both of its dates are known.
+ */
+export type TimeToTreatment = {
+    /**
+     * T1
+     */
+    t1?: number | null;
+    /**
+     * T2
+     */
+    t2?: number | null;
+    /**
+     * T3
+     */
+    t3?: number | null;
+    /**
+     * Total
+     */
+    total?: number | null;
+};
+
+/**
+ * UploadResult
+ *
+ * Returned by every upload: the stored document and the AI ingest job (metadata + extraction).
+ */
+export type UploadResult = {
+    document: DocumentMeta;
+    job: Job;
+};
 
 /**
  * ValidationError
@@ -664,41 +1959,227 @@ export type ValidationError = {
     };
 };
 
-export type HealthData = {
+export type MeData = {
     body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
     path?: never;
     query?: never;
-    url: '/health';
+    url: '/me';
 };
 
-export type HealthResponses = {
+export type MeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MeError = MeErrors[keyof MeErrors];
+
+export type MeResponses = {
     /**
      * Successful Response
      */
-    200: HealthDto;
+    200: Actor;
 };
 
-export type HealthResponse = HealthResponses[keyof HealthResponses];
+export type MeResponse = MeResponses[keyof MeResponses];
 
-export type ListCasesData = {
+export type ListOrganizationsData = {
     body?: never;
     path?: never;
-    query?: never;
-    url: '/cases';
+    query?: {
+        /**
+         * Kind
+         */
+        kind?: OrganizationKind | null;
+    };
+    url: '/directory/organizations';
 };
 
-export type ListCasesResponses = {
+export type ListOrganizationsErrors = {
     /**
-     * Response List Cases
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListOrganizationsError = ListOrganizationsErrors[keyof ListOrganizationsErrors];
+
+export type ListOrganizationsResponses = {
+    /**
+     * Response List Organizations
      *
      * Successful Response
      */
-    200: Array<CaseDto>;
+    200: Array<Organization>;
 };
 
-export type ListCasesResponse = ListCasesResponses[keyof ListCasesResponses];
+export type ListOrganizationsResponse = ListOrganizationsResponses[keyof ListOrganizationsResponses];
 
-export type GetCaseData = {
+export type ListActorsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Role
+         */
+        role?: string | null;
+        /**
+         * Organization Id
+         */
+        organization_id?: string | null;
+    };
+    url: '/directory/actors';
+};
+
+export type ListActorsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListActorsError = ListActorsErrors[keyof ListActorsErrors];
+
+export type ListActorsResponses = {
+    /**
+     * Response List Actors
+     *
+     * Successful Response
+     */
+    200: Array<Actor>;
+};
+
+export type ListActorsResponse = ListActorsResponses[keyof ListActorsResponses];
+
+export type ListMdtBoardsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/mdt-boards';
+};
+
+export type ListMdtBoardsResponses = {
+    /**
+     * Response List Mdt Boards
+     *
+     * Successful Response
+     */
+    200: Array<MdtBoard>;
+};
+
+export type ListMdtBoardsResponse = ListMdtBoardsResponses[keyof ListMdtBoardsResponses];
+
+export type GetMdtBoardData = {
+    body?: never;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+    };
+    query?: never;
+    url: '/mdt-boards/{board_id}';
+};
+
+export type GetMdtBoardErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetMdtBoardError = GetMdtBoardErrors[keyof GetMdtBoardErrors];
+
+export type GetMdtBoardResponses = {
+    /**
+     * Successful Response
+     */
+    200: MdtBoard;
+};
+
+export type GetMdtBoardResponse = GetMdtBoardResponses[keyof GetMdtBoardResponses];
+
+export type UpdateMdtBoardMembersData = {
+    body: MdtBoardMembersUpdate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+    };
+    query?: never;
+    url: '/mdt-boards/{board_id}/members';
+};
+
+export type UpdateMdtBoardMembersErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateMdtBoardMembersError = UpdateMdtBoardMembersErrors[keyof UpdateMdtBoardMembersErrors];
+
+export type UpdateMdtBoardMembersResponses = {
+    /**
+     * Successful Response
+     */
+    200: MdtBoard;
+};
+
+export type UpdateMdtBoardMembersResponse = UpdateMdtBoardMembersResponses[keyof UpdateMdtBoardMembersResponses];
+
+export type CreateReferralData = {
+    body: ReferralCreate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/referrals';
+};
+
+export type CreateReferralErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateReferralError = CreateReferralErrors[keyof CreateReferralErrors];
+
+export type CreateReferralResponses = {
+    /**
+     * Successful Response
+     */
+    201: Case;
+};
+
+export type CreateReferralResponse = CreateReferralResponses[keyof CreateReferralResponses];
+
+export type ListDocumentsData = {
     body?: never;
     path: {
         /**
@@ -707,26 +2188,134 @@ export type GetCaseData = {
         case_id: string;
     };
     query?: never;
-    url: '/cases/{case_id}';
+    url: '/cases/{case_id}/documents';
 };
 
-export type GetCaseErrors = {
+export type ListDocumentsErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetCaseError = GetCaseErrors[keyof GetCaseErrors];
+export type ListDocumentsError = ListDocumentsErrors[keyof ListDocumentsErrors];
 
-export type GetCaseResponses = {
+export type ListDocumentsResponses = {
+    /**
+     * Response List Documents
+     *
+     * Successful Response
+     */
+    200: Array<DocumentMeta>;
+};
+
+export type ListDocumentsResponse = ListDocumentsResponses[keyof ListDocumentsResponses];
+
+export type UploadDocumentData = {
+    body: BodyUploadDocument;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/documents';
+};
+
+export type UploadDocumentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UploadDocumentError = UploadDocumentErrors[keyof UploadDocumentErrors];
+
+export type UploadDocumentResponses = {
     /**
      * Successful Response
      */
-    200: CaseDto;
+    201: UploadResult;
 };
 
-export type GetCaseResponse = GetCaseResponses[keyof GetCaseResponses];
+export type UploadDocumentResponse = UploadDocumentResponses[keyof UploadDocumentResponses];
+
+export type UpdateDocumentData = {
+    body: DocumentMetaUpdate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Document Id
+         */
+        document_id: string;
+    };
+    query?: never;
+    url: '/documents/{document_id}';
+};
+
+export type UpdateDocumentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateDocumentError = UpdateDocumentErrors[keyof UpdateDocumentErrors];
+
+export type UpdateDocumentResponses = {
+    /**
+     * Successful Response
+     */
+    200: DocumentMeta;
+};
+
+export type UpdateDocumentResponse = UpdateDocumentResponses[keyof UpdateDocumentResponses];
+
+export type GetDocumentFileData = {
+    body?: never;
+    path: {
+        /**
+         * Document Id
+         */
+        document_id: string;
+    };
+    query?: never;
+    url: '/documents/{document_id}/file';
+};
+
+export type GetDocumentFileErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetDocumentFileError = GetDocumentFileErrors[keyof GetDocumentFileErrors];
+
+export type GetDocumentFileResponses = {
+    /**
+     * Original file
+     */
+    200: Blob | File;
+};
+
+export type GetDocumentFileResponse = GetDocumentFileResponses[keyof GetDocumentFileResponses];
 
 export type GetHandoverData = {
     body?: never;
@@ -758,12 +2347,194 @@ export type GetHandoverResponses = {
     /**
      * Successful Response
      */
-    200: HandoverDto;
+    200: Handover;
 };
 
 export type GetHandoverResponse = GetHandoverResponses[keyof GetHandoverResponses];
 
-export type ListFindingsData = {
+export type UpdateHandoverFieldData = {
+    body: HandoverFieldUpdate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/handover';
+};
+
+export type UpdateHandoverFieldErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateHandoverFieldError = UpdateHandoverFieldErrors[keyof UpdateHandoverFieldErrors];
+
+export type UpdateHandoverFieldResponses = {
+    /**
+     * Successful Response
+     */
+    200: Handover;
+};
+
+export type UpdateHandoverFieldResponse = UpdateHandoverFieldResponses[keyof UpdateHandoverFieldResponses];
+
+export type AddExaminationData = {
+    body: ExaminationCreate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/handover/examinations';
+};
+
+export type AddExaminationErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AddExaminationError = AddExaminationErrors[keyof AddExaminationErrors];
+
+export type AddExaminationResponses = {
+    /**
+     * Successful Response
+     */
+    201: Handover;
+};
+
+export type AddExaminationResponse = AddExaminationResponses[keyof AddExaminationResponses];
+
+export type ValidateHandoverData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/handover/validate';
+};
+
+export type ValidateHandoverErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ValidateHandoverError = ValidateHandoverErrors[keyof ValidateHandoverErrors];
+
+export type ValidateHandoverResponses = {
+    /**
+     * Successful Response
+     */
+    200: Handover;
+};
+
+export type ValidateHandoverResponse = ValidateHandoverResponses[keyof ValidateHandoverResponses];
+
+export type SendReferralData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/send';
+};
+
+export type SendReferralErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SendReferralError = SendReferralErrors[keyof SendReferralErrors];
+
+export type SendReferralResponses = {
+    /**
+     * Successful Response
+     */
+    200: Case;
+};
+
+export type SendReferralResponse = SendReferralResponses[keyof SendReferralResponses];
+
+export type GetJobData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/jobs/{job_id}';
+};
+
+export type GetJobErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetJobError = GetJobErrors[keyof GetJobErrors];
+
+export type GetJobResponses = {
+    /**
+     * Successful Response
+     */
+    200: Job;
+};
+
+export type GetJobResponse = GetJobResponses[keyof GetJobResponses];
+
+export type ListCaseJobsData = {
     body?: never;
     path: {
         /**
@@ -772,28 +2543,546 @@ export type ListFindingsData = {
         case_id: string;
     };
     query?: never;
-    url: '/cases/{case_id}/findings';
+    url: '/cases/{case_id}/jobs';
 };
 
-export type ListFindingsErrors = {
+export type ListCaseJobsErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListFindingsError = ListFindingsErrors[keyof ListFindingsErrors];
+export type ListCaseJobsError = ListCaseJobsErrors[keyof ListCaseJobsErrors];
 
-export type ListFindingsResponses = {
+export type ListCaseJobsResponses = {
     /**
-     * Response List Findings
+     * Response List Case Jobs
      *
      * Successful Response
      */
-    200: Array<FindingDto>;
+    200: Array<Job>;
 };
 
-export type ListFindingsResponse = ListFindingsResponses[keyof ListFindingsResponses];
+export type ListCaseJobsResponse = ListCaseJobsResponses[keyof ListCaseJobsResponses];
+
+export type ReextractCaseData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/extract';
+};
+
+export type ReextractCaseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReextractCaseError = ReextractCaseErrors[keyof ReextractCaseErrors];
+
+export type ReextractCaseResponses = {
+    /**
+     * Successful Response
+     */
+    202: Job;
+};
+
+export type ReextractCaseResponse = ReextractCaseResponses[keyof ReextractCaseResponses];
+
+export type CreateDraftData = {
+    body: DraftCreate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/drafts';
+};
+
+export type CreateDraftErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateDraftError = CreateDraftErrors[keyof CreateDraftErrors];
+
+export type CreateDraftResponses = {
+    /**
+     * Successful Response
+     */
+    202: Job;
+};
+
+export type CreateDraftResponse = CreateDraftResponses[keyof CreateDraftResponses];
+
+export type SuggestTasksData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/suggestions/tasks';
+};
+
+export type SuggestTasksErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SuggestTasksError = SuggestTasksErrors[keyof SuggestTasksErrors];
+
+export type SuggestTasksResponses = {
+    /**
+     * Successful Response
+     */
+    202: Job;
+};
+
+export type SuggestTasksResponse = SuggestTasksResponses[keyof SuggestTasksResponses];
+
+export type TakeOverCaseData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/take-over';
+};
+
+export type TakeOverCaseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TakeOverCaseError = TakeOverCaseErrors[keyof TakeOverCaseErrors];
+
+export type TakeOverCaseResponses = {
+    /**
+     * Successful Response
+     */
+    200: Case;
+};
+
+export type TakeOverCaseResponse = TakeOverCaseResponses[keyof TakeOverCaseResponses];
+
+export type GetCaseData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}';
+};
+
+export type GetCaseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCaseError = GetCaseErrors[keyof GetCaseErrors];
+
+export type GetCaseResponses = {
+    /**
+     * Successful Response
+     */
+    200: Case;
+};
+
+export type GetCaseResponse = GetCaseResponses[keyof GetCaseResponses];
+
+export type UpdateCaseData = {
+    body: CaseUpdate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}';
+};
+
+export type UpdateCaseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateCaseError = UpdateCaseErrors[keyof UpdateCaseErrors];
+
+export type UpdateCaseResponses = {
+    /**
+     * Successful Response
+     */
+    200: Case;
+};
+
+export type UpdateCaseResponse = UpdateCaseResponses[keyof UpdateCaseResponses];
+
+export type TransitionCaseData = {
+    body: CaseTransition;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/transition';
+};
+
+export type TransitionCaseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TransitionCaseError = TransitionCaseErrors[keyof TransitionCaseErrors];
+
+export type TransitionCaseResponses = {
+    /**
+     * Successful Response
+     */
+    200: Case;
+};
+
+export type TransitionCaseResponse = TransitionCaseResponses[keyof TransitionCaseResponses];
+
+export type ClearHoldData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/hold';
+};
+
+export type ClearHoldErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClearHoldError = ClearHoldErrors[keyof ClearHoldErrors];
+
+export type ClearHoldResponses = {
+    /**
+     * Successful Response
+     */
+    200: Case;
+};
+
+export type ClearHoldResponse = ClearHoldResponses[keyof ClearHoldResponses];
+
+export type SetHoldData = {
+    body: HoldSet;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/hold';
+};
+
+export type SetHoldErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetHoldError = SetHoldErrors[keyof SetHoldErrors];
+
+export type SetHoldResponses = {
+    /**
+     * Successful Response
+     */
+    200: Case;
+};
+
+export type SetHoldResponse = SetHoldResponses[keyof SetHoldResponses];
+
+export type UpdateMilestonesData = {
+    body: MilestonesUpdate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/milestones';
+};
+
+export type UpdateMilestonesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateMilestonesError = UpdateMilestonesErrors[keyof UpdateMilestonesErrors];
+
+export type UpdateMilestonesResponses = {
+    /**
+     * Successful Response
+     */
+    200: Case;
+};
+
+export type UpdateMilestonesResponse = UpdateMilestonesResponses[keyof UpdateMilestonesResponses];
+
+export type GetTimeToTreatmentData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/time-to-treatment';
+};
+
+export type GetTimeToTreatmentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTimeToTreatmentError = GetTimeToTreatmentErrors[keyof GetTimeToTreatmentErrors];
+
+export type GetTimeToTreatmentResponses = {
+    /**
+     * Successful Response
+     */
+    200: TimeToTreatment;
+};
+
+export type GetTimeToTreatmentResponse = GetTimeToTreatmentResponses[keyof GetTimeToTreatmentResponses];
+
+export type ListAuditData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/audit';
+};
+
+export type ListAuditErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAuditError = ListAuditErrors[keyof ListAuditErrors];
+
+export type ListAuditResponses = {
+    /**
+     * Response List Audit
+     *
+     * Successful Response
+     */
+    200: Array<AuditEvent>;
+};
+
+export type ListAuditResponse = ListAuditResponses[keyof ListAuditResponses];
+
+export type ResolveFindingData = {
+    body: FindingResolve;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+        /**
+         * Finding Id
+         */
+        finding_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/findings/{finding_id}/resolve';
+};
+
+export type ResolveFindingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResolveFindingError = ResolveFindingErrors[keyof ResolveFindingErrors];
+
+export type ResolveFindingResponses = {
+    /**
+     * Successful Response
+     */
+    200: Finding;
+};
+
+export type ResolveFindingResponse = ResolveFindingResponses[keyof ResolveFindingResponses];
+
+export type RequestFromFindingData = {
+    body: RequestTaskCreate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+        /**
+         * Finding Id
+         */
+        finding_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/findings/{finding_id}/request';
+};
+
+export type RequestFromFindingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RequestFromFindingError = RequestFromFindingErrors[keyof RequestFromFindingErrors];
+
+export type RequestFromFindingResponses = {
+    /**
+     * Successful Response
+     */
+    201: Task;
+};
+
+export type RequestFromFindingResponse = RequestFromFindingResponses[keyof RequestFromFindingResponses];
 
 export type ListTasksData = {
     body?: never;
@@ -822,12 +3111,309 @@ export type ListTasksResponses = {
      *
      * Successful Response
      */
-    200: Array<TaskDto>;
+    200: Array<Task>;
 };
 
 export type ListTasksResponse = ListTasksResponses[keyof ListTasksResponses];
 
-export type ListDocumentsData = {
+export type CreateTaskData = {
+    body: TaskCreate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/tasks';
+};
+
+export type CreateTaskErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateTaskError = CreateTaskErrors[keyof CreateTaskErrors];
+
+export type CreateTaskResponses = {
+    /**
+     * Successful Response
+     */
+    201: Task;
+};
+
+export type CreateTaskResponse = CreateTaskResponses[keyof CreateTaskResponses];
+
+export type UpdateTaskData = {
+    body: TaskUpdate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Task Id
+         */
+        task_id: string;
+    };
+    query?: never;
+    url: '/tasks/{task_id}';
+};
+
+export type UpdateTaskErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateTaskError = UpdateTaskErrors[keyof UpdateTaskErrors];
+
+export type UpdateTaskResponses = {
+    /**
+     * Successful Response
+     */
+    200: Task;
+};
+
+export type UpdateTaskResponse = UpdateTaskResponses[keyof UpdateTaskResponses];
+
+export type StartTaskSetData = {
+    body: TaskSetStart;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/task-sets/start';
+};
+
+export type StartTaskSetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StartTaskSetError = StartTaskSetErrors[keyof StartTaskSetErrors];
+
+export type StartTaskSetResponses = {
+    /**
+     * Response Start Task Set
+     *
+     * Successful Response
+     */
+    201: Array<Task>;
+};
+
+export type StartTaskSetResponse = StartTaskSetResponses[keyof StartTaskSetResponses];
+
+export type ListTaskSetsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Diagnosis Code
+         */
+        diagnosis_code?: string | null;
+    };
+    url: '/task-sets';
+};
+
+export type ListTaskSetsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListTaskSetsError = ListTaskSetsErrors[keyof ListTaskSetsErrors];
+
+export type ListTaskSetsResponses = {
+    /**
+     * Response List Task Sets
+     *
+     * Successful Response
+     */
+    200: Array<TaskSet>;
+};
+
+export type ListTaskSetsResponse = ListTaskSetsResponses[keyof ListTaskSetsResponses];
+
+export type CreateTaskSetData = {
+    body: TaskSetUpsert;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/task-sets';
+};
+
+export type CreateTaskSetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateTaskSetError = CreateTaskSetErrors[keyof CreateTaskSetErrors];
+
+export type CreateTaskSetResponses = {
+    /**
+     * Successful Response
+     */
+    201: TaskSet;
+};
+
+export type CreateTaskSetResponse = CreateTaskSetResponses[keyof CreateTaskSetResponses];
+
+export type UpdateTaskSetData = {
+    body: TaskSetUpsert;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Task Set Id
+         */
+        task_set_id: string;
+    };
+    query?: never;
+    url: '/task-sets/{task_set_id}';
+};
+
+export type UpdateTaskSetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateTaskSetError = UpdateTaskSetErrors[keyof UpdateTaskSetErrors];
+
+export type UpdateTaskSetResponses = {
+    /**
+     * Successful Response
+     */
+    200: TaskSet;
+};
+
+export type UpdateTaskSetResponse = UpdateTaskSetResponses[keyof UpdateTaskSetResponses];
+
+export type ListNotificationsData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Within Days
+         */
+        within_days?: number;
+    };
+    url: '/notifications';
+};
+
+export type ListNotificationsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListNotificationsError = ListNotificationsErrors[keyof ListNotificationsErrors];
+
+export type ListNotificationsResponses = {
+    /**
+     * Response List Notifications
+     *
+     * Successful Response
+     */
+    200: Array<DueNotice>;
+};
+
+export type ListNotificationsResponse = ListNotificationsResponses[keyof ListNotificationsResponses];
+
+export type CreateMdtSnapshotData = {
+    body: MdtSnapshotCreate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/mdt/snapshot';
+};
+
+export type CreateMdtSnapshotErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateMdtSnapshotError = CreateMdtSnapshotErrors[keyof CreateMdtSnapshotErrors];
+
+export type CreateMdtSnapshotResponses = {
+    /**
+     * Successful Response
+     */
+    201: MdtRecord;
+};
+
+export type CreateMdtSnapshotResponse = CreateMdtSnapshotResponses[keyof CreateMdtSnapshotResponses];
+
+export type GetMdtRecordData = {
     body?: never;
     path: {
         /**
@@ -836,28 +3422,645 @@ export type ListDocumentsData = {
         case_id: string;
     };
     query?: never;
-    url: '/cases/{case_id}/documents';
+    url: '/cases/{case_id}/mdt/record';
 };
 
-export type ListDocumentsErrors = {
+export type GetMdtRecordErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListDocumentsError = ListDocumentsErrors[keyof ListDocumentsErrors];
+export type GetMdtRecordError = GetMdtRecordErrors[keyof GetMdtRecordErrors];
 
-export type ListDocumentsResponses = {
+export type GetMdtRecordResponses = {
     /**
-     * Response List Documents
+     * Successful Response
+     */
+    200: MdtRecord;
+};
+
+export type GetMdtRecordResponse = GetMdtRecordResponses[keyof GetMdtRecordResponses];
+
+export type UpdateMdtRecordData = {
+    body: MdtRecordUpdate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/mdt/record';
+};
+
+export type UpdateMdtRecordErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateMdtRecordError = UpdateMdtRecordErrors[keyof UpdateMdtRecordErrors];
+
+export type UpdateMdtRecordResponses = {
+    /**
+     * Successful Response
+     */
+    200: MdtRecord;
+};
+
+export type UpdateMdtRecordResponse = UpdateMdtRecordResponses[keyof UpdateMdtRecordResponses];
+
+export type GetMdtRecordPdfData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/mdt/record.pdf';
+};
+
+export type GetMdtRecordPdfErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetMdtRecordPdfError = GetMdtRecordPdfErrors[keyof GetMdtRecordPdfErrors];
+
+export type GetMdtRecordPdfResponses = {
+    /**
+     * PDF document
+     */
+    200: Blob | File;
+};
+
+export type GetMdtRecordPdfResponse = GetMdtRecordPdfResponses[keyof GetMdtRecordPdfResponses];
+
+export type GetMdtConclusionData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/mdt/conclusion';
+};
+
+export type GetMdtConclusionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetMdtConclusionError = GetMdtConclusionErrors[keyof GetMdtConclusionErrors];
+
+export type GetMdtConclusionResponses = {
+    /**
+     * Successful Response
+     */
+    200: MdtConclusion;
+};
+
+export type GetMdtConclusionResponse = GetMdtConclusionResponses[keyof GetMdtConclusionResponses];
+
+export type UpsertMdtConclusionData = {
+    body: MdtConclusionUpsert;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/mdt/conclusion';
+};
+
+export type UpsertMdtConclusionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpsertMdtConclusionError = UpsertMdtConclusionErrors[keyof UpsertMdtConclusionErrors];
+
+export type UpsertMdtConclusionResponses = {
+    /**
+     * Successful Response
+     */
+    200: MdtConclusion;
+};
+
+export type UpsertMdtConclusionResponse = UpsertMdtConclusionResponses[keyof UpsertMdtConclusionResponses];
+
+export type UploadMdtConclusionData = {
+    body: BodyUploadMdtConclusion;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/mdt/conclusion/upload';
+};
+
+export type UploadMdtConclusionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UploadMdtConclusionError = UploadMdtConclusionErrors[keyof UploadMdtConclusionErrors];
+
+export type UploadMdtConclusionResponses = {
+    /**
+     * Successful Response
+     */
+    201: UploadResult;
+};
+
+export type UploadMdtConclusionResponse = UploadMdtConclusionResponses[keyof UploadMdtConclusionResponses];
+
+export type ConfirmMdtConclusionData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/mdt/conclusion/confirm';
+};
+
+export type ConfirmMdtConclusionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ConfirmMdtConclusionError = ConfirmMdtConclusionErrors[keyof ConfirmMdtConclusionErrors];
+
+export type ConfirmMdtConclusionResponses = {
+    /**
+     * Successful Response
+     */
+    200: MdtConclusion;
+};
+
+export type ConfirmMdtConclusionResponse = ConfirmMdtConclusionResponses[keyof ConfirmMdtConclusionResponses];
+
+export type GetMdtConclusionPdfData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/mdt/conclusion.pdf';
+};
+
+export type GetMdtConclusionPdfErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetMdtConclusionPdfError = GetMdtConclusionPdfErrors[keyof GetMdtConclusionPdfErrors];
+
+export type GetMdtConclusionPdfResponses = {
+    /**
+     * PDF document
+     */
+    200: Blob | File;
+};
+
+export type GetMdtConclusionPdfResponse = GetMdtConclusionPdfResponses[keyof GetMdtConclusionPdfResponses];
+
+export type SendFeedbackData = {
+    body: FeedbackSend;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/feedback';
+};
+
+export type SendFeedbackErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SendFeedbackError = SendFeedbackErrors[keyof SendFeedbackErrors];
+
+export type SendFeedbackResponses = {
+    /**
+     * Successful Response
+     */
+    201: Message;
+};
+
+export type SendFeedbackResponse = SendFeedbackResponses[keyof SendFeedbackResponses];
+
+export type CreatePatientNoticeData = {
+    body: PatientNoticeCreate;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/patient-notices';
+};
+
+export type CreatePatientNoticeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreatePatientNoticeError = CreatePatientNoticeErrors[keyof CreatePatientNoticeErrors];
+
+export type CreatePatientNoticeResponses = {
+    /**
+     * Successful Response
+     */
+    201: Message;
+};
+
+export type CreatePatientNoticeResponse = CreatePatientNoticeResponses[keyof CreatePatientNoticeResponses];
+
+export type ListCaseMessagesData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/messages';
+};
+
+export type ListCaseMessagesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListCaseMessagesError = ListCaseMessagesErrors[keyof ListCaseMessagesErrors];
+
+export type ListCaseMessagesResponses = {
+    /**
+     * Response List Case Messages
      *
      * Successful Response
      */
-    200: Array<DocumentMetaDto>;
+    200: Array<Message>;
 };
 
-export type ListDocumentsResponse = ListDocumentsResponses[keyof ListDocumentsResponses];
+export type ListCaseMessagesResponse = ListCaseMessagesResponses[keyof ListCaseMessagesResponses];
+
+export type ListCaseReceiptsData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/receipts';
+};
+
+export type ListCaseReceiptsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListCaseReceiptsError = ListCaseReceiptsErrors[keyof ListCaseReceiptsErrors];
+
+export type ListCaseReceiptsResponses = {
+    /**
+     * Response List Case Receipts
+     *
+     * Successful Response
+     */
+    200: Array<Receipt>;
+};
+
+export type ListCaseReceiptsResponse = ListCaseReceiptsResponses[keyof ListCaseReceiptsResponses];
+
+export type ListInboxData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/inbox';
+};
+
+export type ListInboxErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListInboxError = ListInboxErrors[keyof ListInboxErrors];
+
+export type ListInboxResponses = {
+    /**
+     * Response List Inbox
+     *
+     * Successful Response
+     */
+    200: Array<Message>;
+};
+
+export type ListInboxResponse = ListInboxResponses[keyof ListInboxResponses];
+
+export type ConfirmReceiptData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Message Id
+         */
+        message_id: string;
+    };
+    query?: never;
+    url: '/messages/{message_id}/confirm';
+};
+
+export type ConfirmReceiptErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ConfirmReceiptError = ConfirmReceiptErrors[keyof ConfirmReceiptErrors];
+
+export type ConfirmReceiptResponses = {
+    /**
+     * Successful Response
+     */
+    201: Receipt;
+};
+
+export type ConfirmReceiptResponse = ConfirmReceiptResponses[keyof ConfirmReceiptResponses];
+
+export type GetDemoClockData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/demo/clock';
+};
+
+export type GetDemoClockResponses = {
+    /**
+     * Successful Response
+     */
+    200: DemoClock;
+};
+
+export type GetDemoClockResponse = GetDemoClockResponses[keyof GetDemoClockResponses];
+
+export type SetDemoClockData = {
+    body: DemoClockSet;
+    path?: never;
+    query?: never;
+    url: '/demo/clock';
+};
+
+export type SetDemoClockErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetDemoClockError = SetDemoClockErrors[keyof SetDemoClockErrors];
+
+export type SetDemoClockResponses = {
+    /**
+     * Successful Response
+     */
+    200: DemoClock;
+};
+
+export type SetDemoClockResponse = SetDemoClockResponses[keyof SetDemoClockResponses];
+
+export type ResetDemoData = {
+    body: DemoReset;
+    path?: never;
+    query?: never;
+    url: '/demo/reset';
+};
+
+export type ResetDemoErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResetDemoError = ResetDemoErrors[keyof ResetDemoErrors];
+
+export type ResetDemoResponses = {
+    /**
+     * Response Reset Demo
+     *
+     * Successful Response
+     */
+    200: Array<Case>;
+};
+
+export type ResetDemoResponse = ResetDemoResponses[keyof ResetDemoResponses];
+
+export type HealthData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health';
+};
+
+export type HealthResponses = {
+    /**
+     * Response Health
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type HealthResponse = HealthResponses[keyof HealthResponses];
+
+export type ListCasesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Referring Doctor Id
+         */
+        referring_doctor_id?: string | null;
+        /**
+         * Koc Id
+         */
+        koc_id?: string | null;
+        /**
+         * State
+         */
+        state?: CaseState | null;
+        /**
+         * Queue
+         */
+        queue?: QueueColumn | null;
+    };
+    url: '/cases';
+};
+
+export type ListCasesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListCasesError = ListCasesErrors[keyof ListCasesErrors];
+
+export type ListCasesResponses = {
+    /**
+     * Response List Cases
+     *
+     * Successful Response
+     */
+    200: Array<Case>;
+};
+
+export type ListCasesResponse = ListCasesResponses[keyof ListCasesResponses];
+
+export type ListFindingsData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/findings';
+};
+
+export type ListFindingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListFindingsError = ListFindingsErrors[keyof ListFindingsErrors];
+
+export type ListFindingsResponses = {
+    /**
+     * Response List Findings
+     *
+     * Successful Response
+     */
+    200: Array<Finding>;
+};
+
+export type ListFindingsResponse = ListFindingsResponses[keyof ListFindingsResponses];
 
 export type DocumentTextData = {
     body?: never;
@@ -882,9 +4085,13 @@ export type DocumentTextError = DocumentTextErrors[keyof DocumentTextErrors];
 
 export type DocumentTextResponses = {
     /**
+     * Response Document Text
+     *
      * Successful Response
      */
-    200: DocumentTextDto;
+    200: {
+        [key: string]: string;
+    };
 };
 
 export type DocumentTextResponse = DocumentTextResponses[keyof DocumentTextResponses];

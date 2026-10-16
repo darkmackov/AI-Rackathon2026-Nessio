@@ -1,6 +1,6 @@
 # Product: Onko-koordinace
 
-A working tool for the **KOC coordinator** and the doctors around them. It takes one oncology case from referral to confirmed feedback without losing information. Everything is done in the UI: no configs, no code, no long forms.
+A working tool for the **KOC coordinator** and the **referring doctor**. It takes one oncology case from referral to confirmed feedback without losing information. Everything is done in the UI: no configs, no code, no long forms.
 
 Sources:
 - the challenge brief: [Zadani_ulohy](../data/vzp-structured/brief/Zadani_ulohy.md)
@@ -28,13 +28,11 @@ Decisions behind this page are recorded in [open-questions.md](open-questions.md
 
 ## Roles
 
-| Role | Does in the app |
-|---|---|
 There are **two users: the referring doctor and the KOC coordinator** (Q-F21).
 
 | Role | Does in the app |
 |---|---|
-| **Referring doctor** (GP / specialist) | **Owns the handover** (Q-F22). Picks a KOC → uploads the referral (epikríza, plus whatever is at hand) → reviews the AI-extracted handover, with soft "fill in if you know" prompts for gaps → validates → sends. Later **answers KOC requests** (e.g. supplies the reports the referral mentioned) and confirms the updated handover. Receives the MDT result and confirms receipt |
+| **Referring doctor** (GP / specialist) | **Owns the handover** (Q-F22). Picks a KOC → uploads the referral (epikríza, plus whatever is at hand) → reviews the AI-extracted handover, with soft "fill in if you know" prompts for gaps → validates → sends. In Phase 2 also answers KOC requests from an inbox (Q-F23). Receives the MDT result and confirms receipt |
 | **KOC coordinator** | Works the queue. Takes over cases. Coordinates everything after the referral: arranges examinations, requests and uploads their results, fills remaining gaps, starts task sets or adds one-off tasks, flags cases as on hold. Writes the MDT question and the final epikríza. Confirms the MDT snapshot. Records the MDT conclusion (writes it or uploads it). Sends it to the GP |
 
 Not users, but present as information:
@@ -65,7 +63,9 @@ stateDiagram-v2
   state "6 Závěr KOC / MDT" as S6
   state "7 Zpětná vazba odeslána" as S7
   state "8 Uzavřeno" as S8
-  [*] --> S1
+  state "0 Koncept (GP draft)" as S0
+  [*] --> S0
+  S0 --> S1: Validovat a odeslat
   S1 --> S2
   S2 --> S3: chybí podklady
   S2 --> S4: vše dodáno
@@ -80,9 +80,10 @@ stateDiagram-v2
 
 | State | Meaning (from the slides) |
 |---|---|
+| Koncept (draft, ours, D-8) | The GP is preparing the referral; not visible on the KOC dashboard |
 | Odesláno (sent) | The referring doctor sent the request and the available documents |
 | V triage (in triage) | The case is accepted and checked; the documents get a first assessment |
-| Čeká na podklady (waiting for documents) | The system found missing information and asked for it |
+| Čeká na podklady (waiting for documents) | Missing information was found and requested (in the MVP: open request tasks) |
 | Kompletní (complete) | All required documents are in and prepared for the next step |
 | Připraveno k MDT (ready for MDT) | The case is complete and handed to the KOC/MDT for expert review |
 | Závěr KOC/MDT (KOC/MDT conclusion) | The expert team decided the next step and wrote recommendations |
@@ -97,12 +98,12 @@ Dashboard columns (slide 9):
 ## Screens (MVP)
 
 1. **Referral (GP portal), slide 7.**
-   - Pick a KOC → drag and drop **all reports for the initial handover**.
+   - Pick a KOC → drag and drop the referral (epikríza) plus any reports at hand.
    - AI extracts the handover: patient details, contacts, suspected diagnosis, referrer contact, and so on.
    - The GP reviews the extracted handover. Empty fields (e.g. ECOG, the patient's email) appear as **soft "fill in if you know" prompts** that never block sending (Q-F22).
    - *Validovat a odeslat* (validate and send).
-   - Later, KOC requests show up in the GP's inbox (e.g. "please send the results 07 mentions") → the GP uploads them → re-extraction → the GP confirms the updated handover, again with soft prompts for anything still missing.
-   - Done when: the coordinator gets everything in one step, and the GP answers requests in the same place.
+   - Done when: the coordinator gets everything in one step.
+   - *Phase 2 (Q-F23):* KOC requests reach the GP's inbox; the GP uploads the reports and confirms the updated handover.
 2. **Coordinator dashboard, slide 9.**
    - Kanban with Nový / Aktivní / Odložený (manual flag).
    - Each card shows patient, diagnosis, state, next step, owner, due date, priority/overdue, and time to treatment so far.
@@ -111,7 +112,7 @@ Dashboard columns (slide 9):
 3. **Case detail.**
    - Tabs: *Handover · Dokumenty (documents) · Úkoly/cesta (tasks/journey) · Komunikace (communication) · Audit*.
    - Every handover value links to its source document with the quote highlighted.
-   - Gaps and conflicts sit at the top, each with **Vyžádat** (request; a message or task to the right person) or **Doplnit** (fill in manually or upload, and AI re-extracts).
+   - Gaps and conflicts sit at the top, each with **Vyžádat** (creates a request task addressed to whoever holds the information, linked to the finding; the reply comes outside the app in the MVP) or **Doplnit** (fill in manually, or upload, and AI re-extracts).
    - Every section is copy-ready (slide 8).
    - **Epikríza side by side** (Q-F15): the referring doctor's text verbatim next to the AI summary proposal; the coordinator writes or confirms the final version.
    - **MDT question**: written by the coordinator, optionally prefilled by AI (Q-F14).
@@ -121,8 +122,8 @@ Dashboard columns (slide 9):
 4. **Journey / tasks, slide 10.**
    - *Spustit sadu úkolů* (start a task set; for example the pancreatic-cancer set) or *Přidat úkol* (add a one-off task).
    - Each task has type, place, date, owner, status and dependencies (what must come first).
-   - Task sets are created and edited **in the UI** by coordinators.
-   - Deadline notifications.
+   - Task sets are created and edited **in the UI** by the coordinator (Q-F2, Q-F21).
+   - In-app deadline notifications (Q-F17).
 5. **MDT.**
    - *Připravit podklad pro MDT* (prepare MDT input) freezes a snapshot of the handover at the MDT date; the coordinator confirms it.
    - That produces the MDT record in the `MDT_zapis` layout: members from the board roster, diagnosis + MKN-10, comorbidities, results table.
@@ -133,37 +134,45 @@ Dashboard columns (slide 9):
 
 ## Where requests and tasks come from
 
-Decided in Q-F1 to Q-F6 and Q-F22.
+Decided in Q-F1 to Q-F6, Q-F22 and Q-F23. There are **two handover flows**:
+
+| Flow | What | Scope |
+|---|---|---|
+| **1. Initial GP handover** | The GP uploads the referral → AI extraction → the GP reviews with soft "fill in if you know" prompts → validates → sends | **MVP** |
+| **2. Additional document handovers** | The KOC requests a report from whoever holds it (GP or facility) → the request appears in their inbox → they upload → re-extraction → the GP re-confirms the handover | **Phase 2** |
+
+In the MVP, flow 2 is replaced by the coordinator: they log a request task and **upload** the report when it arrives through another channel (email, post, eZprávy).
 
 ```mermaid
 flowchart TD
-  subgraph gp["Referring doctor: owns the handover"]
-    up["Uploads referral (07)"] --> ext["AI extraction"]
-    ext --> rev["Reviews handover,<br/>soft 'fill in if you know' prompts"]
+  subgraph f1["Flow 1: initial GP handover (MVP)"]
+    up["GP uploads referral (07)"] --> ext["AI extraction"]
+    ext --> rev["GP reviews, soft<br/>'fill in if you know' prompts"]
     rev --> send["Validovat a odeslat"]
-    inbox["Request in GP inbox"] --> supply["Uploads requested reports"]
-    supply --> ext2["Re-extraction"] --> confirm["Confirms updated handover"]
   end
-  subgraph koc["Coordinator: coordinates everything else"]
+  subgraph koc["Coordinator (MVP)"]
     take["Takes over"] --> detect["Sees what is referenced<br/>but not attached (F09)"]
-    detect --> req["Requests each report from<br/>whoever holds it"]
-    take --> plan["Starts task set /<br/>one-off tasks"]
-    plan --> arrange["Arranges exams (08+),<br/>uploads results"]
+    detect --> task["Request task: 'vyžádat 01–06'<br/>(from whoever holds them)"]
+    take --> plan["Task set / one-off tasks,<br/>arranges exams 08+"]
+    task --> upl["Uploads reports as they arrive"]
+    plan --> upl
+    upl --> re["AI re-extracts,<br/>new gaps / conflicts"]
     sugg["Bonus: AI suggestions<br/>(dismissible, high precision)"] -.-> plan
   end
+  subgraph f2["Flow 2: additional document handovers (Phase 2)"]
+    inbox["Request in GP / facility inbox"] --> supply["They upload"] --> reconf["GP re-confirms handover"]
+  end
   send --> take
-  req -->|"held by the GP"| inbox
-  req -->|"held by a facility"| fac["Facility replies,<br/>coordinator uploads"]
+  task -.->|"Phase 2"| inbox
+  supply -.-> re
 ```
 
-**The referring doctor owns the handover (Q-F22).**
-- The GP sends the referral and validates the extracted handover. Gaps are soft "fill in if you know" prompts that never block sending.
-- When the KOC asks for something the GP holds, it arrives in the GP's inbox. The GP uploads it and confirms the updated handover.
+**The referring doctor owns the handover (Q-F22).** The GP sends the referral and validates the extracted handover; gaps are soft prompts that never block sending.
 
 **The coordinator coordinates everything else (Q-F1).**
-- After taking over, the coordinator sees what the referral mentions but doesn't include. In the reference case that's 07's five results "at the facilities" (F09).
-- Each report is requested from **whoever holds it** (Q-F6): the GP for what they ordered or were copied on (here 01–06), otherwise the producing facility. A facility's reply is uploaded by the coordinator (Q-F4).
-- The coordinator starts a **task set** maintained by KOC staff in the UI (Q-F2) or adds one-off tasks, arranges the KOC examinations (08 onwards) and uploads their results. Each result goes back through extraction.
+- After taking over, the coordinator sees what the referral mentions but doesn't include. In the reference case that's 07's five results (F09).
+- They log a request to whoever holds each report (Q-F6): here the GP, otherwise the producing facility. In the MVP the reply comes outside the app and the coordinator uploads it (Q-F4, Q-F23).
+- They start a **task set** they maintain in the UI (Q-F2) or add one-off tasks, arrange the KOC examinations (08 onwards) and upload their results. Each upload goes back through extraction.
 
 **AI suggestions are a bonus, not the mechanism (Q-F1, Q-F3).**
 - The AI may propose tasks or requests, e.g. from the referral's explicit asks ("CT, histologická verifikace").
@@ -171,7 +180,7 @@ flowchart TD
 - The AI never creates tasks or sends requests on its own.
 
 ## Hard rules from the brief
-- **AI only prepares a proposal, a human decides and confirms.** Every AI value is a proposal with a source until a doctor validates it.
+- **AI only prepares a proposal, a human decides and confirms.** Every AI value is a proposal with a source until a person confirms it: the referring doctor for the handover, the coordinator for the MDT snapshot.
 - **Don't infer.** Take data as written; whatever is missing gets flagged.
 - **The MDT record contains only what was known at the MDT date.** This follows from the workflow: the snapshot is frozen at *Připraveno k MDT*, and later documents (the pain-clinic and psychology reports in the reference case) update the live case but never the frozen record.
 - "Rakathon ověří princip, produkční integrace patří do další fáze" (Rakathon tests the principle; production integration is the next phase). Integrations may be simulated.

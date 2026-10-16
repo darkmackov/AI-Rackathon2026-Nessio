@@ -39,7 +39,7 @@ PANCREAS = TaskSet(
 
 
 def _case(state=CaseState.COMPLETE):
-    return Case(id="c1", patient_name="Alena Procházková", koc="KOC 2", referring_doctor_id="pl",
+    return Case(id="c1", patient_name="Alena Procházková", koc_id="koc2-lipova", referring_doctor_id="pl",
                 state=state, created_at=NOW)
 
 

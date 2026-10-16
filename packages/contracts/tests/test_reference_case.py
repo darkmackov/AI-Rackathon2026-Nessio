@@ -105,6 +105,7 @@ def test_known_gaps_are_flagged(handover, findings):
 
 def test_state_machine_reaches_closed():
     path = [
+        CaseState.DRAFT,
         CaseState.SENT,
         CaseState.TRIAGE,
         CaseState.WAITING_FOR_DOCUMENTS,
