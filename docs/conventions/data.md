@@ -68,3 +68,4 @@ flowchart LR
 | PER-10 | Anything a dev writes to the shared IRIS namespace has an id prefixed with that dev's name (Q-I3). Demo data is unprefixed. |
 | PER-11 | Non-FHIR SQL tables are listed under *Non-FHIR storage* in data-model.md. Table names are `snake_case` singular (`llm_call`, `doc_chunk`). |
 | PER-12 | Connection details and secrets come only from `.env` through `IrisSettings` (`ONKO_` prefix, `SecretStr`). Never log them, put them in docs, or commit them (Q-I2). |
+| PER-13 | Audit rows (`app_audit`) are append-only: never updated, and deleted only by the demo reset. Foreign keys hold in IRIS and in the in-memory fake alike: a reference to a missing case or document fails in both (Q-I26, PER-3). |

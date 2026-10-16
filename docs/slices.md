@@ -76,6 +76,7 @@ flowchart LR
 - **Modules:**
   - `documents`: parse; duplicate check on upload, a warning only: SHA-256 for exact copies, word-shingle overlap for near copies (Q-I22).
   - `ai`: extraction (map per document, then merge), quote verification, AI document metadata, generic checks.
+  - **Normalization (Q-C13):** text normalized before the quote check (offsets stay in the original); RČ, phone, email and insurer code in canonical form; weight/height in kg/cm; lab values with a parsed number, comparator and UCUM unit, and performance status as scale + score. The last two are a contract change in its own PR. A value that can't be normalized keeps its raw form and raises a finding.
   - `llm_gateway`: the model client.
   - `bench`: compare the candidates and **pick one model** (Q-M1).
   - **Second synthetic reference case** (Q-M4; a separate session is proposed for it).
@@ -105,7 +106,7 @@ flowchart LR
   - *Vyžádat* (request task) and *Doplnit* on findings; override with a note (e.g. ECOG).
   - Task list and task-set editor, *Spustit sadu úkolů*, *Odložit*.
   - Coordinator upload of arriving reports (reuses S2).
-  - In-app notifications, audit tab.
+  - In-app notifications, audit tab (backed by the append-only `app_audit` table, Q-I26).
 - **Done when:** demo steps 3–8.
 
 ## S5: MDT
@@ -124,6 +125,7 @@ flowchart LR
 ## S6: Feedback loop
 - **Goal:** pillar 04. Close the loop with confirmed delivery.
 - **Endpoints:** `sendFeedback`, `listInbox`, `confirmReceipt`, `listCaseReceipts` (proof of delivery), `listCaseMessages`, `createPatientNotice`.
+- **Modules:** `repository`: `app_message_recipient` so `listInbox` is an indexed lookup by recipient (Q-I26).
 - **UI:**
   - *Odeslat PL* (send to the GP).
   - The GP's inbox with the result + original context and *Potvrzuji převzetí*.
@@ -137,6 +139,7 @@ flowchart LR
   - **App state** in IRIS SQL tables generated from the contracts; the handover as one JSON document (Q-I14).
   - **FHIR projection** of the showcase resources (Patient with the RČ identifier, Condition, DiagnosticReport/Observation, Composition, Provenance) per [data-model.md](data-model.md).
   - IG packages (Q-I6).
+  - Foreign keys on `case_id` / `document_id` and bitmap indexes on filter columns (Q-I26, Q-I27).
   - Deployment of API + web to Azure.
 - **Done when:** the API runs with `IrisRepository` and passes the same tests as the in-memory fake; demo step 16; the demo runs from Azure.
 
@@ -157,6 +160,7 @@ flowchart LR
 - **Modules:** `repository` (projection, outbox), `api` (referral intake). New resources are added to [data-model.md](data-model.md) first.
 - **Scope:**
   - **MDT conclusion out:** when the conclusion is sent (S6), a FHIR document `Bundle` (`Composition` first, then only the resources it references; unique identifier and timestamp; never changed, a correction is a new Bundle) plus a `DocumentReference` indexing it, with the Bundle and the PDF as attachments (Q-I20).
+  - **Audit out:** `app_audit` rows projected as FHIR `AuditEvent` (Q-I26).
   - **`$validate` (Q-I25):** the opt-in IRIS tests validate every projected resource on the server against its declared profile.
   - **`Patient/$everything` (Q-I25):** the whole case as one Bundle, read straight from the IRIS FHIR server, not through the API.
   - **Outbox (D-14):** every FHIR write is stored in the same IRIS SQL transaction as the app-state save and retried until it succeeds; pending writes are visible.

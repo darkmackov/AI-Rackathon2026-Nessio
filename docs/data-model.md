@@ -195,7 +195,8 @@ Package ids, versions, profile names and identifier systems below were **checked
 - FHIR ids derive from the app ids: `{case}-patient`, `{case}-dx`, `{case}-lab-1`, `{case}-handover`, `doc-{document}`. The MDT snapshot gets its own `{case}-mdt-…` resources (PER-9), sharing the case's `Patient`.
 - A failed projection never loses the app-state save. From S9 every FHIR write goes through the **outbox** (D-14): stored in the same IRIS SQL transaction as the save, then sent and retried until it succeeds, with pending writes visible.
 - **MKN-10** is coded with `http://hl7.org/fhir/sid/icd-10`: cz.core 1.0.0 defines no MKN-10 system. The diagnosis `Condition` stays `provisional` (Q-C9).
-- Body weight / height use the base R4 vital-signs profiles with LOINC `29463-7` / `8302-2`. Performance status is an `Observation` only when found (PER-7), without a LOINC code.
+- Body weight / height use the base R4 vital-signs profiles with LOINC `29463-7` / `8302-2`. Performance status is an `Observation` only when found (PER-7), without a LOINC code; once the contract carries scale + score (Q-C13), the score is its value.
+- Lab results: today the projection parses the number itself when it can (`valueQuantity` with the printed unit, no UCUM code), else `valueString`. With Q-C13 the parsing moves into extraction: `valueQuantity` gets the normalized number, the comparator and the UCUM unit (`http://unitsofmeasure.org`); a value that couldn't be normalized stays a `valueString`.
 - **Evidence:** each verbatim quote is a `Provenance.entity` (`role=source`) whose `what` references the source `DocumentReference` and carries the quote as `display` (PER-8). Manual values get an `author` Provenance with `entered.by/at`; `validated_by_referrer` / `confirmed_by_coordinator` get a `verifier` Provenance on the `Composition`.
 - Naive datetimes are sent as Europe/Prague local time (D-13).
 
@@ -228,6 +229,12 @@ Tables and columns missing on start are created (`ALTER TABLE … ADD COLUMN`), 
 The handover is the one document: 26 `Sourced` values with evidence, read and written whole. It is stored as a plain string, so IRIS SQL can query inside it with `JSON_TABLE`; its clinical content is what the FHIR projection carries.
 
 A new port method that stores a new model adds its table here (PER-11).
+
+**Planned schema changes (Q-I26)**, all plain IRIS SQL:
+- `app_message_recipient(message_id, recipient_id)`, indexed on `recipient_id`, written in the same save as `app_message` (S6). Keyed like `app_receipt`.
+- `app_audit` for `AuditEvent`: one row per event, append-only, indexed on `case_id` (S4); projected to FHIR `AuditEvent` through the outbox (S9).
+- Foreign keys: `case_id` in `app_document`, `app_finding`, `app_task`, `app_message`, `app_handover`, `app_audit`, `doc_chunk` and `fhir_outbox` → `app_case`; `document_id` in `doc_chunk` → `app_document` (S7). `clear()` deletes child tables first.
+- Bitmap indexes instead of normal ones on `state`, `queue` (`app_case`), `kind` (`app_organization`), `role` (`app_actor`), if the tables keep IRIS's integer row ID (Q-I27).
 
 - `doc_chunk(id, document_id, case_id, ord, text, embedding VECTOR(DOUBLE, n))` (S8, Q-I19): Vector Search for evidence and "ask the case", plus the chunk's character offsets in its document. Case-scoped queries are an exact scan filtered by `case_id`, no HNSW index. `n` depends on the embedding model (Q-M7). Planned; the contract PR for S8 adds the model and the exact columns.
 - `fhir_outbox` (S9, D-14): pending FHIR writes, stored in the same transaction as the app-state save and retried until sent. Planned; the exact columns come with S9.

@@ -74,6 +74,7 @@ sequenceDiagram
     AI->>L: complete(doc text, Handover JSON schema)
     L-->>AI: partial Handover with quotes
   end
+  AI->>AI: normalize values by deterministic code (verbatim quote kept, Q-C13)
   AI->>AI: merge (newest valid value wins, disagreements -> conflict)
   AI->>AI: verify every quote exists in its source (drop or flag otherwise; a flag shows the nearest chunk from vector search)
   AI->>AI: check: deterministic rules + LLM review -> Findings
@@ -89,9 +90,9 @@ Checks, generic and runnable on any case:
 | Required field missing | ECOG, email, MKN-10 code |
 | Unattached reference | A referral that lists results without attaching them |
 | Temporal impossibility | A sample taken after the report was issued; medication dates vs procedure date |
-| Identity consistency | RČ ↔ birth date / sex / age; insurer code |
+| Identity consistency | RČ check digit, RČ ↔ birth date / sex / age; insurer code |
 | Cross-document value conflicts | Two sources disagree on the same value |
-| Trends | Weight, key labs |
+| Trends | Weight, key labs (compared on the normalized numbers and units, Q-C13) |
 | LLM clinical review | Advisory only, e.g. "cholestasis without documented drainage" |
 
 ## Runtime on IRIS
