@@ -3,6 +3,7 @@
 Run:  uv run uvicorn onko_api.main:app --reload
 Data: IrisRepository when ONKO_IRIS_CONNECTION_STRING is set in .env (the shared IRIS in Azure),
       otherwise the in-memory fake. Either way an empty store is seeded with the reference case.
+MCP:  the read-only MCP server for agents at `/mcp` (S10, mcp.py).
 """
 
 from __future__ import annotations
@@ -17,6 +18,8 @@ from onko_repository import CaseRepository, InMemoryRepository, IrisRepository, 
 
 from .clock import AppClock
 from .deps import Repo
+from .mcp import build_mcp
+from .queries import search_cases
 from .routes import router
 from .seed import load_directory, seed_reference_case
 
@@ -42,10 +45,15 @@ async def lifespan(_: FastAPI):
         seed_reference_case(repo)
     app.state.repo = repo
     app.state.clock = AppClock()  # wall clock until /demo/clock or /demo/reset moves it
-    yield
+    async with mcp_app.lifespan(mcp_app):  # the MCP session manager
+        yield
     if isinstance(repo, IrisRepository):
         repo.close()
 
+
+mcp_app = build_mcp(lambda: app.state.repo, lambda: app.state.clock).http_app(
+    path="/mcp", stateless_http=True, json_response=True
+)
 
 app = FastAPI(
     title="Onko-koordinace API",
@@ -77,17 +85,9 @@ def list_cases(
 ) -> list[Case]:
     """Coordinator dashboard (filter by koc_id) or the GP's own referrals (referring_doctor_id).
     Drafts (koncept) only appear when filtering by their referring doctor."""
-    cases = repo.list_cases()
-    if referring_doctor_id is None:
-        cases = [c for c in cases if c.state is not CaseState.DRAFT]
-    return [
-        c
-        for c in cases
-        if (referring_doctor_id is None or c.referring_doctor_id == referring_doctor_id)
-        and (koc_id is None or c.koc_id == koc_id)
-        and (state is None or c.state is state)
-        and (queue is None or c.queue is queue)
-    ]
+    return search_cases(
+        repo, referring_doctor_id=referring_doctor_id, koc_id=koc_id, state=state, queue=queue
+    )
 
 
 @app.get("/cases/{case_id}", tags=["cases"])
@@ -127,3 +127,7 @@ def document_text(document_id: str, repo: Repo) -> dict[str, str]:
         return {"id": document_id, "text": repo.document_text(document_id)}
     except KeyError:
         raise HTTPException(404, "document not found") from None
+
+
+# Last, so it never shadows a route: the MCP endpoint is the mounted app's own `/mcp` route.
+app.mount("/", mcp_app)

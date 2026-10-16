@@ -13,6 +13,7 @@ dependencies = [
   "onko-documents",
   "onko-ai",
   "onko-messaging",
+  "fastmcp>=4.1.0",
 ]
 
 [dependency-groups]

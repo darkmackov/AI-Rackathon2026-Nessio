@@ -37,7 +37,7 @@ Live docs while the API runs: `http://localhost:8000/docs`.
 
 - **Manual entries** (`PATCH /cases/{id}/handover`) produce `Sourced` values with `origin=manual` and `entered={by, at}`. AI values carry `origin=ai` and verbatim `evidence`. The contracts enforce both.
 - **Storage:** app state is kept in IRIS, projected to FHIR only where needed (decision 16. 10.). Nothing in the API exposes FHIR directly.
-- **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23). It is not part of the 63 REST operations or the OpenAPI spec. Its tools call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check.
+- **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23; `/api/mcp` in production). It is not part of the 63 REST operations or the OpenAPI spec. Its tools (`search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`) call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check; errors come back as MCP tool errors with the same `detail` text. "Ask the case" joins with S8.
 
 ## The flows through the API
 
