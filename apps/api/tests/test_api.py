@@ -127,3 +127,13 @@ def test_health_shows_pending_fhir_writes():
         health = client.get("/health").json()
     assert health["ok"] is True
     assert health["fhir_pending"] == 0  # the in-memory fake has no FHIR projection (D-14)
+
+
+def test_case_reads_404_for_an_unknown_case():
+    with TestClient(app) as client:
+        for path in ("", "/handover", "/findings", "/tasks", "/documents", "/jobs"):
+            r = client.get(f"/cases/no-such-case{path}")
+            assert r.status_code == 404, path
+            assert r.json()["detail"] == "case not found", path
+        # An existing case with nothing in a collection still answers 200 with [].
+        assert client.get("/cases/vzp-prochazkova/tasks").status_code == 200

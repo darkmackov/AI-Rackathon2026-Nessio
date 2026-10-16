@@ -85,6 +85,7 @@ apps/api/src/onko_api/
 | API-4 | Errors follow APIM-6 and translate with `raise … from None`. |
 | API-5 | A route needing "now" uses the app clock (D-10), never the system clock. |
 | API-6 | After any route, body or contract change, regenerate the spec and the web client (APIM-7). |
+| API-7 | A route under a parent resource (`/cases/{case_id}/…`) checks that the parent exists first and answers **404** (`"case not found"`) if it doesn't, lists included (`_case_or_404`). An empty list (`200 []`) means the parent exists and has no items. A missing child of an existing parent gets its own 404 detail (`"no handover yet"`). The S0 MSW mocks follow the same rule. |
 
 ## Python style
 

@@ -22,7 +22,7 @@ from .clock import AppClock
 from .deps import Repo
 from .mcp import build_mcp
 from .queries import search_cases
-from .routes import router
+from .routes import _case_or_404, router
 from .seed import load_directory, seed_reference_case
 
 
@@ -107,14 +107,12 @@ def list_cases(
 
 @app.get("/cases/{case_id}", tags=["cases"])
 def get_case(case_id: str, repo: Repo) -> Case:
-    try:
-        return repo.get_case(case_id)
-    except KeyError:
-        raise HTTPException(404, "case not found") from None
+    return _case_or_404(repo, case_id)
 
 
 @app.get("/cases/{case_id}/handover", tags=["handover"])
 def get_handover(case_id: str, repo: Repo, snapshot: bool = False) -> Handover:
+    _case_or_404(repo, case_id)
     handover = repo.get_handover(case_id, snapshot=snapshot)
     if handover is None:
         raise HTTPException(404, "no handover yet")
@@ -123,16 +121,19 @@ def get_handover(case_id: str, repo: Repo, snapshot: bool = False) -> Handover:
 
 @app.get("/cases/{case_id}/findings", tags=["findings"])
 def list_findings(case_id: str, repo: Repo) -> list[Finding]:
+    _case_or_404(repo, case_id)
     return repo.list_findings(case_id)
 
 
 @app.get("/cases/{case_id}/tasks", tags=["tasks"])
 def list_tasks(case_id: str, repo: Repo) -> list[Task]:
+    _case_or_404(repo, case_id)
     return repo.list_tasks(case_id)
 
 
 @app.get("/cases/{case_id}/documents", tags=["documents"])
 def list_documents(case_id: str, repo: Repo) -> list[DocumentMeta]:
+    _case_or_404(repo, case_id)
     return repo.list_documents(case_id)
 
 

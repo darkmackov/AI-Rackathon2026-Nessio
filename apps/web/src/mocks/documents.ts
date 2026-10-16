@@ -127,8 +127,6 @@ export function createDocumentHandlers(state: DemoState) {
     http.get('*/api/cases/:caseId/documents', ({ request, params }) => {
       const id = String(params.caseId)
       state.documents.listJobs(id, state.clock().now)
-      // Like the API, a list for an unknown case is empty rather than missing.
-      if (!findCase(id)) return HttpResponse.json<DocumentMeta[]>([])
       return access(request, findCase(id)) ?? HttpResponse.json<DocumentMeta[]>(state.documents.list(id))
     }),
     http.post('*/api/cases/:caseId/documents', async ({ request, params }) => {
@@ -214,7 +212,6 @@ export function createDocumentHandlers(state: DemoState) {
     http.get('*/api/cases/:caseId/findings', ({ request, params }) => {
       const id = String(params.caseId)
       state.documents.listJobs(id, state.clock().now)
-      if (!findCase(id)) return HttpResponse.json<Finding[]>([])
       return access(request, findCase(id)) ?? HttpResponse.json<Finding[]>(state.documents.result(id)?.findings ?? [])
     }),
   ]

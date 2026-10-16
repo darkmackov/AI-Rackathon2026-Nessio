@@ -11,4 +11,5 @@ Root rules: [AGENTS.md](../../AGENTS.md). Conventions: [docs/conventions/](../..
 - Implementing a 501 stub keeps its function name, path, request and response models (APIM-4, API-3). A response model changes only through a contract PR.
 - Routes are thin: no business logic (API-1). The return annotation is the response model (API-2). "Now" is the app clock (API-5, D-10).
 - Errors: `HTTPException(status, "…")` with the codes in api.md, no error model (APIM-6).
+- A `/cases/{case_id}/…` route calls `_case_or_404` first, lists included: unknown case → 404, never `[]` (API-7).
 - After any route, body or contract change, run `uv run python scripts/export_openapi.py` and `npm --prefix apps/web run gen:api`, and commit both (APIM-7).
