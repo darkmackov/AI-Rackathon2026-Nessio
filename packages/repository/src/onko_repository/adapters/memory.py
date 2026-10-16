@@ -2,13 +2,30 @@
 
 from __future__ import annotations
 
-from onko_contracts import Case, DocumentMeta, Finding, Handover, Message, Receipt, Task
+from onko_contracts import (
+    Actor,
+    Case,
+    DocumentMeta,
+    Finding,
+    Handover,
+    MdtBoard,
+    Message,
+    Organization,
+    Receipt,
+    Task,
+)
 
 
 class InMemoryRepository:
     """Dict-backed fake. Good enough for tests and for running the API without IRIS."""
 
     def __init__(self) -> None:
+        self.clear()
+
+    def clear(self) -> None:
+        self.organizations: dict[str, Organization] = {}
+        self.actors: dict[str, Actor] = {}
+        self.mdt_boards: dict[str, MdtBoard] = {}
         self.cases: dict[str, Case] = {}
         self.documents: dict[str, tuple[DocumentMeta, bytes, str]] = {}
         self.handovers: dict[tuple[str, bool], Handover] = {}
@@ -16,6 +33,30 @@ class InMemoryRepository:
         self.tasks: dict[str, Task] = {}
         self.messages: dict[str, Message] = {}
         self.receipts: list[Receipt] = []
+
+    def save_organization(self, organization: Organization) -> None:
+        self.organizations[organization.id] = organization
+
+    def list_organizations(self) -> list[Organization]:
+        return list(self.organizations.values())
+
+    def save_actor(self, actor: Actor) -> None:
+        self.actors[actor.id] = actor
+
+    def get_actor(self, actor_id: str) -> Actor:
+        return self.actors[actor_id]
+
+    def list_actors(self) -> list[Actor]:
+        return list(self.actors.values())
+
+    def save_mdt_board(self, board: MdtBoard) -> None:
+        self.mdt_boards[board.id] = board
+
+    def get_mdt_board(self, board_id: str) -> MdtBoard:
+        return self.mdt_boards[board_id]
+
+    def list_mdt_boards(self) -> list[MdtBoard]:
+        return list(self.mdt_boards.values())
 
     def save_case(self, case: Case) -> None:
         self.cases[case.id] = case

@@ -1,6 +1,6 @@
-"""API surface for the MVP. Every endpoint here is DEFINED ONLY: it documents the request and the
-response model and returns 501 until a slice implements it (see docs/api.md, docs/slices.md).
-The read-only endpoints in main.py already serve the seeded reference case.
+"""API surface for the MVP. Endpoints not implemented yet are DEFINED ONLY: they document the
+request and the response model and return 501 until a slice implements them (see docs/api.md,
+docs/slices.md). The read-only endpoints in main.py already serve the seeded reference case.
 
 The current user comes from the `X-Actor-Id` header (demo role switcher, Q-I11).
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from onko_contracts import (
     Actor,
@@ -33,6 +33,7 @@ from onko_contracts import (
     TimeToTreatment,
 )
 
+from .deps import ActorId, Clock, CurrentUser, Repo
 from .schemas import (
     CaseTransition,
     CaseUpdate,
@@ -60,10 +61,10 @@ from .schemas import (
     TaskUpdate,
     UploadResult,
 )
+from .seed import apply_scenario
 
 router = APIRouter()
 
-ActorId = Annotated[str, Header(alias="X-Actor-Id", description="Current user (demo role switcher)")]
 PDF = {200: {"content": {"application/pdf": {}}, "description": "PDF document"}}
 ReceivedAt = Annotated[
     dt.datetime | None,
@@ -79,31 +80,41 @@ def _todo() -> NoReturn:
 
 
 @router.get("/me", tags=["directory"])
-def me(actor_id: ActorId) -> Actor:
+def me(user: CurrentUser) -> Actor:
     """The current user (referring doctor or coordinator)."""
-    _todo()
+    return user
 
 
 @router.get("/directory/organizations", tags=["directory"])
-def list_organizations(kind: OrganizationKind | None = None) -> list[Organization]:
+def list_organizations(repo: Repo, kind: OrganizationKind | None = None) -> list[Organization]:
     """Organisations; `kind=koc` feeds the KOC picker on the referral screen."""
-    _todo()
+    return [o for o in repo.list_organizations() if kind is None or o.kind is kind]
 
 
 @router.get("/directory/actors", tags=["directory"])
-def list_actors(role: str | None = None, organization_id: str | None = None) -> list[Actor]:
+def list_actors(
+    repo: Repo, role: str | None = None, organization_id: str | None = None
+) -> list[Actor]:
     """People: GPs, coordinators, specialists. Owners for tasks, recipients for requests."""
-    _todo()
+    return [
+        a
+        for a in repo.list_actors()
+        if (role is None or a.role == role)
+        and (organization_id is None or a.organization_id == organization_id)
+    ]
 
 
 @router.get("/mdt-boards", tags=["directory"])
-def list_mdt_boards() -> list[MdtBoard]:
-    _todo()
+def list_mdt_boards(repo: Repo) -> list[MdtBoard]:
+    return repo.list_mdt_boards()
 
 
 @router.get("/mdt-boards/{board_id}", tags=["directory"])
-def get_mdt_board(board_id: str) -> MdtBoard:
-    _todo()
+def get_mdt_board(board_id: str, repo: Repo) -> MdtBoard:
+    try:
+        return repo.get_mdt_board(board_id)
+    except KeyError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "MDT board not found") from None
 
 
 @router.put("/mdt-boards/{board_id}/members", tags=["directory"])
@@ -403,17 +414,19 @@ def confirm_receipt(message_id: str, actor_id: ActorId) -> Receipt:
 
 
 @router.get("/demo/clock", tags=["demo"])
-def get_demo_clock() -> DemoClock:
-    _todo()
+def get_demo_clock(clock: Clock) -> DemoClock:
+    return clock.as_model()
 
 
 @router.put("/demo/clock", tags=["demo"])
-def set_demo_clock(body: DemoClockSet) -> DemoClock:
+def set_demo_clock(body: DemoClockSet, clock: Clock) -> DemoClock:
     """Set the app clock (e.g. 2026-10-21T09:00 for the MDT step), or back to the wall clock."""
-    _todo()
+    clock.set(body.now)
+    return clock.as_model()
 
 
 @router.post("/demo/reset", tags=["demo"])
-def reset_demo(body: DemoReset) -> list[Case]:
+def reset_demo(body: DemoReset, repo: Repo, clock: Clock) -> list[Case]:
     """Reset all data to a scenario; returns the resulting cases."""
-    _todo()
+    apply_scenario(repo, clock, body.scenario)
+    return repo.list_cases()
