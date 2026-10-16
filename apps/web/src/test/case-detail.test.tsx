@@ -6,7 +6,7 @@ import { getDemoClockQueryKey } from '../client/@tanstack/react-query.gen'
 import { isCaseQuery } from '../case-queries'
 import { referenceCases } from '../mocks/reference'
 import { referenceFindings } from '../mocks/reference-data'
-import { quoteSegments } from '../screens/CaseDetail/clinical'
+import { quoteSegments } from '../components/handover/clinical'
 import { renderApp } from './renderApp'
 import { changeIdentity, finding, openReferenceCase, openTab, setLanguage, signIn, wideScreen } from './shell'
 import { demoState, server } from './setup'
@@ -22,7 +22,8 @@ describe('case detail', () => {
     expect(within(header).getByRole('button', { name: 'Kontakty: Bc. Lucie Dvořáková' })).toBeVisible()
     expect(within(header).getByText('MDT pro nádory GIT')).toBeVisible()
     expect(within(header).getByText(/^21\. 10\. 2026/)).toBeVisible()
-    for (const name of ['Převzít', 'Vrátit lékaři', 'Odložit']) expect(within(header).getByRole('button', { name })).toBeDisabled()
+    expect(within(header).getByRole('button', { name: 'Převzít' })).toBeDisabled()
+    for (const name of ['Vrátit lékaři', 'Odložit']) expect(within(header).getByRole('button', { name })).toBeEnabled()
     const attention = await within(header).findByRole('group', { name: 'K řešení:' })
     expect(within(attention).getByRole('link', { name: '1 blokující nález' })).toBeVisible()
     await user.click(within(attention).getByRole('link', { name: '6 upozornění' }))
@@ -104,7 +105,7 @@ describe('case detail', () => {
     expect(within(time).getByText('68 dní')).toBeVisible()
   })
 
-  it('shows task dependencies, keeps task actions disabled and never marks finished tasks overdue', async () => {
+  it('shows task dependencies, enables task actions and never marks finished tasks overdue', async () => {
     demoState.setTime('2026-10-28T09:00:00')
     renderApp()
     const user = userEvent.setup()
@@ -112,8 +113,8 @@ describe('case detail', () => {
     const panel = await openTab(user, 'Úkoly')
     const rows = (await within(panel).findAllByRole('row')).slice(1)
     expect(rows).toHaveLength(7)
-    expect(within(panel).getByRole('button', { name: 'Spustit sadu úkolů' })).toBeDisabled()
-    expect(within(panel).getByRole('button', { name: 'Přidat úkol' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: 'Spustit sadu úkolů' })).toBeEnabled()
+    expect(within(panel).getByRole('button', { name: 'Přidat úkol' })).toBeEnabled()
     expect(rows.filter((row) => within(within(row).getAllByRole('cell')[1]).queryByText('Dokončeno')).every((row) => !within(row).queryByText(/Po termínu/))).toBe(true)
     expect(rows.filter((row) => within(row).queryByText(/Po termínu/))).toHaveLength(3)
     expect(within(panel).getAllByRole('link', { name: /CT břicha a hrudníku/ }).length).toBeGreaterThan(0)

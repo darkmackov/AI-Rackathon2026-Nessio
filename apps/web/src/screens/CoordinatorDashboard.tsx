@@ -1,3 +1,4 @@
+import Notifications from '../components/workflow/Notifications'
 import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title, VisuallyHidden } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -45,7 +46,7 @@ export default function CoordinatorDashboard() {
   const organizations = useQuery(listOrganizationsOptions())
   if (!actor) return null
   return <Stack>
-    <div><PageHeading>{t('dashboardTitle')}</PageHeading><Text c="dimmed" mt="xs">{t('dashboardDescription')}</Text></div>
+    <Group justify="space-between" align="flex-start"><div><PageHeading>{t('dashboardTitle')}</PageHeading><Text c="dimmed" mt="xs">{t('dashboardDescription')}</Text></div><Notifications /></Group>
     {!actor.organization_id && <EmptyState title={t('missingOrganization')} />}
     {actor.organization_id && (cases.isPending || actors.isPending || organizations.isPending) && <LoadingState />}
     {cases.isError && <QueryError error={cases.error} retry={() => { void cases.refetch() }} />}

@@ -1,7 +1,7 @@
 import { Anchor, Badge, Button, Group, Paper, Stack, Text, VisuallyHidden } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { Link } from '@tanstack/react-router'
-import { IconArrowBackUp, IconArrowLeft, IconCircleCheck, IconPlayerPause, IconUserCheck, type Icon } from '@tabler/icons-react'
+import { IconArrowLeft, IconCircleCheck, IconPlayerPause, type Icon } from '@tabler/icons-react'
 import { useCallback, useId, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DetailTab } from '../../case-route'
@@ -10,8 +10,9 @@ import { DueDate } from '../../components/CaseTime'
 import PageHeading from '../../components/PageHeading'
 import PersonChip from '../../components/PersonChip'
 import { severityMeta } from '../../components/severity-meta'
-import { fieldStatusCounts } from './clinical'
-import { statusMeta } from './status-meta'
+import { fieldStatusCounts } from '../../components/handover/clinical'
+import { statusMeta } from '../../components/handover/status-meta'
+import CaseActions from './CaseActions'
 
 const priorityColor = { normal: 'gray', high: 'orange', urgent: 'red' } as const
 
@@ -74,11 +75,7 @@ export default function CaseHeader({ item, findings, handover }: { item: Case; f
           <PageHeading size="h2" id={heading}>{item.patient_name}</PageHeading>
           <Text size="sm" c="dimmed">{item.diagnosis_label ?? t('unavailable')}</Text>
         </Stack>
-        <Group gap="xs">
-          <Button size="xs" leftSection={<IconUserCheck size={16} aria-hidden />} disabled>{t('caseDetail.takeOver')}</Button>
-          <Button size="xs" variant="outline" leftSection={<IconArrowBackUp size={16} aria-hidden />} disabled>{t('caseDetail.returnCase')}</Button>
-          <Button size="xs" variant="outline" leftSection={<IconPlayerPause size={16} aria-hidden />} disabled>{t('caseDetail.hold')}</Button>
-        </Group>
+        <CaseActions item={item} findings={findings} />
       </Group>
       <Group gap="md" wrap="wrap" style={{ rowGap: 'var(--mantine-spacing-xs)' }}>
         <Group gap={6}>

@@ -2,8 +2,8 @@ import { Badge, Grid, Stack, Tabs } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { IconChecklist, IconClipboardText, IconFiles, IconLayoutDashboard, IconListSearch, type Icon } from '@tabler/icons-react'
-import { useRef, useState } from 'react'
+import { IconHistory, IconChecklist, IconClipboardText, IconFiles, IconLayoutDashboard, IconListSearch, type Icon } from '@tabler/icons-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, actorHeaders } from '../../api'
 import { getCaseOptions, getHandoverOptions, listActorsOptions, listDocumentsOptions, listFindingsOptions, listOrganizationsOptions } from '../../client/@tanstack/react-query.gen'
@@ -11,16 +11,20 @@ import { detailTabs, type DetailTab } from '../../case-route'
 import LoadingState, { EmptyState, QueryError } from '../../components/DataState'
 import PageHeading from '../../components/PageHeading'
 import { useSession } from '../../session'
+import AuditTab from './AuditTab'
 import CaseHeader, { BackLink } from './CaseHeader'
-import { handoverFields, problemSections, sectionOf, type SourceSelection } from './clinical'
-import DocumentsTab from './DocumentsTab'
-import FindingsPanel from './FindingsPanel'
-import HandoverTab from './HandoverTab'
+import FindingActions from './FindingActions'
+import HandoverActions, { FieldActions } from './HandoverActions'
+import { handoverFields, problemSections, sectionOf } from '../../components/handover/clinical'
+import { useDocumentSources } from '../../components/handover/use-document-sources'
+import DocumentsTab from '../../components/documents/DocumentsTab'
+import FindingsPanel from '../../components/handover/FindingsPanel'
+import HandoverTab from '../../components/handover/HandoverTab'
 import OverviewTab from './OverviewTab'
-import SourcePanel, { SourcePlaceholder } from './SourcePanel'
+import SourcePanel, { SourcePlaceholder } from '../../components/handover/SourcePanel'
 import TasksTab from './TasksTab'
 
-const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles }
+const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles, audit: IconHistory }
 
 function DetailContent({ caseId }: { caseId: string }) {
   const { t } = useTranslation()
@@ -28,13 +32,11 @@ function DetailContent({ caseId }: { caseId: string }) {
   const navigate = useNavigate({ from: '/coordinator/cases/$caseId' })
   const { tab } = useSearch({ from: '/coordinator/cases/$caseId' })
   const wide = useMediaQuery('(min-width: 75em)')
-  const [selection, setSelection] = useState<SourceSelection | null>(null)
   const [chosenSections, setChosenSections] = useState<string[] | null>(null)
   // A tab renders on its first visit and then stays mounted, so its state survives switching without rendering unseen tabs up front.
   const [visited, setVisited] = useState<DetailTab[]>([tab])
   if (!visited.includes(tab)) setVisited([...visited, tab])
   const seen = (value: DetailTab) => visited.includes(value)
-  const trigger = useRef<HTMLButtonElement | null>(null)
   const item = useQuery(getCaseOptions({ path: { case_id: caseId }, headers: actorHeaders(actorId ?? '') }))
   const allowed = !!item.data && item.data.koc_id === actor?.organization_id
   const options = { path: { case_id: caseId }, headers: actorHeaders(actorId ?? '') }
@@ -46,20 +48,11 @@ function DetailContent({ caseId }: { caseId: string }) {
   // Until the user toggles a section, open exactly those with missing or conflicting values.
   const openSections = chosenSections ?? (handover.data ? problemSections(handover.data) : [])
   const names = Object.fromEntries([...(actors.data ?? []), ...(organizations.data ?? [])].map((entry) => [entry.id, entry.name]))
-  const documentNames = Object.fromEntries((documents.data ?? []).map((document) => [document.id, document.title ?? document.filename]))
-  const openSource = (source: SourceSelection, element: HTMLButtonElement) => { trigger.current = element; setSelection(source) }
-  const closeSource = () => { setSelection(null); if (trigger.current?.isConnected) trigger.current.focus() }
-  const evidence = selection && !('documentId' in selection) ? (
-    selection.kind === 'field' ? handover.data && handoverFields(handover.data)[selection.path]?.evidence?.[selection.index]
-      : selection.kind === 'examination' ? handover.data?.examinations?.[selection.row]?.evidence?.[selection.index]
-        : selection.kind === 'lab' ? handover.data?.labs?.[selection.row]?.evidence?.[selection.index]
-          : findings.data?.find((finding) => finding.id === selection.id)?.evidence?.[selection.index]
-  ) : undefined
-  const selectedDocument = selection && documents.data?.find((document) => document.id === ('documentId' in selection ? selection.documentId : evidence?.document_id))
+  const { selection, setSelection, openSource, closeSource, evidence, selectedDocument, sources } = useDocumentSources(handover.data, documents.data, findings.data)
   const switchTab = (value: string | null) => {
     const next = detailTabs.find((entry) => entry === value)
-    // The overview has no source column, so an open source closes with it.
-    if (next === 'overview') setSelection(null)
+    // The overview and audit have no source column.
+    if (next === 'overview' || next === 'audit') setSelection(null)
     if (next) void navigate({ search: { tab: next } })
   }
   const showField = (path: string) => {
@@ -68,7 +61,6 @@ function DetailContent({ caseId }: { caseId: string }) {
     void navigate({ search: { tab: 'handover' }, hash: `field-${path}` })
   }
   const showFinding = (id: string) => { void navigate({ search: { tab: 'findings' }, hash: `finding-${id}` }) }
-  const sources = { openSource, documentNames, selection }
   if (item.isPending) return <Stack><BackLink /><LoadingState rows={4} /></Stack>
   if (item.isError) return <Stack><BackLink /><PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><QueryError error={item.error} pending={item.isFetching} retry={() => { void item.refetch() }} /></Stack>
   if (!allowed || !item.data) return <Stack><BackLink /><PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><EmptyState title={t('caseDetail.unavailableCase')} /></Stack>
@@ -76,8 +68,9 @@ function DetailContent({ caseId }: { caseId: string }) {
   const referrer = actors.data?.find((person) => person.id === current.referring_doctor_id)
   const openFindings = findings.data?.filter((finding) => !finding.resolved) ?? []
   const unresolved = openFindings.length
-  // On wide screens every tab except the overview keeps a fixed source column, so opening a source never reflows the page.
-  const split = !!wide && tab !== 'overview'
+  const fields = handover.data ? handoverFields(handover.data) : {}
+  // Clinical tabs keep the existing fixed source column on wide screens.
+  const split = !!wide && tab !== 'overview' && tab !== 'audit'
   const source = selection && <SourcePanel key={JSON.stringify(selection)} document={selectedDocument || undefined} evidence={evidence} close={closeSource}
     fallback={documents.isPending ? <LoadingState rows={3} /> : documents.isError ? <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} /> : undefined} />
   const handoverError = handover.isError && (handover.error instanceof ApiError && handover.error.status === 404
@@ -105,12 +98,15 @@ function DetailContent({ caseId }: { caseId: string }) {
             {handover.isPending && <LoadingState rows={6} />}
             {handoverError}
             {documents.isError && <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} />}
-            {handover.data && <HandoverTab handover={handover.data} names={names} sources={sources} findings={openFindings} showFinding={showFinding} open={openSections} setOpen={setChosenSections} />}
+            {handover.data && <HandoverActions caseId={caseId} handover={handover.data}><HandoverTab handover={handover.data} names={names} sources={sources} findings={openFindings} showFinding={showFinding} open={openSections} setOpen={setChosenSections}
+              fieldActions={(path, label) => fields[path]?.status !== 'found' && <FieldActions path={path} label={label} findings={openFindings.filter((finding) => finding.fields?.includes(path))} showFinding={showFinding} />} /></HandoverActions>}
           </Stack>}</Tabs.Panel>
           <Tabs.Panel value="findings">
-            {seen('findings') && <FindingsPanel caseId={caseId} handover={handover.data} names={names} sources={sources} showField={showField} />}
+            {seen('findings') && <FindingsPanel caseId={caseId} handover={handover.data} names={names} sources={sources} showField={showField}
+              findingActions={(finding) => <FindingActions caseId={caseId} finding={finding} handover={handover.data} />} />}
           </Tabs.Panel>
           <Tabs.Panel value="tasks">{seen('tasks') && <TasksTab caseId={caseId} openSource={openSource} showFinding={showFinding} />}</Tabs.Panel>
+          <Tabs.Panel value="audit">{seen('audit') && <AuditTab caseId={caseId} />}</Tabs.Panel>
           <Tabs.Panel value="documents">{seen('documents') && <DocumentsTab item={current} names={names} openSource={openSource} />}</Tabs.Panel>
         </Grid.Col>
         {split && <Grid.Col span={5}>{source || <SourcePlaceholder />}</Grid.Col>}

@@ -7,10 +7,10 @@ import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { documentTextOptions } from '../../client/@tanstack/react-query.gen'
 import type { DocumentMeta, Evidence } from '../../client/types.gen'
-import LoadingState, { EmptyState as NoData, QueryError } from '../../components/DataState'
+import LoadingState, { EmptyState as NoData, QueryError } from '../DataState'
 import { useSession } from '../../session'
 import { CopySection } from './ClinicalValue'
-import { DownloadOriginal, MissingDocument } from './DocumentsTab'
+import { DownloadOriginal, MissingDocument } from '../documents/DocumentsTab'
 import { quoteSegments } from './clinical'
 
 // The side column sticks below the sticky case header and scrolls on its own.

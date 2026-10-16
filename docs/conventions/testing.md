@@ -44,4 +44,4 @@ uv run pytest apps/api
 | TEST-11 | CI uses the same versions as the image: Python 3.13 and the `uv` version from the `Dockerfile`, Node 24, `uv sync --frozen` and `npm ci` from the committed lock files. When you bump one, bump both. |
 | TEST-12 | The IRIS workflow reads its connection from repository secrets (`ONKO_IRIS_CONNECTION_STRING`, `ONKO_FHIR_BASE_URL`, `ONKO_FHIR_USERNAME`, `ONKO_FHIR_PASSWORD`), never from a committed file (GIT-6). |
 
-The web app has no test runner yet. Adding one (vitest or similar) is a new tool and needs a recorded decision first (WEB-9's rule for new libraries applies).
+The web app uses Vitest, React Testing Library and MSW (Q-W11). Run `npm --prefix apps/web test`, then the web build and lint for web changes.

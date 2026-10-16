@@ -16,6 +16,8 @@ const narrowScreen = (query: string) => ({
   removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
 })
 Object.defineProperty(window, 'matchMedia', { writable: true, value: vi.fn(narrowScreen) })
+// Mantine's autosizing textarea observes browser font-loading events.
+Object.defineProperty(document, 'fonts', { configurable: true, value: { addEventListener: vi.fn(), removeEventListener: vi.fn() } })
 window.scrollTo = vi.fn()
 globalThis.ResizeObserver = class {
   observe = vi.fn()

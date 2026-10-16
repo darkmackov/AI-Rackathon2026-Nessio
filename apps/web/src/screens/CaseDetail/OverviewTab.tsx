@@ -1,3 +1,4 @@
+import CaseActions from './CaseActions'
 import { Alert, DataList, Paper, SimpleGrid, Stack, Text, ThemeIcon, Timeline, Title } from '@mantine/core'
 import { IconCheck, IconHourglass } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
@@ -6,7 +7,7 @@ import type { Actor, Case, Handover, Stamp } from '../../client/types.gen'
 import CaseTime from '../../components/CaseTime'
 import PersonChip from '../../components/PersonChip'
 import { formatDate } from '../../time'
-import { StampView } from './ClinicalValue'
+import { StampView } from '../../components/handover/ClinicalValue'
 
 function Card({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return <Paper withBorder p="sm" component="section" aria-labelledby={id}><Stack gap="xs">
@@ -28,6 +29,7 @@ export default function OverviewTab({ item, names, referrer, handover, handoverS
   const fact = (label: string, value: ReactNode) => <DataList.Item><DataList.ItemLabel>{label}</DataList.ItemLabel><DataList.ItemValue>{value}</DataList.ItemValue></DataList.Item>
   const steps = handover ? [handover.validated_by_referrer, handover.confirmed_by_coordinator] : []
   return <Stack gap="sm">
+    <CaseActions item={item} settings />
     {directoryState}
     {item.on_hold && <Alert color="gray" title={t('caseDetail.onHold')} p="sm">
       <Text size="sm">{item.on_hold.reason}</Text>

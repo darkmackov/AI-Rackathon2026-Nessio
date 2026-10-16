@@ -20,6 +20,7 @@ from onko_contracts import (
     Organization,
     Receipt,
     Task,
+    TaskSet,
 )
 
 
@@ -80,12 +81,22 @@ class CaseRepository(Protocol):
         """`KeyError` if the case is unknown."""
         ...
 
+    def get_task(self, task_id: str) -> Task | None: ...
     def list_tasks(self, case_id: str) -> list[Task]: ...
+
+    def save_task_set(self, task_set: TaskSet) -> None:
+        """Store a task set (user data, Q-F2), replacing one with the same id."""
+        ...
+
+    def get_task_set(self, task_set_id: str) -> TaskSet | None: ...
+
+    def list_task_sets(self) -> list[TaskSet]:
+        """Every task set, in the order first saved."""
+        ...
 
     def save_message(self, message: Message) -> None:
         """`KeyError` if the case is unknown."""
         ...
-
     def list_messages(self, case_id: str) -> list[Message]: ...
     def save_receipt(self, receipt: Receipt) -> None: ...
 

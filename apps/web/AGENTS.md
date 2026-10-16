@@ -10,7 +10,7 @@ Root rules: [AGENTS.md](../../AGENTS.md). Conventions: [docs/conventions/](../..
 - Read [web.md](../../docs/conventions/web.md) and [ui-ux.md](../../docs/conventions/ui-ux.md) before any change.
 - **Use the existing API models.** Before touching API data, read `src/client/types.gen.ts` and the endpoint in [api.md](../../docs/api.md). Type all API data with the generated types (`Case`, `Handover`, `CaseUpdate`, …), and never redeclare, copy or cast them (WEB-2, WEB-3).
 - Call the API only through `src/client/@tanstack/react-query.gen.ts` (`useQuery(xxxOptions())`, `useMutation(xxxMutation())`). No `fetch`, no raw SDK calls in components (WEB-1).
-- Data a screen needs but no API model has → change the contract in the backend and regenerate. Never fake it in a screen. Q-W6 permits contract-shaped MSW fixtures at the HTTP boundary for the explicitly labelled S0 demo only (WEB-4).
+- Data a screen needs but no API model has → change the contract in the backend and regenerate. Never fake it in a screen. Q-W6 permits contract-shaped MSW fixtures at the HTTP boundary for the explicitly labelled S0 demo; Q-W14 extends this to S4 and its mutable simulated workflow (WEB-4). Business rules belong in MSW, never in screens.
 - Slow AI work returns a `Job`: poll it with `useQuery` + `refetchInterval`, never timers or effects (WEB-19). Send `X-Actor-Id` as api.md requires (WEB-20).
 - **No `useEffect`**, `useLayoutEffect` or `useInsertionEffect` (WEB-10). Use the replacement table in web.md, and ask if none fits.
 - Function components only. Use Mantine components, forms and theming for everything they offer (Q-W1, WEB-9).

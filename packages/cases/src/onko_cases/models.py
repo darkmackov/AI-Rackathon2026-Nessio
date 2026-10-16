@@ -23,3 +23,16 @@ class NotValidatedError(ValueError):
 class CodeNotNeededError(ValueError):
     """MKN-10 candidates are asked for a handover without a diagnosis, or whose code is set
     (Q-C11)."""
+
+
+class CaseStateError(ValueError):
+    """The action isn't allowed in the case's current state (e.g. a hold before take-over)."""
+
+
+class TaskError(ValueError):
+    """A task or task set that doesn't hold together: unknown dependency, a cycle, a duplicate
+    step key, an owner role without an owner."""
+
+
+class OverrideNotAllowedError(ValueError):
+    """An override of a finding that isn't overridable (Q-C2)."""

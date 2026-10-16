@@ -66,7 +66,7 @@ Tests use Vitest, Testing Library and the same MSW handlers in Node, with a new 
 
 The contract tests check every implemented successful response and the validation-error bodies against the committed `openapi.json`, with a bounded checker for the schema constructs used by S0. Required headers, query enums, missing/extra body fields, malformed JSON, optional clock reset and ISO datetime inputs are covered. Mode initialization tests verify that real mode does not activate interception and that mock startup must finish before the app starts.
 
-This is **not a complete clone of all 62 backend operations**: the eight S0 operations plus `/cases` for the provisional S1 queue are simulated. Other operations return 501. The simulation targets documented request/response shapes; it does not promise every undocumented Pydantic coercion or version-specific validation message. Behavioral comparison with a fully implemented S0 backend is still pending because those backend routes are stubs.
+This is **not a complete clone of all 62 backend operations**: the S0 directory/demo operations, S1 reads, the S2 synthetic document workflow, the S3 referral operations and the S4 coordinator operations are simulated. Unsupported operations return 501. The simulation targets documented request/response shapes; it does not promise every undocumented Pydantic coercion or version-specific validation message. Behavioral comparison with a fully implemented S0 backend is still pending because those backend routes are stubs.
 
 The directory fixture is generated from `data/demo/directory.json`; after changing that source run:
 
@@ -79,3 +79,25 @@ npm --prefix apps/web run sync:demo
 Manual acceptance: test keyboard selection and submission; Tab/Shift+Tab, Escape and focus return for Demo and reset dialogs; form error summary focus; switching languages and persons; both resets; browser reload; and a narrow 320 px layout / 200% zoom. The built preview must work without a backend.
 
 The API client in `src/client` is generated. Do not edit it manually or replace generated Query helpers with custom requests.
+
+## S3 referring doctor workflow
+
+Sign in as a referring doctor: `/referrer` lists that doctor's referrals and **Nová žádost** creates a draft for a chosen KOC (`/referrer/cases/$caseId`). The draft reuses the S2 document controls and the shared handover components in `src/components/handover`: the doctor uploads reports, reviews AI proposals with their sources, fills in or marks fields as not available, adds examinations, then **Validovat a odeslat** validates and sends in one confirmed action. A returned case shows the coordinator's note from the inbox, can be corrected and is resent to triage. Sent cases are read-only. The handover field form (`HandoverFieldForm`) and the PATCH handover mock are shared with the coordinator, with the backend's editor rule: the case's GP while drafting or returned, a coordinator of its KOC from triage to Complete. Tests: `referral.test.tsx`, `referral-upload.test.tsx`, `referral-contract.test.ts`.
+
+## S4 frontend workflow (Q-W14)
+
+S4 is implemented in the web/MSW demo; the Python coordinator endpoints are implemented too (see [api.md](../../docs/api.md)). All components call the same generated TanStack Query helpers in mock and real mode; real mode never falls back to fixtures. No contract or generated-client change is required for this frontend delivery. Shared shell, theme, dashboard cards, source panels and S2 document controls retain their existing styling.
+
+The reference reset now contains the unchanged reference case plus **Fiktivní pacient S4**, a separate synthetic sent case at KOC Lipová. Open it as coordinator Lucie Dvořáková and:
+
+1. **Převzít**, then use **Upravit případ** for priority, coordinator and planned MDT; **Upravit milníky** edits known symptom/treatment dates.
+2. On **K řešení**, request a missing report, fill a handover field, then explicitly resolve the finding. Override requires a reason. Manual values keep the current actor and demo-clock timestamp.
+3. On **Úkoly**, add/edit tasks (including status and result document), or create/edit/start a reusable task set in a single dialog. Role assignments are explicit. Dependencies determine the next step but never prevent completion; invalid links/cycles fail. A set starts only once per case; editing its template does not change instantiated tasks.
+4. **Odložit** records a reason and optional planned resume date. **Obnovit** is explicit; reaching that date does not auto-resume. **Změnit stav** supports Waiting for documents and Complete, with transitions checked by MSW.
+5. Upload arriving reports using the existing **Dokumenty** controls and explicitly attach the result to a task. Extraction remains synthetic, does not claim to parse uploaded bytes, and preserves manual entries and resolutions.
+6. **Audit** lists append-only case events. **Notifikace** on the dashboard lists only the signed-in person's open overdue/upcoming tasks (two days by default) and links to the task.
+7. **Vrátit lékaři** confirms the note and stores a `case_returned` message, which the referring doctor sees on the returned referral (S3).
+
+S4 prepares a Complete case with planned MDT and retained provenance, findings, tasks, results and audit. MDT snapshot, final epikríza, MDT question and conclusion remain S5. Unsupported endpoints continue to return 501. Existing reset choices and memory-only session/language behavior remain; empty reset removes cases and resets task templates, while reference reset restores both cases and the seeded template.
+
+Verification adds `coordinator-workflow-api.test.ts` (contracts and simulated backend rules) and `coordinator-workflow.test.tsx` (user-visible workflows) to the existing web suite. New strings ship in Czech and English. No additional dependencies or test framework were introduced.

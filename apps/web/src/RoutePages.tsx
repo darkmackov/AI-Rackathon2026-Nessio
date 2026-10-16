@@ -10,6 +10,7 @@ import ReferrerHome from './screens/ReferrerHome'
 import { roleHome, useSession, type UserRole } from './session'
 
 const CaseDetail = lazy(() => import('./screens/CaseDetail/CaseDetail'))
+const Referral = lazy(() => import('./screens/Referral/Referral'))
 
 export function Entry() {
   const { actor } = useSession()
@@ -35,4 +36,5 @@ export function NotFound() {
 }
 export function CoordinatorRoute() { return <RolePage role="coordinator" /> }
 export function ReferrerRoute() { return <RolePage role="referring_doctor" /> }
+export function ReferralRoute() { return <RolePage role="referring_doctor"><Suspense fallback={<LoadingState />}><Referral /></Suspense></RolePage> }
 export function CoordinatorDetailRoute() { return <RolePage role="coordinator"><Suspense fallback={<LoadingState />}><CaseDetail /></Suspense></RolePage> }

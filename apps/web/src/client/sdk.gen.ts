@@ -102,9 +102,9 @@ export const listDocuments = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Upload Document
  *
- * Upload a report (GP while drafting or after a return, coordinator later). Stores it,
- * parses the text and queues an `ingest_document` job: AI metadata + handover extraction +
- * checks.
+ * Upload a report (the case's GP while drafting or after a return, a coordinator of the
+ * case's KOC later). Stores it, parses the text and queues an `ingest_document` job: AI metadata
+ * + handover extraction + checks.
  */
 export const uploadDocument = <ThrowOnError extends boolean = false>(options: Options<UploadDocumentData, ThrowOnError>): RequestResult<UploadDocumentResponses, UploadDocumentErrors, ThrowOnError> => (options.client ?? client).post<UploadDocumentResponses, UploadDocumentErrors, ThrowOnError>({
     ...formDataBodySerializer,
@@ -119,7 +119,8 @@ export const uploadDocument = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Update Document
  *
- * Correct AI-extracted metadata (type, date, facility, …).
+ * Correct AI-extracted metadata (type, date, facility, …). The case's referring doctor or a
+ * coordinator of the case's KOC.
  */
 export const updateDocument = <ThrowOnError extends boolean = false>(options: Options<UpdateDocumentData, ThrowOnError>): RequestResult<UpdateDocumentResponses, UpdateDocumentErrors, ThrowOnError> => (options.client ?? client).patch<UpdateDocumentResponses, UpdateDocumentErrors, ThrowOnError>({
     url: '/documents/{document_id}',
@@ -228,7 +229,8 @@ export const listCaseJobs = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Reextract Case
  *
- * Re-run extraction + checks over all case documents (e.g. after the model choice).
+ * Re-run extraction + checks over all case documents (e.g. after the model choice). The
+ * case's referring doctor or a coordinator of the case's KOC.
  */
 export const reextractCase = <ThrowOnError extends boolean = false>(options: Options<ReextractCaseData, ThrowOnError>): RequestResult<ReextractCaseResponses, ReextractCaseErrors, ThrowOnError> => (options.client ?? client).post<ReextractCaseResponses, ReextractCaseErrors, ThrowOnError>({ url: '/cases/{case_id}/extract', ...options });
 
@@ -273,7 +275,8 @@ export const askCase = <ThrowOnError extends boolean = false>(options: Options<A
 /**
  * Take Over Case
  *
- * 'Převzít': the current coordinator takes the case (sets coordinator_id), odeslano → v_triage.
+ * 'Převzít': a coordinator of the case's KOC takes the case (sets coordinator_id),
+ * odeslano → v_triage. 409 in any other state.
  */
 export const takeOverCase = <ThrowOnError extends boolean = false>(options: Options<TakeOverCaseData, ThrowOnError>): RequestResult<TakeOverCaseResponses, TakeOverCaseErrors, ThrowOnError> => (options.client ?? client).post<TakeOverCaseResponses, TakeOverCaseErrors, ThrowOnError>({ url: '/cases/{case_id}/take-over', ...options });
 
@@ -285,7 +288,8 @@ export const getCase = <ThrowOnError extends boolean = false>(options: Options<G
 /**
  * Update Case
  *
- * Priority, coordinator, planned MDT board/date.
+ * Priority, coordinator, planned MDT board/date. Omitted fields stay unchanged; `null` clears
+ * the MDT board or date. The coordinator and the board must belong to the case's KOC (400).
  */
 export const updateCase = <ThrowOnError extends boolean = false>(options: Options<UpdateCaseData, ThrowOnError>): RequestResult<UpdateCaseResponses, UpdateCaseErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCaseResponses, UpdateCaseErrors, ThrowOnError>({
     url: '/cases/{case_id}',
@@ -299,8 +303,9 @@ export const updateCase = <ThrowOnError extends boolean = false>(options: Option
 /**
  * Transition Case
  *
- * Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).
- * `vraceno_lekari` only through `return_case`, which requires a note.
+ * The coordinator's own moves: v_triage → ceka_na_podklady | kompletni and
+ * ceka_na_podklady ↔ kompletni. Every other change has its own endpoint (take-over, return, MDT
+ * snapshot and confirmation, feedback, receipt): 409. The note goes to the audit trail.
  */
 export const transitionCase = <ThrowOnError extends boolean = false>(options: Options<TransitionCaseData, ThrowOnError>): RequestResult<TransitionCaseResponses, TransitionCaseErrors, ThrowOnError> => (options.client ?? client).post<TransitionCaseResponses, TransitionCaseErrors, ThrowOnError>({
     url: '/cases/{case_id}/transition',
@@ -315,7 +320,8 @@ export const transitionCase = <ThrowOnError extends boolean = false>(options: Op
  * Return Case
  *
  * 'Vrátit lékaři': → vraceno_lekari; the note goes to the GP's inbox as a `case_returned`
- * Message (D-15). 409 outside v_triage / ceka_na_podklady / kompletni.
+ * Message (D-15) and the GP is on the move. 409 outside v_triage / ceka_na_podklady /
+ * kompletni; 400 for a finding the case doesn't have.
  */
 export const returnCase = <ThrowOnError extends boolean = false>(options: Options<ReturnCaseData, ThrowOnError>): RequestResult<ReturnCaseResponses, ReturnCaseErrors, ThrowOnError> => (options.client ?? client).post<ReturnCaseResponses, ReturnCaseErrors, ThrowOnError>({
     url: '/cases/{case_id}/return',
@@ -328,13 +334,16 @@ export const returnCase = <ThrowOnError extends boolean = false>(options: Option
 
 /**
  * Clear Hold
+ *
+ * Resume the case; a case that isn't on hold stays as it is.
  */
 export const clearHold = <ThrowOnError extends boolean = false>(options: Options<ClearHoldData, ThrowOnError>): RequestResult<ClearHoldResponses, ClearHoldErrors, ThrowOnError> => (options.client ?? client).delete<ClearHoldResponses, ClearHoldErrors, ThrowOnError>({ url: '/cases/{case_id}/hold', ...options });
 
 /**
  * Set Hold
  *
- * 'Odložit': manual on-hold flag (Q-F9).
+ * 'Odložit': manual on-hold flag (Q-F9), from v_triage until the feedback is sent (409
+ * otherwise). Setting it again replaces it; `until` is information only.
  */
 export const setHold = <ThrowOnError extends boolean = false>(options: Options<SetHoldData, ThrowOnError>): RequestResult<SetHoldResponses, SetHoldErrors, ThrowOnError> => (options.client ?? client).put<SetHoldResponses, SetHoldErrors, ThrowOnError>({
     url: '/cases/{case_id}/hold',
@@ -347,6 +356,9 @@ export const setHold = <ThrowOnError extends boolean = false>(options: Options<S
 
 /**
  * Update Milestones
+ *
+ * Symptom onset and treatment start for time to treatment. Omitted fields stay unchanged;
+ * `null` clears one.
  */
 export const updateMilestones = <ThrowOnError extends boolean = false>(options: Options<UpdateMilestonesData, ThrowOnError>): RequestResult<UpdateMilestonesResponses, UpdateMilestonesErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMilestonesResponses, UpdateMilestonesErrors, ThrowOnError>({
     url: '/cases/{case_id}/milestones',
@@ -366,13 +378,16 @@ export const getTimeToTreatment = <ThrowOnError extends boolean = false>(options
 
 /**
  * List Audit
+ *
+ * The case's audit trail, oldest first.
  */
 export const listAudit = <ThrowOnError extends boolean = false>(options: Options<ListAuditData, ThrowOnError>): RequestResult<ListAuditResponses, ListAuditErrors, ThrowOnError> => (options.client ?? client).get<ListAuditResponses, ListAuditErrors, ThrowOnError>({ url: '/cases/{case_id}/audit', ...options });
 
 /**
  * Resolve Finding
  *
- * Resolve, override (note required) or dismiss a finding.
+ * Resolve, override (note required, 422 without; 409 if not overridable) or dismiss a finding.
+ * A later resolution replaces an earlier one.
  */
 export const resolveFinding = <ThrowOnError extends boolean = false>(options: Options<ResolveFindingData, ThrowOnError>): RequestResult<ResolveFindingResponses, ResolveFindingErrors, ThrowOnError> => (options.client ?? client).post<ResolveFindingResponses, ResolveFindingErrors, ThrowOnError>({
     url: '/cases/{case_id}/findings/{finding_id}/resolve',
@@ -386,7 +401,8 @@ export const resolveFinding = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Request From Finding
  *
- * 'Vyžádat': a request task linked to the finding (`Task.finding_id`).
+ * 'Vyžádat': a `request_documents` task addressed to whoever holds the information, linked to
+ * the finding (`Task.finding_id`). The case state doesn't change; the note goes to the audit.
  */
 export const requestFromFinding = <ThrowOnError extends boolean = false>(options: Options<RequestFromFindingData, ThrowOnError>): RequestResult<RequestFromFindingResponses, RequestFromFindingErrors, ThrowOnError> => (options.client ?? client).post<RequestFromFindingResponses, RequestFromFindingErrors, ThrowOnError>({
     url: '/cases/{case_id}/findings/{finding_id}/request',
@@ -405,7 +421,8 @@ export const listTasks = <ThrowOnError extends boolean = false>(options: Options
 /**
  * Create Task
  *
- * 'Přidat úkol': one-off task.
+ * 'Přidat úkol': one-off task. The owner is a directory id; dependencies are tasks of the
+ * case without a cycle (400). `external` is set when the owner is outside the KOC unless given.
  */
 export const createTask = <ThrowOnError extends boolean = false>(options: Options<CreateTaskData, ThrowOnError>): RequestResult<CreateTaskResponses, CreateTaskErrors, ThrowOnError> => (options.client ?? client).post<CreateTaskResponses, CreateTaskErrors, ThrowOnError>({
     url: '/cases/{case_id}/tasks',
@@ -418,6 +435,9 @@ export const createTask = <ThrowOnError extends boolean = false>(options: Option
 
 /**
  * Update Task
+ *
+ * Status, owner, date, place, priority, dependencies, the arrived result document. Omitted
+ * fields stay unchanged.
  */
 export const updateTask = <ThrowOnError extends boolean = false>(options: Options<UpdateTaskData, ThrowOnError>): RequestResult<UpdateTaskResponses, UpdateTaskErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTaskResponses, UpdateTaskErrors, ThrowOnError>({
     url: '/tasks/{task_id}',
@@ -431,7 +451,9 @@ export const updateTask = <ThrowOnError extends boolean = false>(options: Option
 /**
  * Start Task Set
  *
- * 'Spustit sadu úkolů'.
+ * 'Spustit sadu úkolů'. `owners` maps each step's owner role to a directory id; the
+ * coordinator role defaults to the case's coordinator, any other missing role is 400. 409 if the
+ * set already runs on the case.
  */
 export const startTaskSet = <ThrowOnError extends boolean = false>(options: Options<StartTaskSetData, ThrowOnError>): RequestResult<StartTaskSetResponses, StartTaskSetErrors, ThrowOnError> => (options.client ?? client).post<StartTaskSetResponses, StartTaskSetErrors, ThrowOnError>({
     url: '/cases/{case_id}/task-sets/start',
@@ -444,11 +466,16 @@ export const startTaskSet = <ThrowOnError extends boolean = false>(options: Opti
 
 /**
  * List Task Sets
+ *
+ * Task sets; `diagnosis_code` keeps those for the diagnosis (a `C25` set fits `C25.0`).
  */
 export const listTaskSets = <ThrowOnError extends boolean = false>(options?: Options<ListTaskSetsData, ThrowOnError>): RequestResult<ListTaskSetsResponses, ListTaskSetsErrors, ThrowOnError> => (options?.client ?? client).get<ListTaskSetsResponses, ListTaskSetsErrors, ThrowOnError>({ url: '/task-sets', ...options });
 
 /**
  * Create Task Set
+ *
+ * A coordinator's new task set (Q-F2). Step keys are unique and dependencies name steps of
+ * the set without a cycle (400).
  */
 export const createTaskSet = <ThrowOnError extends boolean = false>(options: Options<CreateTaskSetData, ThrowOnError>): RequestResult<CreateTaskSetResponses, CreateTaskSetErrors, ThrowOnError> => (options.client ?? client).post<CreateTaskSetResponses, CreateTaskSetErrors, ThrowOnError>({
     url: '/task-sets',
@@ -461,6 +488,8 @@ export const createTaskSet = <ThrowOnError extends boolean = false>(options: Opt
 
 /**
  * Update Task Set
+ *
+ * Replace a set's name, codes and steps. Tasks already started from it don't change.
  */
 export const updateTaskSet = <ThrowOnError extends boolean = false>(options: Options<UpdateTaskSetData, ThrowOnError>): RequestResult<UpdateTaskSetResponses, UpdateTaskSetErrors, ThrowOnError> => (options.client ?? client).put<UpdateTaskSetResponses, UpdateTaskSetErrors, ThrowOnError>({
     url: '/task-sets/{task_set_id}',
@@ -474,7 +503,9 @@ export const updateTaskSet = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * List Notifications
  *
- * In-app deadline notifications for the current user (Q-F17).
+ * In-app deadline notifications for the current user (Q-F17): open tasks due within
+ * `within_days` or overdue, that the user owns (as a person or through their organisation) or
+ * that belong to a case they coordinate. Earliest due first.
  */
 export const listNotifications = <ThrowOnError extends boolean = false>(options: Options<ListNotificationsData, ThrowOnError>): RequestResult<ListNotificationsResponses, ListNotificationsErrors, ThrowOnError> => (options.client ?? client).get<ListNotificationsResponses, ListNotificationsErrors, ThrowOnError>({ url: '/notifications', ...options });
 

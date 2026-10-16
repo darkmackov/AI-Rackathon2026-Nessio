@@ -1,16 +1,17 @@
 import { http, HttpResponse } from 'msw'
-import type { Case, DemoClock, DemoScenario, ValidationError } from '../client/types.gen'
+import type { Case, DemoClock, DemoScenario, Message, ValidationError } from '../client/types.gen'
 import { localDateTime } from '../time'
 import { actors, boards, organizations } from './directory'
-import { referenceCases } from './reference'
-import { referenceTasks } from './reference-tasks'
+import { createCoordinatorState } from './coordinator-state'
+import { createCoordinatorHandlers } from './coordinator'
 import { treatmentTime } from './treatment-time'
 import { createDocumentDemoState, createDocumentHandlers } from './documents'
+import { createReferralHandlers } from './referrals'
 import { caseStates, enumError, extraFields, isApiDateTime, objectBody, organizationKinds, queryValue, queueColumns, validateEnumQuery, validationResponse } from './validation'
 
 // Mutable simulated server state is private to this tab (Q-W6, Q-W10).
 export function createDemoState(readNow: () => number = Date.now) {
-  let cases: Case[] = []
+  const coordinator = createCoordinatorState()
   let simulatedAt: number | null = null
   let anchoredAt = readNow()
   const documents = createDocumentDemoState(readNow)
@@ -21,16 +22,20 @@ export function createDemoState(readNow: () => number = Date.now) {
   }
   const reset = (scenario: DemoScenario) => {
     documents.reset(scenario !== 'empty')
-    cases = scenario === 'empty' ? [] : structuredClone(referenceCases)
+    coordinator.reset(scenario !== 'empty')
     setTime(scenario === 'empty' ? '2026-10-02T14:00:00' : '2026-10-21T09:00:00')
-    return structuredClone(cases)
+    return coordinator.cases()
   }
   reset('reference_at_mdt')
   return {
     documents,
+    coordinator,
     reset,
     setTime,
-    getCases: () => structuredClone(cases),
+    getCases: () => coordinator.cases(),
+    saveCase: (item: Case) => { coordinator.saveCase(item) },
+    getMessages: () => coordinator.messages(),
+    saveMessage: (message: Message) => coordinator.saveMessage(message),
     clock: (): DemoClock => ({
       now: localDateTime(new Date(simulatedAt === null ? readNow() : simulatedAt + readNow() - anchoredAt)),
       simulated: simulatedAt !== null,
@@ -41,7 +46,9 @@ export function createDemoState(readNow: () => number = Date.now) {
 export function createHandlers(state = createDemoState()) {
   const notFound = () => HttpResponse.json({ detail: 'not found' }, { status: 404 })
   return [
+    ...createCoordinatorHandlers(state),
     ...createDocumentHandlers(state),
+    ...createReferralHandlers(state),
     http.get('*/api/me', ({ request }) => {
       const id = request.headers.get('X-Actor-Id')
       if (id === null) return validationResponse([{ loc: ['header', 'X-Actor-Id'], type: 'missing', msg: 'Field required', input: null }])
@@ -85,7 +92,7 @@ export function createHandlers(state = createDemoState()) {
       const item = state.getCases().find((item) => item.id === params.id)
       return item ? HttpResponse.json(item) : notFound()
     }),
-    http.get('*/api/cases/:id/tasks', ({ params }) => state.getCases().some((item) => item.id === params.id) ? HttpResponse.json(referenceTasks.filter((task) => task.case_id === params.id)) : HttpResponse.json({ detail: 'case not found' }, { status: 404 })),
+    http.get('*/api/cases/:id/tasks', ({ params }) => state.getCases().some((item) => item.id === params.id) ? HttpResponse.json(state.coordinator.tasks(String(params.id))) : HttpResponse.json({ detail: 'case not found' }, { status: 404 })),
     http.get('*/api/cases/:id/time-to-treatment', ({ params }) => {
       const item = state.getCases().find((item) => item.id === params.id)
       return item ? HttpResponse.json(treatmentTime(item, state.clock().now)) : notFound()

@@ -1,9 +1,9 @@
 import { Accordion, Badge, Box, Button, Group, Spoiler, Stack, Table, Text, Title } from '@mantine/core'
 import { IconAlertTriangle } from '@tabler/icons-react'
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Evidence, Finding, Handover } from '../../client/types.gen'
-import { EmptyState } from '../../components/DataState'
+import { EmptyState } from '../DataState'
 import { formatDate } from '../../time'
 import ClinicalValue, { CopySection, EvidenceLinks, Provenance, SourceChip, type Sources } from './ClinicalValue'
 import { displayValue, handoverFields, handoverSections, problemCount, sameSelection, type HandoverSection } from './clinical'
@@ -27,8 +27,9 @@ function SectionSources({ evidence, sources }: { evidence: Evidence[]; sources: 
   </Group>
 }
 
-export default function HandoverTab({ handover, names, sources, findings, showFinding, open, setOpen }: {
+export default function HandoverTab({ handover, names, sources, findings, showFinding, open, setOpen, fieldActions, examinationAction, focusPath }: {
   handover: Handover; names: Record<string, string>; sources: Sources; findings: Finding[]; showFinding: (id: string) => void; open: string[]; setOpen: (sections: string[]) => void;
+  fieldActions?: (path: string, label: string) => ReactNode; examinationAction?: ReactNode; focusPath?: string | null;
 }) {
   const { t, i18n } = useTranslation()
   const fields = handoverFields(handover)
@@ -57,6 +58,7 @@ export default function HandoverTab({ handover, names, sources, findings, showFi
     return problems > 0 && <Badge size="sm" variant="light" color="orange" c="dark.9" leftSection={<IconAlertTriangle size={12} aria-hidden />}>{t('caseDetail.problems', { count: problems })}</Badge>
   }
   const examinations = <>
+    {examinationAction}
     {!handover.examinations?.length && <EmptyState title={t('caseDetail.emptySection')} />}
     {handover.examinations?.map((row, index) => <Box key={index} py="sm" style={rowStyle}><Stack gap={6}>
       <Group justify="space-between" align="flex-start" gap="xs">
@@ -89,10 +91,15 @@ export default function HandoverTab({ handover, names, sources, findings, showFi
     <Accordion multiple value={open} onChange={setOpen} order={2} variant="separated" chevronPosition="left">
       {handoverSections.map((section) => <Accordion.Item key={section.key} value={section.key}>
         <Accordion.Control><Group gap="sm" wrap="wrap"><Text fw={650}>{t(`caseDetail.${section.key}`)}</Text>{summary(section)}</Group></Accordion.Control>
-        <Accordion.Panel>
+        <Accordion.Panel onTransitionEnd={() => {
+          if (!focusPath || !open.includes(section.key) || !section.fields.some(([path]) => path === focusPath)) return
+          const target = document.getElementById(`field-${focusPath}`)
+          target?.focus({ preventScroll: true })
+          target?.scrollIntoView?.({ block: 'center' })
+        }}>
           <Group justify="space-between" align="flex-start" mb="xs"><SectionSources evidence={sectionEvidence(section)} sources={sources} /><Box ml="auto"><CopySection text={() => copyText(section)} /></Box></Group>
           {section.key === 'examinations' ? examinations : section.key === 'labs' ? labs : section.fields.map(([path, label]) => <ClinicalValue key={path} label={t(`caseDetail.${label}`)} path={path} value={fields[path]} names={names} sources={sources} showFinding={showFinding}
-            findings={findings.filter((finding) => finding.fields?.includes(path))}
+            findings={findings.filter((finding) => finding.fields?.includes(path))} actions={fieldActions?.(path, t(`caseDetail.${label}`))} focused={focusPath === path}
             formatted={path === 'patient.birth_date' && typeof fields[path]?.value === 'string' ? formatDate(String(fields[path]?.value), i18n.language) : undefined} />)}
         </Accordion.Panel>
       </Accordion.Item>)}

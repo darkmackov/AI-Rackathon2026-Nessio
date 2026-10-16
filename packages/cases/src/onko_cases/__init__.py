@@ -1,5 +1,6 @@
 """Cases module: state machine, dashboard queue, tasks and task sets, and the GP's referral
-(draft, manual handover edits, validation, sending; S3).
+(draft, manual handover edits, validation, sending; S3), and the coordinator's workflow
+(take-over, returns, holds, findings, tasks, task sets, notices, audit; S4).
 
 Owner: stream C. Task sets are user data (created in the UI), never config files.
 Public API: only what `__all__` lists. Layout: docs/conventions/implementation.md.
@@ -7,11 +8,34 @@ Public API: only what `__all__` lists. Layout: docs/conventions/implementation.m
 
 from __future__ import annotations
 
+from .coordination import (
+    COORDINATOR_ROLE,
+    MANUAL_TRANSITIONS,
+    TASK_LOCKED_STATES,
+    audit_event,
+    check_dependencies,
+    check_task_set,
+    due_notices,
+    is_external,
+    manual_transition,
+    matches_diagnosis,
+    owner_organization,
+    refresh_progress,
+    require_tasks_writable,
+    resolve_finding,
+    resolve_owners,
+    return_to_referrer,
+    take_over,
+    task_set_started,
+)
 from .models import (
+    CaseStateError,
     CodeNotNeededError,
     HandoverEditError,
     HandoverLockedError,
     NotValidatedError,
+    OverrideNotAllowedError,
+    TaskError,
     TransitionError,
 )
 from .referral import (
@@ -28,6 +52,7 @@ from .referral import (
     validate_handover,
 )
 from .service import (
+    HOLD_STATES,
     next_step,
     open_tasks,
     put_on_hold,
@@ -40,28 +65,50 @@ from .service import (
 )
 
 __all__ = [
+    "COORDINATOR_ROLE",
     "EDITABLE_STATES",
+    "HOLD_STATES",
+    "MANUAL_TRANSITIONS",
+    "TASK_LOCKED_STATES",
+    "CaseStateError",
     "CodeNotNeededError",
     "HandoverEditError",
     "HandoverLockedError",
     "NotValidatedError",
+    "OverrideNotAllowedError",
+    "TaskError",
     "TransitionError",
     "add_examination",
+    "audit_event",
+    "check_dependencies",
+    "check_task_set",
     "diagnosis_for_code",
+    "due_notices",
+    "is_external",
+    "manual_transition",
+    "matches_diagnosis",
     "new_referral",
     "next_step",
     "open_tasks",
+    "owner_organization",
     "pick_diagnosis_code",
     "put_on_hold",
     "queue_column",
     "ready_tasks",
     "receive_referral",
+    "refresh_progress",
     "require_editable",
+    "require_tasks_writable",
+    "resolve_finding",
+    "resolve_owners",
     "resume",
+    "return_to_referrer",
     "send_referral",
     "set_handover_field",
     "start_task_set",
     "sync_case_from_handover",
+    "take_over",
+    "task_set_started",
     "time_to_treatment",
     "transition",
     "validate_handover",

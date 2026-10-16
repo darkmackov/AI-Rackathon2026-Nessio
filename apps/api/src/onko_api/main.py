@@ -23,7 +23,7 @@ from .deps import Repo
 from .mcp import build_mcp
 from .queries import search_cases
 from .routes import _case_or_404, router
-from .seed import load_directory, seed_reference_case
+from .seed import load_directory, seed_reference_case, seed_task_sets
 
 
 def _iris_configured() -> bool:
@@ -51,6 +51,7 @@ async def lifespan(_: FastAPI):
     # Seed only an empty store: IRIS keeps the demo state (and roster edits) across restarts.
     if not repo.list_organizations():
         load_directory(repo)
+    seed_task_sets(repo)  # stores that predate S4 get the starter set too
     if os.environ.get("ONKO_SEED_REFERENCE", "1") == "1" and not repo.list_cases():
         seed_reference_case(repo)
     app.state.repo = repo

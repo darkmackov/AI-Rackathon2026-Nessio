@@ -85,7 +85,7 @@ describe('handover', () => {
     expect(within(performance).getByText('Chybí')).toBeVisible()
     expect(within(performance).getByText('Blokující')).toBeVisible()
     expect(within(performance).getByText(/není v podkladech výslovně stanoven/)).toBeVisible()
-    for (const name of ['Doplnit', 'Vyžádat']) expect(within(performance).getByRole('button', { name })).toBeDisabled()
+    for (const name of ['Doplnit', 'Vyžádat']) expect(within(performance).getByRole('button', { name })).toBeEnabled()
     await user.click(within(performance).getByRole('link', { name: 'Přejít na nález' }))
     expect(router.state.location).toMatchObject({ search: { tab: 'findings' }, hash: 'finding-F01' })
     expect(screen.getByRole('tab', { name: /^K řešení/ })).toHaveAttribute('aria-selected', 'true')

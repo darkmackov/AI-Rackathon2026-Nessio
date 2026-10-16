@@ -85,7 +85,7 @@ describe('implemented demo responses against backend OpenAPI', () => {
     const detail = await validationError('reset_demo', () => interceptRequest((request) => new Request(request, { body }),
       () => reset.execute({ body: { scenario: 'empty' } })))
     expect(detail).toMatchObject({ detail: [{ type, loc }] })
-    expect(await query.fetchQuery(listCasesOptions())).toHaveLength(1)
+    expect(await query.fetchQuery(listCasesOptions())).toHaveLength(2)
   })
 
   it('validates clock input and forbidden fields using the documented error model', async () => {

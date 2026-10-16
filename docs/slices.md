@@ -101,7 +101,12 @@ flowchart LR
 - **Done when:** demo steps 1–2; the case appears in the coordinator's **Nový** column. A returned case can be fixed and resent, and it comes back in *V triage*.
 
 ## S4: Coordinator workflow
+**Agreed frontend delivery (Q-W14):** full coordinator UI backed by contract-shaped MSW, ready for the existing real API. No Python/backend implementation is implied. Preserve S0–S2 styling; extend the prepared actions, add an Audit tab and a compact personal-notifications panel. Task-set selection/editing/starting shares one dialog from Tasks. The original reference is unchanged; an additional fictional sent case supports takeover and early workflow steps. Manual edits and document uploads do not automatically resolve findings. Dependency ordering informs the next step without blocking task completion; a set starts once per case. Only personally assigned open tasks generate deadline notifications. The GP return UI is S3; MDT snapshot and authoring are S5.
+
+**Frontend acceptance:** takeover, case settings, milestones, pre-MDT transitions, return with note, hold/resume, finding requests/manual entries/explicit resolution, tasks and reusable task sets, personal notifications, audit and the existing S2 uploads work in the built mock demo. Role/KOC checks, relationships, state errors, reset/identity isolation and response contracts have offline tests. Real mode reports backend errors without fallback. Backend endpoints below remain separate follow-up work.
+
 - **Goal:** pillar 03. Coordinate everything after the referral.
+- **Status:** backend done (all endpoints below work, plus `getTimeToTreatment` from S1); the UI is done (frontend delivery above, Q-W14). Rules decided for it: Q-F28–Q-F33.
 - **Endpoints:**
   - case: `takeOverCase`, `updateCase` (priority, coordinator, planned MDT), `transitionCase`, `returnCase`, `setHold`, `clearHold`, `updateMilestones`, `listAudit`
   - findings: `resolveFinding`, `requestFromFinding`
