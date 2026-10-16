@@ -51,4 +51,19 @@ The script:
 - forwards every `ONKO_*` value from `.env`, storing passwords, API keys and connection strings as Container Apps secrets;
 - pins the app to one replica (the demo clock and the job runner live in the process).
 
-It prints the public URL; the API answers at `/api/health`. Re-run it to deploy a new version.
+It prints the public URL; the API answers at `/api/health`. Re-run it to change settings; new versions ship through CD.
+
+## Continuous deployment (Q-K10)
+
+`.github/workflows/cd.yml` runs after *CI* passes on a push to `main`, or by hand (Actions → CD → Run workflow). It:
+- builds the `Dockerfile` on the runner and pushes `<registry>/<app>:<commit sha>` to the registry the Container App already uses (the ACR `deploy_azure.sh` created);
+- rolls out a new revision with that image. Settings and secrets stay on the Container App, so change them with `deploy_azure.sh`;
+- fails unless `/api/health` answers within 5 minutes.
+
+The IRIS instance isn't touched: it already runs in Azure.
+
+One-time setup (someone with rights on the subscription):
+1. Deploy once with `deploy_azure.sh`, so the app and its registry exist.
+2. Create an app registration (or a user-assigned managed identity) for GitHub and add a federated credential: issuer `https://token.actions.githubusercontent.com`, subject `repo:hackathon-green-snail-77/fits:environment:azure-demo`, audience `api://AzureADTokenExchange`.
+3. Give it **Contributor** on the resource group and **AcrPush** on the registry.
+4. In GitHub → Settings → Environments, create `azure-demo` with the secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and the variable `ONKO_AZ_RESOURCE_GROUP` (and `ONKO_AZ_APP` if it isn't `onko-koordinace`). Add required reviewers there if a deploy should wait for approval.
