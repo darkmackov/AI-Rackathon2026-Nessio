@@ -1,11 +1,11 @@
 import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
-import { s1Cs, s1En } from './s1-translations'
 import { documentsCs, documentsEn } from './components/documents/translations'
+import { caseDetailCs, caseDetailEn } from './screens/CaseDetail/translations'
 
 export const resources = {
   cs: { translation: {
-    s1: s1Cs,
+    caseDetail: caseDetailCs,
     documents: documentsCs,
     appName: 'Onko-koordinace', skip: 'Přejít k obsahu', navigation: 'Hlavní navigace',
     language: 'Jazyk', demoData: 'Demo · fiktivní data', realApi: 'Režim skutečného API',
@@ -45,7 +45,7 @@ export const resources = {
     notFound: 'Stránka nebyla nalezena', notFoundDescription: 'Tato adresa v aplikaci neexistuje.', home: 'Přejít na úvod',
   } },
   en: { translation: {
-    s1: s1En,
+    caseDetail: caseDetailEn,
     documents: documentsEn,
     appName: 'Oncology coordination', skip: 'Skip to content', navigation: 'Main navigation',
     language: 'Language', demoData: 'Demo · fictional data', realApi: 'Real API mode',

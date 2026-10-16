@@ -4,9 +4,9 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { I18nextProvider } from 'react-i18next'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
-import type { PropsWithChildren } from 'react'
+import type { PropsWithChildren, ReactNode } from 'react'
 import { createQueryClient } from '../api'
 import {
   documentTextOptions, getDocumentFileOptions, getHandoverOptions, getHandoverQueryKey, getJobOptions,
@@ -14,15 +14,17 @@ import {
   listFindingsQueryKey, reextractCaseMutation, resetDemoMutation, updateDocumentMutation, uploadDocumentMutation,
 } from '../client/@tanstack/react-query.gen'
 import { actorHeaders } from '../api'
-import type { CaseState, DocumentMeta, Handover, Job } from '../client/types.gen'
-import DocumentIngest from '../components/documents/DocumentIngest'
+import type { Case, CaseState, DocumentMeta, Handover, Job } from '../client/types.gen'
 import DocumentUploader from '../components/documents/DocumentUploader'
-import ExtractionResults from '../components/documents/ExtractionResults'
-import SourceDocument from '../components/documents/SourceDocument'
-import { quoteRange, supportedFile, validDocumentDate } from '../components/documents/document-utils'
+import { supportedFile, validDocumentDate } from '../components/documents/document-utils'
 import { changeLanguage, i18n } from '../i18n'
 import { createDemoState, createHandlers } from '../mocks/handlers'
 import { demoDocumentText, demoExtraction } from '../mocks/documents'
+import { referenceCases } from '../mocks/reference'
+import { referenceDocuments, referenceHandover } from '../mocks/reference-data'
+import DocumentsTab from '../screens/CaseDetail/DocumentsTab'
+import HandoverTab from '../screens/CaseDetail/HandoverTab'
+import SourcePanel from '../screens/CaseDetail/SourcePanel'
 import SessionProvider from '../SessionProvider'
 import { useSession } from '../session'
 import { theme } from '../theme'
@@ -30,7 +32,9 @@ import { expectApiResponse } from './api-contract'
 import { renderApp } from './renderApp'
 import { server } from './setup'
 
-const caseId = 'vzp-prochazkova'
+// A case without reference documents, so upload results are the only documents it has.
+const caseId = 'case-new'
+const newCase: Case = { ...referenceCases[0], id: caseId }
 const actorId = 'koordinator'
 const pdf = () => new File(['%PDF-1.4\nfictional test'], 'zprava.pdf', { type: 'application/pdf' })
 const docx = () => new File(['fictional test'], 'kontrola.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
@@ -45,8 +49,17 @@ beforeAll(async () => {
 })
 afterAll(() => vi.unstubAllGlobals())
 
-function renderDocuments(node?: React.ReactNode, initialCaseId = caseId, selectedActorId = actorId) {
+let now = 0
+let state = createDemoState(() => now)
+beforeEach(() => {
+  now = 0
+  state = createDemoState(() => now)
+  server.use(...createHandlers({ ...state, getCases: () => [...state.getCases(), newCase] }))
+})
+
+function renderDocuments(node?: ReactNode, initialCaseId = caseId, selectedActorId = actorId) {
   const queryClient = createQueryClient()
+  const openSource = vi.fn()
   function Wrapper({ children }: PropsWithChildren) {
     return <MantineProvider theme={theme} env="test"><I18nextProvider i18n={i18n}><QueryClientProvider client={queryClient}>
       <SessionProvider>{children}</SessionProvider>
@@ -54,22 +67,22 @@ function renderDocuments(node?: React.ReactNode, initialCaseId = caseId, selecte
   }
   function Panel({ id }: { id: string }) {
     const session = useSession()
-    return <><button onClick={() => { void session.selectActor(selectedActorId) }}>{selectedActorId === actorId ? 'Select coordinator' : 'Select referrer'}</button><DocumentIngest caseId={id} /></>
+    return <><button onClick={() => { void session.selectActor(selectedActorId) }}>{selectedActorId === actorId ? 'Select coordinator' : 'Select referrer'}</button>
+      {session.actorId && <DocumentsTab item={{ ...newCase, id }} names={{}} openSource={openSource} />}</>
   }
   const view = render(node ?? <Panel id={initialCaseId} />, { wrapper: Wrapper })
-  return { ...view, queryClient, changeCase: (id: string) => view.rerender(<Panel id={id} />) }
+  return { ...view, queryClient, openSource, changeCase: (id: string) => view.rerender(<Panel id={id} />) }
 }
 
 async function openPanel() {
   await userEvent.click(screen.getByRole('button', { name: 'Select coordinator' }))
-  await screen.findByRole('heading', { name: 'Dokumenty a AI extrakce' })
+  await screen.findByRole('heading', { name: 'Nahrát dokumenty' })
   await screen.findByText('Případ zatím nemá žádné dokumenty.')
 }
 
-describe('S2 reusable document components', () => {
+describe('S2 document upload and processing in the case documents tab', () => {
   it.each(['koncept', 'vraceno_lekari'] satisfies CaseState[])('lets the referring doctor upload to their own %s case using their session identity', async (caseState) => {
-    const state = createDemoState(() => 0)
-    const fixture = { ...state.getCases()[0], id: `referrer-${caseState}`, state: caseState }
+    const fixture = { ...newCase, id: `referrer-${caseState}`, state: caseState }
     server.use(...createHandlers({ ...state, getCases: () => [fixture] }))
     const { queryClient } = renderDocuments(undefined, fixture.id, fixture.referring_doctor_id)
     await userEvent.click(screen.getByRole('button', { name: 'Select referrer' }))
@@ -79,36 +92,15 @@ describe('S2 reusable document components', () => {
     expect(await screen.findByText('Nahráno, stav AI níže')).toBeVisible()
     expect(screen.getByText('Čeká na zpracování')).toBeVisible()
     expect(state.documents.list(fixture.id)).toMatchObject([{ case_id: fixture.id, filename: 'zprava.pdf', uploaded_by: fixture.referring_doctor_id }])
-    expect(queryClient.getQueryData(listDocumentsQueryKey({ headers: actorHeaders(fixture.referring_doctor_id), path: { case_id: fixture.id } }))).toMatchObject([{ uploaded_by: fixture.referring_doctor_id }])
+    await waitFor(() => expect(queryClient.getQueryData(listDocumentsQueryKey({ headers: actorHeaders(fixture.referring_doctor_id), path: { case_id: fixture.id } }))).toMatchObject([{ uploaded_by: fixture.referring_doctor_id }]))
   })
 
-  it('shows manual provenance, zero and empty contract values explicitly without inventing clinical data', async () => {
-    const entered = { by: actorId, at: '2026-10-16T09:00:00' }
-    const handover: Handover = {
-      ...demoExtraction(caseId, 'source-a', '2026-10-16T09:00:00').handover,
-      symptoms: { status: 'found', origin: 'manual', value: '', entered },
-      comorbidities: { status: 'found', origin: 'manual', value: [], entered },
-      weight_kg: { status: 'found', origin: 'manual', value: 0, entered },
-    }
-    expectApiResponse('get_handover', 200, handover)
-    server.use(http.get('*/api/cases/:caseId/handover', () => HttpResponse.json<Handover>(handover)))
-    renderDocuments(<ExtractionResults caseId={caseId} actorId={actorId} documents={[]} onSource={() => {}} />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Klinické údaje' }))
-    await waitFor(() => expect(screen.getAllByText('Prázdná hodnota.')[0]).toBeVisible())
-    expect(screen.getAllByText('Prázdná hodnota.')).toHaveLength(2)
-    expect(screen.getByText('0', { selector: 'p' })).toBeVisible()
-    expect(screen.getAllByText('Zadáno ručně')).toHaveLength(3)
-    expect(screen.getAllByText(/Zadal\/a Bc\. Lucie Dvořáková/)).toHaveLength(3)
-  })
-
-  it('validates formats and locates only exact source quotes, including stale offsets', () => {
+  it('validates formats and document dates', () => {
     expect(supportedFile(pdf())).toBe(true)
     expect(supportedFile(docx())).toBe(true)
     expect(supportedFile(new File(['x'], 'REPORT.PPTX'))).toBe(true)
     expect(supportedFile(new File(['x'], 'fake.pdf', { type: 'text/plain' }))).toBe(false)
     expect(supportedFile(new File(['x'], 'scan.png', { type: 'image/png' }))).toBe(false)
-    expect(quoteRange('😀 Hmotnost 65 kg.', { document_id: 'a', quote: '65 kg', start: 10, end: 15 })).toEqual({ start: 12, end: 17 })
-    expect(quoteRange('Hmotnost 65 kg.', { document_id: 'a', quote: '67 kg' })).toBeNull()
     expect(validDocumentDate('2024-02-29')).toBe(true)
     expect(validDocumentDate('2026-02-29')).toBe(false)
     expect(validDocumentDate('0000-01-01')).toBe(false)
@@ -177,10 +169,7 @@ describe('S2 reusable document components', () => {
   })
 
   it('polls queued/running jobs, refreshes server results on completion, and stops polling terminal jobs', async () => {
-    let now = 0
-    const state = createDemoState(() => now)
-    server.use(...createHandlers(state))
-    const { queryClient } = renderDocuments()
+    const { queryClient, openSource } = renderDocuments()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     let polls = 0
     server.events.on('request:start', ({ request }) => { if (/\/api\/jobs\//.test(request.url)) polls++ })
@@ -188,29 +177,21 @@ describe('S2 reusable document components', () => {
     await userEvent.upload(screen.getByLabelText('Vybrat soubory'), pdf())
     await userEvent.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
     expect(await screen.findByText('Čeká na zpracování')).toBeVisible()
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     now = 1000
     expect(await screen.findByText('Probíhá AI extrakce', {}, { timeout: 3000 })).toBeVisible()
     now = 4000
     expect(await screen.findByText('Dokončeno', {}, { timeout: 3000 })).toBeVisible()
-    expect(await screen.findByText('Fiktivní ukázka: chybí ECOG / Karnofsky.')).toBeVisible()
     expect(invalidate).toHaveBeenCalledWith({ queryKey: listDocumentsQueryKey({ path: { case_id: caseId } }) })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: getHandoverQueryKey({ path: { case_id: caseId } }) })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: listFindingsQueryKey({ path: { case_id: caseId } }) })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: listCasesQueryKey() })
+    // The refreshed document list shows what the server now holds for the upload.
+    expect(await screen.findByText('Fiktivní ukázka dokumentu')).toBeVisible()
     const completedPolls = polls
     await new Promise((resolve) => setTimeout(resolve, 1200))
     expect(polls).toBe(completedPolls)
-    await userEvent.click(screen.getByRole('button', { name: 'Klinické údaje' }))
-    await waitFor(() => expect(screen.getAllByText('V ukázkové zprávě je uvedena únava.', { selector: 'p' })[0]).toBeVisible())
-    expect(screen.getAllByText('Návrh AI').length).toBeGreaterThan(0)
-    expect(screen.getByText('Rozpor – zkontrolovat zdroje')).toBeVisible()
-    const sourceButton = screen.getAllByRole('button', { name: 'Zdroj: zprava.pdf' })[0]
-    await userEvent.click(sourceButton)
-    const source = await screen.findByRole('dialog', { name: 'Fiktivní ukázka dokumentu' })
-    await waitFor(() => expect(source.querySelector('mark')).toHaveTextContent('ECOG v ukázce není uvedeno.'))
-    await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(sourceButton).toHaveFocus())
+    await userEvent.click(screen.getByRole('button', { name: 'Zobrazit text' }))
+    expect(openSource).toHaveBeenCalledWith({ documentId: state.documents.list(caseId)[0].id }, expect.any(HTMLButtonElement))
   })
 
   it('saves only edited metadata fields and preserves the date as missing', async () => {
@@ -240,10 +221,11 @@ describe('S2 reusable document components', () => {
     expect(within(dialog).getByLabelText('Datum dokumentu')).toHaveValue('')
   })
 
-  it('shows failed extraction without exposing backend details and retries via reextractCase', async () => {
+  it('shows failed extraction without exposing backend details and offers one retry via reextractCase', async () => {
     const failed: Job = { id: 'job-failed', kind: 'ingest_document', case_id: caseId, status: 'failed', error: 'internal stack', created_at: '2026-10-16T09:00:00' }
     let retried: string | null = null
     server.use(
+      http.get('*/api/cases/:caseId/documents', () => HttpResponse.json([{ id: 'doc-a', case_id: caseId, filename: 'a.pdf' }])),
       http.get('*/api/cases/:caseId/jobs', () => HttpResponse.json([failed])),
       http.post('*/api/cases/:caseId/extract', ({ request }) => { retried = request.headers.get('X-Actor-Id'); return HttpResponse.json({ ...failed, id: 'retry', status: 'queued' }, { status: 202 }) }),
       http.get('*/api/jobs/:jobId', () => HttpResponse.json({ ...failed, id: 'retry', status: 'queued' })),
@@ -251,12 +233,15 @@ describe('S2 reusable document components', () => {
     renderDocuments()
     await userEvent.click(screen.getByRole('button', { name: 'Select coordinator' }))
     expect(await screen.findByText('Chyba zpracování')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent('Dokument se nepodařilo zpracovat.')
     expect(screen.queryByText('internal stack')).not.toBeInTheDocument()
-    await userEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Znovu spustit extrakci' }))
+    const retry = screen.getAllByRole('button', { name: 'Znovu spustit extrakci' })
+    expect(retry).toHaveLength(1)
+    await userEvent.click(retry[0])
     await waitFor(() => expect(retried).toBe(actorId))
   })
 
-  it('shows honest 501 and polling failures with retries and keeps source errors contained', async () => {
+  it('shows honest 501 job failures without blocking uploads', async () => {
     server.use(http.get('*/api/cases/:caseId/jobs', () => HttpResponse.json({ detail: 'not implemented' }, { status: 501 })))
     renderDocuments()
     await openPanel()
@@ -269,7 +254,7 @@ describe('S2 reusable document components', () => {
     await openPanel()
     await userEvent.upload(screen.getByLabelText('Vybrat soubory'), pdf())
     view.changeCase('another-case')
-    await screen.findByRole('heading', { name: 'Dokumenty a AI extrakce' })
+    await screen.findByRole('heading', { name: 'Nahrát dokumenty' })
     expect(screen.queryByRole('list', { name: 'Vybrané soubory' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' })).toBeDisabled()
   })
@@ -305,64 +290,63 @@ describe('S2 reusable document components', () => {
     expect(await screen.findByText('Dokončeno')).toBeVisible()
   })
 
-  it('shows retryable source-text and original-file failures without losing the parent panel', async () => {
+  it('shows retryable source-text and original-file failures without losing the source panel', async () => {
     server.use(
       http.get('*/api/documents/doc-a/text', () => HttpResponse.json({ detail: 'private error' }, { status: 500 })),
       http.get('*/api/documents/doc-a/file', () => HttpResponse.json({ detail: 'not implemented' }, { status: 501 })),
     )
-    renderDocuments(<SourceDocument selection={{ documentId: 'doc-a' }} documents={[{ id: 'doc-a', filename: 'original.pdf' }]} actorId={actorId} onClose={() => {}} />)
+    renderDocuments(<SourcePanel document={{ id: 'doc-a', filename: 'original.pdf' }} close={() => {}} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('Při zpracování požadavku nastala chyba.')
     await userEvent.click(screen.getByRole('button', { name: 'Stáhnout originál' }))
-    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(2))
-    expect(screen.getAllByRole('alert')[0]).toHaveTextContent('Tato funkce zatím není implementována.')
+    expect(await screen.findByText('Originální soubor se nepodařilo stáhnout.')).toHaveAttribute('role', 'alert')
+    expect(screen.getByRole('dialog', { name: 'Zdrojový dokument' })).toBeVisible()
     expect(screen.queryByText('private error')).not.toBeInTheDocument()
   })
 
-  it('downloads the original with a generated blob query and releases the object URL', async () => {
-    const create = vi.fn(() => 'blob:example')
-    const revoke = vi.fn()
-    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: create })
-    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revoke })
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-    server.use(
-      http.get('*/api/documents/doc-a/text', () => HttpResponse.json({ id: 'doc-a', text: 'Zdrojový text' })),
-      http.get('*/api/documents/doc-a/file', () => new HttpResponse('%PDF-1.4\noriginal', { headers: { 'Content-Type': 'application/octet-stream' } })),
-    )
-    renderDocuments(<SourceDocument selection={{ documentId: 'doc-a' }} documents={[{ id: 'doc-a', filename: 'original.pdf' }]} actorId={actorId} onClose={() => {}} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Stáhnout originál' }))
-    await waitFor(() => expect(create).toHaveBeenCalledOnce())
-    expect(click).toHaveBeenCalledOnce()
-    expect(revoke).toHaveBeenCalledWith('blob:example')
+  it('shows manual provenance, zero and empty contract values explicitly without inventing clinical data', () => {
+    const entered = { by: actorId, at: '2026-10-16T09:00:00' }
+    const handover: Handover = {
+      ...demoExtraction(caseId, 'source-a', '2026-10-16T09:00:00').handover,
+      symptoms: { status: 'found', origin: 'manual', value: '', entered },
+      comorbidities: { status: 'found', origin: 'manual', value: [], entered },
+      weight_kg: { status: 'found', origin: 'manual', value: 0, entered },
+    }
+    expectApiResponse('get_handover', 200, handover)
+    renderDocuments(<HandoverTab handover={handover} names={{ [actorId]: 'Bc. Lucie Dvořáková' }} documentNames={{}} openSource={() => {}} open={['history']} setOpen={() => {}} />)
+    expect(screen.getAllByText('Prázdná hodnota.')).toHaveLength(2)
+    expect(screen.getByText('0', { selector: 'p' })).toBeVisible()
+    expect(screen.getAllByText('Ruční zadání')).toHaveLength(3)
+    expect(screen.getAllByText(/Bc\. Lucie Dvořáková/)).toHaveLength(3)
   })
 
-  it('keeps S0/S1 navigation and exposes S2 for the selected case without a new route', async () => {
+  it('uploads from the case detail Documents tab, the only document entry point, and clears drafts on reset', async () => {
+    server.use(...createHandlers(state))
     const { router } = renderApp()
-    await userEvent.selectOptions(await screen.findByLabelText('Role'), 'coordinator')
-    await userEvent.selectOptions(await screen.findByLabelText('Osoba'), actorId)
-    await userEvent.click(screen.getByRole('button', { name: 'Pokračovat' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Dokumenty' }))
-    expect(await screen.findByRole('heading', { name: 'Dokumenty a AI extrakce' })).toBeVisible()
-    expect(router.state.location.pathname).toBe('/coordinator')
-    expect(screen.getByRole('dialog', { name: 'Alena Procházková' })).toBeVisible()
-    await userEvent.upload(screen.getByLabelText('Vybrat soubory'), pdf())
-    await userEvent.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
+    const user = userEvent.setup()
+    await user.selectOptions(await screen.findByLabelText('Role'), 'coordinator')
+    await user.selectOptions(await screen.findByLabelText('Osoba'), actorId)
+    await user.click(screen.getByRole('button', { name: 'Pokračovat' }))
+    await screen.findByRole('link', { name: 'Alena Procházková' })
+    expect(screen.queryByRole('button', { name: 'Dokumenty' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Alena Procházková' }))
+    await user.click(await screen.findByRole('tab', { name: 'Dokumenty' }))
+    expect(router.state.location.search).toMatchObject({ tab: 'documents' })
+    expect(await screen.findAllByRole('button', { name: 'Stáhnout originál' })).toHaveLength(referenceDocuments.length)
+    await user.upload(screen.getByLabelText('Vybrat soubory'), pdf())
+    await user.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
     await screen.findByText('Nahráno, stav AI níže')
-    await userEvent.click(screen.getByRole('button', { name: 'Zobrazit dokument' }))
-    await screen.findByRole('dialog', { name: 'zprava.pdf' })
-    await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'zprava.pdf' })).not.toBeInTheDocument())
-    expect(screen.getByRole('dialog', { name: 'Alena Procházková' })).toBeVisible()
-    await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    await userEvent.click(screen.getByRole('button', { name: 'Demo' }))
+    expect(await screen.findAllByRole('button', { name: 'Stáhnout originál' })).toHaveLength(referenceDocuments.length + 1)
+    await user.click(screen.getByRole('button', { name: 'Demo' }))
     const demo = screen.getByRole('dialog', { name: 'Ovládání dema' })
-    await userEvent.click(within(demo).getByRole('button', { name: 'Obnovit referenci' }))
+    await user.click(within(demo).getByRole('button', { name: 'Obnovit referenci' }))
     const confirm = screen.getByRole('dialog', { name: 'Obnovit demo?' })
-    await userEvent.click(within(confirm).getByRole('button', { name: 'Obnovit data' }))
+    await user.click(within(confirm).getByRole('button', { name: 'Obnovit data' }))
     await within(demo).findByText('Demo bylo obnoveno.')
-    await userEvent.click(within(demo).getByRole('button', { name: 'Zavřít' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Dokumenty' }))
-    expect(await screen.findByText('Případ zatím nemá žádné dokumenty.')).toBeVisible()
+    expect(router.state.location.pathname).toBe('/coordinator')
+    await user.click(within(demo).getByRole('button', { name: 'Zavřít' }))
+    await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
+    await user.click(await screen.findByRole('tab', { name: 'Dokumenty' }))
+    expect(await screen.findAllByRole('button', { name: 'Stáhnout originál' })).toHaveLength(referenceDocuments.length)
     expect(screen.queryByRole('list', { name: 'Vybrané soubory' })).not.toBeInTheDocument()
   })
 
@@ -379,8 +363,6 @@ describe('S2 reusable document components', () => {
 
 describe('S2 dummy HTTP boundary using generated API helpers', () => {
   it('preserves upload/job/metadata/result contracts and original bytes for arbitrary case IDs', async () => {
-    let now = 0
-    const state = createDemoState(() => now)
     const base = state.getCases()[0]
     server.use(...createHandlers({ ...state, getCases: () => [{ ...base, id: 'case-a' }, { ...base, id: 'case-b' }] }))
     const client = createQueryClient()
@@ -428,10 +410,24 @@ describe('S2 dummy HTTP boundary using generated API helpers', () => {
     await expect(client.fetchQuery(getDocumentFileOptions({ ...documentOptions, parseAs: 'blob' }))).rejects.toMatchObject({ status: 404 })
   })
 
+  it('adds uploads to the reference case without replacing its reference extraction', async () => {
+    const reference = referenceHandover.case_id
+    const client = createQueryClient()
+    const headers = actorHeaders(actorId)
+    const options = { headers, path: { case_id: reference } }
+    const upload = client.getMutationCache().build(client, uploadDocumentMutation())
+    const result = await upload.execute({ ...options, body: { file: pdf() } })
+    now = 4000
+    expect(await client.fetchQuery(getJobOptions({ headers, path: { job_id: result.job.id } }))).toMatchObject({ status: 'done' })
+    expect(await client.fetchQuery(getHandoverOptions(options))).toEqual(referenceHandover)
+    expect(await client.fetchQuery(listDocumentsOptions(options))).toHaveLength(referenceDocuments.length + 1)
+    expect(await client.fetchQuery(documentTextOptions({ headers, path: { document_id: result.document.id } }))).toMatchObject({ text: demoDocumentText })
+  })
+
   it('enforces format, actor, case scope and datetime checks at the mock HTTP boundary', async () => {
     const client = createQueryClient()
     const upload = client.getMutationCache().build(client, uploadDocumentMutation())
-    const options = { headers: actorHeaders(actorId), path: { case_id: caseId } }
+    const options = { headers: actorHeaders(actorId), path: { case_id: referenceHandover.case_id } }
     await expect(upload.execute({ ...options, body: { file: new File(['x'], 'bad.png', { type: 'image/png' }) } })).rejects.toMatchObject({ status: 400 })
     await expect(upload.execute({ ...options, headers: actorHeaders('koord-severni'), body: { file: pdf() } })).rejects.toMatchObject({ status: 403 })
     await expect(upload.execute({ ...options, headers: actorHeaders('pl-reznicek'), body: { file: pdf() } })).rejects.toMatchObject({ status: 409 })

@@ -2,10 +2,12 @@ import { delay, http, HttpResponse } from 'msw'
 import type { Case, DemoClock, DocumentMeta, DocumentMetaUpdate, Finding, Handover, Job, UploadResult } from '../client/types.gen'
 import { documentType, supportedFile, validDocumentDate } from '../components/documents/document-utils'
 import { actors } from './directory'
-import { extraFields, isApiDateTime, objectBody, validationResponse } from './validation'
+import { referenceDocuments, referenceFindings, referenceHandover, referenceTexts } from './reference-data'
+import { extraFields, isApiDateTime, objectBody, queryValue, validationResponse } from './validation'
 
 // Explicitly synthetic content. Uploaded bytes are retained only for original-file downloads;
 // no parser, clinical inference or AI runs in the browser. The user authorized S2 HTTP fixtures.
+// The reference scenario seeds the canonical S1 documents, texts and extraction result.
 export const demoDocumentText = 'FIKTIVNÍ UKÁZKA – nejde o text nahraného souboru.\nV ukázkové zprávě je uvedena únava.\nHmotnost v podkladu A: 65 kg.\nHmotnost v podkladu B: 67 kg.\nECOG v ukázce není uvedeno.'
 
 export function demoExtraction(caseId: string, documentId: string, asOf: string): { handover: Handover; findings: Finding[] } {
@@ -36,6 +38,7 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
   const originals = new Map<string, File>()
   const jobs = new Map<string, { job: Job; started: number }>()
   const results = new Map<string, ReturnType<typeof demoExtraction>>()
+  const texts = new Map<string, string>()
   let sequence = 0
 
   function createJob(caseId: string, now: string, documentId?: string): Job {
@@ -52,7 +55,8 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
     if (entry.job.status === 'running' && elapsed >= 3000) {
       entry.job = { ...entry.job, status: 'done', finished_at: now }
       const source = entry.job.document_id ?? Array.from(documents.values()).findLast((item) => item.case_id === entry.job.case_id)?.id
-      if (source) {
+      // A synthetic result never replaces one the case already has (such as the reference extraction).
+      if (source && !results.has(entry.job.case_id)) {
         results.set(entry.job.case_id, demoExtraction(entry.job.case_id, source, now))
         const document = documents.get(source)
         if (document && !document.title) documents.set(source, { ...document, title: 'Fiktivní ukázka dokumentu', doc_type: 'other' })
@@ -62,7 +66,15 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
   }
 
   return {
-    reset: () => { documents.clear(); originals.clear(); jobs.clear(); results.clear() },
+    reset: (withReference: boolean) => {
+      documents.clear(); originals.clear(); jobs.clear(); results.clear(); texts.clear()
+      if (!withReference) return
+      for (const document of referenceDocuments) {
+        documents.set(document.id, structuredClone(document))
+        texts.set(document.id, referenceTexts[document.id])
+      }
+      results.set(referenceHandover.case_id, { handover: structuredClone(referenceHandover), findings: structuredClone(referenceFindings) })
+    },
     upload: (caseId: string, file: File, actorId: string, receivedAt: string, now: string): UploadResult => {
       const document: DocumentMeta = { id: `demo-document-${++sequence}`, case_id: caseId, filename: file.name, mime_type: file.type, received_at: receivedAt, uploaded_by: actorId }
       documents.set(document.id, document)
@@ -81,7 +93,15 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
       documents.set(id, updated)
       return structuredClone(updated)
     },
-    original: (id: string) => originals.get(id),
+    text: (id: string) => texts.get(id) ?? demoDocumentText,
+    original: async (id: string): Promise<File | undefined> => {
+      const uploaded = originals.get(id)
+      const reference = referenceDocuments.find((item) => item.id === id)
+      if (uploaded || !reference || !documents.has(id)) return uploaded
+      const { originalFiles } = await import('./document-files')
+      const bytes = Uint8Array.from(atob(originalFiles[id]), (character) => character.charCodeAt(0))
+      return new File([bytes], reference.filename, { type: 'application/octet-stream' })
+    },
     result: (caseId: string) => { const value = results.get(caseId); return value ? structuredClone(value) : undefined },
   }
 }
@@ -107,6 +127,8 @@ export function createDocumentHandlers(state: DemoState) {
     http.get('*/api/cases/:caseId/documents', ({ request, params }) => {
       const id = String(params.caseId)
       state.documents.listJobs(id, state.clock().now)
+      // Like the API, a list for an unknown case is empty rather than missing.
+      if (!findCase(id)) return HttpResponse.json<DocumentMeta[]>([])
       return access(request, findCase(id)) ?? HttpResponse.json<DocumentMeta[]>(state.documents.list(id))
     }),
     http.post('*/api/cases/:caseId/documents', async ({ request, params }) => {
@@ -166,27 +188,33 @@ export function createDocumentHandlers(state: DemoState) {
     }),
     http.get('*/api/documents/:documentId/text', ({ request, params }) => {
       const id = String(params.documentId)
-      return access(request, findDocumentCase(id)) ?? HttpResponse.json({ id, text: demoDocumentText })
+      return access(request, findDocumentCase(id)) ?? HttpResponse.json({ id, text: state.documents.text(id) })
     }),
     http.get('*/api/documents/:documentId/file', async ({ request, params }) => {
       const id = String(params.documentId)
       const error = access(request, findDocumentCase(id))
       if (error) return error
-      const file = state.documents.original(id)
+      const file = await state.documents.original(id)
       if (!file) return HttpResponse.json({ detail: 'file not found' }, { status: 404 })
       return new HttpResponse(await file.arrayBuffer(), { headers: { 'Content-Type': file.type || 'application/octet-stream' } })
     }),
     http.get('*/api/cases/:caseId/handover', ({ request, params }) => {
       const id = String(params.caseId)
+      const snapshot = queryValue(new URL(request.url).searchParams, 'snapshot')
+      if (snapshot !== null && !['true', 'false', '1', '0', 'yes', 'no', 'on', 'off'].includes(snapshot.toLowerCase())) {
+        return validationResponse([{ loc: ['query', 'snapshot'], type: 'bool_parsing', msg: 'Input should be a valid boolean', input: snapshot }])
+      }
       const error = access(request, findCase(id))
       if (error) return error
       state.documents.listJobs(id, state.clock().now)
-      const result = state.documents.result(id)
+      // MDT snapshots are not simulated, so a snapshot request finds none.
+      const result = ['true', '1', 'yes', 'on'].includes(snapshot?.toLowerCase() ?? '') ? undefined : state.documents.result(id)
       return result ? HttpResponse.json<Handover>(result.handover) : HttpResponse.json({ detail: 'no handover yet' }, { status: 404 })
     }),
     http.get('*/api/cases/:caseId/findings', ({ request, params }) => {
       const id = String(params.caseId)
       state.documents.listJobs(id, state.clock().now)
+      if (!findCase(id)) return HttpResponse.json<Finding[]>([])
       return access(request, findCase(id)) ?? HttpResponse.json<Finding[]>(state.documents.result(id)?.findings ?? [])
     }),
   ]

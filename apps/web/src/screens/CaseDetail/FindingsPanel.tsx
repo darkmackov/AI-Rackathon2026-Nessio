@@ -24,36 +24,36 @@ export default function FindingsPanel({ caseId, names, documentNames, handover, 
   const card = (finding: Finding) => <Paper withBorder p="sm" key={finding.id} id={`finding-${finding.id}`} style={{ scrollMarginTop: 80 }}>
     <Stack gap={6}>
       <Group gap="xs">
-        <Badge variant="light" c="dark.9" color={finding.severity === 'blocker' ? 'red' : finding.severity === 'warning' ? 'orange' : 'blue'}>{t(`s1.severity.${finding.severity}`)}</Badge>
-        <Badge color="gray" variant="outline">{t(`s1.findingKinds.${finding.kind}`)}</Badge>
-        {finding.advisory && <Badge color="gray" variant="light" c="dark.9">{t('s1.advisory')}</Badge>}
+        <Badge variant="light" c="dark.9" color={finding.severity === 'blocker' ? 'red' : finding.severity === 'warning' ? 'orange' : 'blue'}>{t(`caseDetail.severity.${finding.severity}`)}</Badge>
+        <Badge color="gray" variant="outline">{t(`caseDetail.findingKinds.${finding.kind}`)}</Badge>
+        {finding.advisory && <Badge color="gray" variant="light" c="dark.9">{t('caseDetail.advisory')}</Badge>}
         <Text size="xs" c="dimmed">{finding.id}</Text>
       </Group>
       <Text size="sm">{finding.message_cs}</Text>
-      {finding.severity === 'blocker' && finding.overridable && <Text size="xs" c="dimmed">{t('s1.overridable')}</Text>}
+      {finding.severity === 'blocker' && finding.overridable && <Text size="xs" c="dimmed">{t('caseDetail.overridable')}</Text>}
       <Group gap="xs" wrap="wrap">
         {finding.fields?.filter((path) => fields[path] && fieldLabel(path)).map((path) => <Anchor key={path} href={`#field-${path}`} size="sm"
-          onClick={(event) => { event.preventDefault(); showField(path) }}>→ {t(`s1.${fieldLabel(path)}`)}</Anchor>)}
+          onClick={(event) => { event.preventDefault(); showField(path) }}>→ {t(`caseDetail.${fieldLabel(path)}`)}</Anchor>)}
         <EvidenceLinks evidence={finding.evidence} select={(index) => ({ kind: 'finding', id: finding.id, index })} openSource={openSource} documentNames={documentNames} />
       </Group>
-      {finding.resolution && <Text size="sm">{t('s1.resolution')}: {t(`s1.resolutions.${finding.resolution.kind}`)}{finding.resolution.note ? ` · ${finding.resolution.note}` : ''}</Text>}
+      {finding.resolution && <Text size="sm">{t('caseDetail.resolution')}: {t(`caseDetail.resolutions.${finding.resolution.kind}`)}{finding.resolution.note ? ` · ${finding.resolution.note}` : ''}</Text>}
       {finding.resolution && <StampView stamp={finding.resolution} names={names} size="xs" />}
       {!finding.resolved && finding.suggested_action && <Group gap="xs">
-        {finding.suggested_action === 'request' && <Button disabled size="compact-sm">{t('s1.request')}</Button>}
-        {finding.suggested_action === 'fill_in' && <Button disabled size="compact-sm">{t('s1.fill')}</Button>}
-        {finding.suggested_action === 'review' && <Text size="sm" c="dimmed">{t('s1.review')}</Text>}
+        {finding.suggested_action === 'request' && <Button disabled size="compact-sm">{t('caseDetail.request')}</Button>}
+        {finding.suggested_action === 'fill_in' && <Button disabled size="compact-sm">{t('caseDetail.fill')}</Button>}
+        {finding.suggested_action === 'review' && <Text size="sm" c="dimmed">{t('caseDetail.review')}</Text>}
       </Group>}
     </Stack>
   </Paper>
   return <Stack component="section" aria-labelledby="findings-heading" gap="sm">
-    <Title order={2} size="h4" id="findings-heading">{t('s1.findings')}</Title>
+    <Title order={2} size="h4" id="findings-heading">{t('caseDetail.findings')}</Title>
     {findings.isPending && <LoadingState />}
     {findings.isError && <QueryError error={findings.error} pending={findings.isFetching} retry={() => { void findings.refetch() }} />}
-    {findings.isSuccess && !sorted.length && <EmptyState title={t('s1.noFindings')} />}
+    {findings.isSuccess && !sorted.length && <EmptyState title={t('caseDetail.noFindings')} />}
     {open.map(card)}
     {resolved.length > 0 && <Accordion variant="contained" chevronPosition="left">
       <Accordion.Item value="resolved">
-        <Accordion.Control>{t('s1.resolvedGroup', { count: resolved.length })}</Accordion.Control>
+        <Accordion.Control>{t('caseDetail.resolvedGroup', { count: resolved.length })}</Accordion.Control>
         <Accordion.Panel><Stack gap="sm">{resolved.map(card)}</Stack></Accordion.Panel>
       </Accordion.Item>
     </Accordion>}

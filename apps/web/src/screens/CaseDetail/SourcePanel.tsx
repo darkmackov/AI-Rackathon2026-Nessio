@@ -20,7 +20,7 @@ export default function SourcePanel({ document, evidence, close, fallback }: { d
   const text = query.data?.text ?? ''
   const segments = quoteSegments(text, evidence)
   const content = <Stack gap="md">
-    <Group justify="space-between" align="flex-start" style={wide ? { position: 'sticky', top: 0, zIndex: 1, background: 'var(--mantine-color-body)', paddingBlock: 8 } : undefined}><Title order={2} size="h3" tabIndex={-1} ref={(node) => { node?.focus({ preventScroll: true }) }}>{t('s1.source')}</Title>{wide && <Button variant="outline" onClick={close}>{t('s1.closeSource')}</Button>}</Group>
+    <Group justify="space-between" align="flex-start" style={wide ? { position: 'sticky', top: 0, zIndex: 1, background: 'var(--mantine-color-body)', paddingBlock: 8 } : undefined}><Title order={2} size="h3" tabIndex={-1} ref={(node) => { node?.focus({ preventScroll: true }) }}>{t('caseDetail.source')}</Title>{wide && <Button variant="outline" onClick={close}>{t('caseDetail.closeSource')}</Button>}</Group>
     {!document ? fallback ?? <MissingDocument /> : <>
     <Text fw={600} style={{ overflowWrap: 'anywhere' }}>{document.title ?? document.filename}</Text>
     <Text size="sm" c="dimmed" style={{ overflowWrap: 'anywhere' }}>{document.filename}</Text>
@@ -28,9 +28,9 @@ export default function SourcePanel({ document, evidence, close, fallback }: { d
     {evidence && <Paper withBorder p="sm"><Text size="sm" component="blockquote" m={0} style={{ whiteSpace: 'pre-wrap' }}>{evidence.quote}</Text></Paper>}
     {query.isPending && <LoadingState />}
     {query.isError && <QueryError error={query.error} pending={query.isFetching} retry={() => { void query.refetch() }} />}
-    {query.isSuccess && !text && <EmptyState title={t('s1.noText')} />}
+    {query.isSuccess && !text && <EmptyState title={t('caseDetail.noText')} />}
     {query.isSuccess && text && <>
-      {evidence && !segments.some((part) => part.highlight) && <Alert color="orange" role="status">{t('s1.quoteMissing')}</Alert>}
+      {evidence && !segments.some((part) => part.highlight) && <Alert color="orange" role="status">{t('caseDetail.quoteMissing')}</Alert>}
       <CopySection text={() => text} />
       <Text component="div" size="sm" data-testid="document-text" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
         {segments.map((part, index) => part.highlight ? <Mark key={index} color="yellow" ref={(node) => { if (!segments.slice(0, index).some((segment) => segment.highlight)) node?.scrollIntoView?.({ block: 'center' }) }}>{part.text}</Mark> : <span key={index}>{part.text}</span>)}
@@ -38,6 +38,6 @@ export default function SourcePanel({ document, evidence, close, fallback }: { d
     </>}
     </>}
   </Stack>
-  return wide ? <Paper component="aside" withBorder p="md" aria-label={t('s1.source')} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); close() } }} style={{ position: 'sticky', top: 16, maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto' }}>{content}</Paper>
-    : <Drawer opened onClose={close} position="right" size="100%" title={t('s1.source')} closeButtonProps={{ 'aria-label': t('s1.closeSource') }}>{content}</Drawer>
+  return wide ? <Paper component="aside" withBorder p="md" aria-label={t('caseDetail.source')} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); close() } }} style={{ position: 'sticky', top: 16, maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto' }}>{content}</Paper>
+    : <Drawer opened onClose={close} position="right" size="100%" title={t('caseDetail.source')} closeButtonProps={{ 'aria-label': t('caseDetail.closeSource') }}>{content}</Drawer>
 }

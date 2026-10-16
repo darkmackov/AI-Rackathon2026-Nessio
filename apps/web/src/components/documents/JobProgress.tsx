@@ -1,13 +1,11 @@
-import { Alert, Badge, Button, Group, Loader, Paper, Stack, Text } from '@mantine/core'
+import { Alert, Badge, Group, Loader, Paper, Stack, Text } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import type { DocumentMeta, Job } from '../../client/types.gen'
 import { QueryError } from '../DataState'
 import { terminalJob } from './document-utils'
 import { useIngestJob } from './use-document-ingest'
 
-export default function JobProgress({ job: initial, actorId, documents, onRetry, retryDisabled }: {
-  job: Job; actorId: string; documents: DocumentMeta[]; onRetry: () => void; retryDisabled: boolean;
-}) {
+export default function JobProgress({ job: initial, actorId, documents }: { job: Job; actorId: string; documents: DocumentMeta[] }) {
   const { t } = useTranslation()
   const query = useIngestJob(initial, actorId)
   const job = query.data ?? initial
@@ -18,9 +16,6 @@ export default function JobProgress({ job: initial, actorId, documents, onRetry,
       <Badge color={job.status === 'failed' ? 'red' : job.status === 'done' ? 'green' : 'blue'} variant="light">{t(`documents.jobStatus.${job.status ?? 'queued'}`)}</Badge>
     </Group>
     {query.isError && <QueryError error={query.error} retry={() => { void query.refetch() }} pending={query.isFetching} />}
-    {job.status === 'failed' && <Alert color="red" role="alert"><Stack gap="xs">
-      <Text size="sm">{t('documents.extractionFailed')}</Text>
-      <Button variant="outline" color="red" disabled={retryDisabled} onClick={onRetry}>{t('documents.reextract')}</Button>
-    </Stack></Alert>}
+    {job.status === 'failed' && <Alert color="red" role="alert"><Text size="sm">{t('documents.extractionFailed')}</Text></Alert>}
   </Stack></Paper>
 }

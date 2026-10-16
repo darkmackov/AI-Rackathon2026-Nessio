@@ -10,7 +10,7 @@ import type { DemoScenario } from '../client/types.gen'
 import { roleHome, useSession } from '../session'
 import { validLocalDateTime } from '../time'
 import DemoClock from './DemoClock'
-import { demoResetMutationKey, useDemoClock } from '../demo-clock'
+import { useDemoClock } from '../demo-clock'
 import { QueryError } from './DataState'
 import FormErrorSummary from './FormErrorSummary'
 import { isCaseQuery } from '../case-queries'
@@ -73,18 +73,11 @@ export default function DemoPanel({ opened, onClose }: { opened: boolean; onClos
   const [formRevision, setFormRevision] = useState(0)
   const reset = useMutation({
     ...resetDemoMutation(),
-    mutationKey: demoResetMutationKey,
     onSuccess: async () => {
       await queryClient.cancelQueries()
       if (actor) await navigate({ to: roleHome(actor.role), replace: true })
-      queryClient.removeQueries({ predicate: isCaseQuery })
       // A reset discards case documents, jobs and results as well as the queue.
-      queryClient.removeQueries({ predicate: (query) => {
-        const key = query.queryKey[0]
-        if (!key || typeof key !== 'object' || !('path' in key)) return false
-        const path = key.path
-        return !!path && typeof path === 'object' && ('case_id' in path || 'document_id' in path || 'job_id' in path)
-      } })
+      queryClient.removeQueries({ predicate: isCaseQuery })
       // These generated keys deliberately omit filters and cover all cached variants.
       await Promise.all([
         listCasesQueryKey(), getDemoClockQueryKey(), listActorsQueryKey(),

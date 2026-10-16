@@ -13,7 +13,7 @@ export function DueDate({ value, active = true }: { value?: string | null; activ
   const { t, i18n } = useTranslation()
   const clock = useDemoClock()
   const overdue = active && value && clock.data && new Date(value).getTime() < new Date(clock.data.now).getTime()
-  return <Group gap="xs"><Text size="sm">{value ? formatDateTime(value, i18n.language) : t('unavailable')}</Text>{overdue && <Badge color="red" variant="light">{t('s1.overdue')}</Badge>}</Group>
+  return <Group gap="xs"><Text size="sm">{value ? formatDateTime(value, i18n.language) : t('unavailable')}</Text>{overdue && <Badge color="red" variant="light">{t('caseDetail.overdue')}</Badge>}</Group>
 }
 
 export default function CaseTime({ item, compact = false }: { item: Case; compact?: boolean }) {
@@ -35,19 +35,19 @@ export default function CaseTime({ item, compact = false }: { item: Case; compac
     if (points[index] && day < points[index]!.slice(0, 10)) return 'beforeStart'
     return !points[index] && !points.slice(index + 1).some(Boolean) ? 'notStarted' : 'unknownInterval'
   }
-  return <Stack gap="xs" aria-label={t('s1.treatment')}>
-    <Text fw={600} size="sm">{t('s1.treatment')}</Text>
+  return <Stack gap="xs" aria-label={t('caseDetail.treatment')}>
+    <Text fw={600} size="sm">{t('caseDetail.treatment')}</Text>
     {clock.isPending && <LoadingState />}
     {clock.isError && <QueryError error={clock.error} pending={clock.isFetching} retry={() => { void clock.refetch() }} />}
     {day && times.isPending && <LoadingState />}
     {times.isError && <QueryError error={times.error} pending={times.isFetching} retry={() => { void times.refetch() }} />}
     {times.data && <SimpleGrid cols={compact ? 2 : { base: 2, md: 4 }} spacing="xs">
       {values.map((value, index) => <Paper key={index} p="xs" bg="gray.0" withBorder>
-        <Text size="xs" fw={600}>{t(`s1.t${index + 1}`)}</Text>
-        <Text fw={650} size="sm">{value != null ? t('s1.days', { count: value }) : '—'}</Text>
-        <Text size="xs" c="dimmed">{t(`s1.${intervalState(index, value)}`)}</Text>
+        <Text size="xs" fw={600}>{t(`caseDetail.t${index + 1}`)}</Text>
+        <Text fw={650} size="sm">{value != null ? t('caseDetail.days', { count: value }) : '—'}</Text>
+        <Text size="xs" c="dimmed">{t(`caseDetail.${intervalState(index, value)}`)}</Text>
       </Paper>)}
-      <Paper p="xs" bg="blue.0" withBorder><Text size="xs" fw={600}>{t('s1.total')}</Text><Text fw={650} size="sm">{times.data.total != null ? t('s1.days', { count: times.data.total }) : '—'}</Text><Text size="xs" c="dimmed">{t(`s1.${times.data.total == null ? 'unknownInterval' : m?.treatment_start ? 'completed' : 'ongoing'}`)}</Text></Paper>
+      <Paper p="xs" bg="blue.0" withBorder><Text size="xs" fw={600}>{t('caseDetail.total')}</Text><Text fw={650} size="sm">{times.data.total != null ? t('caseDetail.days', { count: times.data.total }) : '—'}</Text><Text size="xs" c="dimmed">{t(`caseDetail.${times.data.total == null ? 'unknownInterval' : m?.treatment_start ? 'completed' : 'ongoing'}`)}</Text></Paper>
     </SimpleGrid>}
   </Stack>
 }

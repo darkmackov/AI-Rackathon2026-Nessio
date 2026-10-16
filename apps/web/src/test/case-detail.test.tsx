@@ -102,7 +102,7 @@ describe('S1 read-only coordinator UI', () => {
     await openTab(user, /^Nálezy/)
     expect(await screen.findByText('Nejsou zaznamenány žádné nedostatky ani rozpory.')).toBeVisible()
     await user.click(screen.getByRole('tab', { name: 'Dokumenty' }))
-    expect(await screen.findByText('Případ zatím neobsahuje žádné dokumenty.')).toBeVisible()
+    expect(await screen.findByText('Případ zatím nemá žádné dokumenty.')).toBeVisible()
     await user.click(screen.getByRole('tab', { name: 'Úkoly / cesta' }))
     expect(await screen.findByText('Případ zatím nemá žádné úkoly.')).toBeVisible()
   })

@@ -1,4 +1,4 @@
-import type { DocumentType, Evidence, Job, SourcedDate, SourcedFloat, SourcedInt, SourcedListStr, SourcedStr } from '../../client/types.gen'
+import type { DocumentType, Job } from '../../client/types.gen'
 
 // These MIME types are registered in onko_documents.service.PARSERS.
 export const documentFormats = {
@@ -30,22 +30,6 @@ export function terminalJob(job: Job) {
   return job.status === 'done' || job.status === 'failed'
 }
 
-export function formatDocumentDate(value: string, language: string) {
-  return new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'cs-CZ', { dateStyle: 'medium' }).format(new Date(`${value}T12:00:00`))
-}
-
 export function validDocumentDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number(value.slice(0, 4)) >= 1 && Number.isFinite(new Date(value).getTime()) && new Date(value).toISOString().slice(0, 10) === value
 }
-
-// Offsets are used only if they identify the exact quote; otherwise navigate by exact text.
-export function quoteRange(text: string, evidence?: Evidence) {
-  if (!evidence?.quote) return null
-  const { start, end, quote } = evidence
-  if (start != null && end != null && start >= 0 && end > start && text.slice(start, end) === quote) return { start, end }
-  const index = text.indexOf(quote)
-  return index < 0 ? null : { start: index, end: index + quote.length }
-}
-
-export type SourcedValue = SourcedStr | SourcedDate | SourcedInt | SourcedFloat | SourcedListStr
-export type SourceSelection = { documentId: string; evidence?: Evidence }

@@ -14,36 +14,36 @@ export default function TasksTab({ caseId, names, openSource, showFinding }: { c
   const tasks = useQuery(listTasksOptions({ path: { case_id: caseId }, headers: actorHeaders(actorId ?? '') }))
   const sorted = [...tasks.data ?? []].sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999') || a.id.localeCompare(b.id))
   return <Stack>
-    <Group><Button size="sm" disabled>{t('s1.startSet')}</Button><Button size="sm" variant="outline" disabled>{t('s1.addTask')}</Button></Group>
+    <Group><Button size="sm" disabled>{t('caseDetail.startSet')}</Button><Button size="sm" variant="outline" disabled>{t('caseDetail.addTask')}</Button></Group>
     {tasks.isPending && <LoadingState />}
     {tasks.isError && <QueryError error={tasks.error} pending={tasks.isFetching} retry={() => { void tasks.refetch() }} />}
-    {tasks.isSuccess && !sorted.length && <EmptyState title={t('s1.noTasks')} />}
+    {tasks.isSuccess && !sorted.length && <EmptyState title={t('caseDetail.noTasks')} />}
     {sorted.length > 0 && <Table.ScrollContainer minWidth={820}><Table withTableBorder verticalSpacing="sm" fz="sm">
       <Table.Thead><Table.Tr>
-        {['s1.task', 's1.taskState', 'owner', 'nextDue', 's1.dependencies', 's1.links'].map((label) => <Table.Th key={label}>{t(label)}</Table.Th>)}
+        {['caseDetail.task', 'caseDetail.taskState', 'owner', 'nextDue', 'caseDetail.dependencies', 'caseDetail.links'].map((label) => <Table.Th key={label}>{t(label)}</Table.Th>)}
       </Table.Tr></Table.Thead>
       <Table.Tbody>{sorted.map((task) => <Table.Tr key={task.id} id={`task-${task.id}`} style={{ verticalAlign: 'top', scrollMarginTop: 80 }}>
         <Table.Td>
           <Text size="sm" fw={600}>{task.title}</Text>
-          <Text size="xs" c="dimmed">{i18n.exists(`s1.taskKinds.${task.kind}`) ? t(`s1.taskKinds.${task.kind}`) : task.kind} · {task.location ?? t('unavailable')}</Text>
-          {task.external && <Badge mt={4} size="sm" color="gray" variant="light" c="dark.9">{t('s1.external')}</Badge>}
+          <Text size="xs" c="dimmed">{i18n.exists(`caseDetail.taskKinds.${task.kind}`) ? t(`caseDetail.taskKinds.${task.kind}`) : task.kind} · {task.location ?? t('unavailable')}</Text>
+          {task.external && <Badge mt={4} size="sm" color="gray" variant="light" c="dark.9">{t('caseDetail.external')}</Badge>}
         </Table.Td>
         <Table.Td><Stack gap={4} align="flex-start">
-          <Badge size="sm" variant="light">{t(`s1.taskStatus.${task.status ?? 'planned'}`)}</Badge>
+          <Badge size="sm" variant="light">{t(`caseDetail.taskStatus.${task.status ?? 'planned'}`)}</Badge>
           <Badge size="sm" variant="outline">{t(`priorities.${task.priority ?? 'normal'}`)}</Badge>
         </Stack></Table.Td>
         <Table.Td>{names[task.owner] ?? t('unavailable')}</Table.Td>
         <Table.Td><DueDate value={task.due} active={task.status !== 'done' && task.status !== 'cancelled'} /></Table.Td>
         <Table.Td><Stack gap={2}>
-          {!task.depends_on?.length && <Text size="sm" c="dimmed">{t('s1.noDependencies')}</Text>}
+          {!task.depends_on?.length && <Text size="sm" c="dimmed">{t('caseDetail.noDependencies')}</Text>}
           {task.depends_on?.map((id) => {
             const dependency = tasks.data?.find((item) => item.id === id)
-            return dependency ? <Anchor key={id} href={`#task-${id}`} size="sm">{dependency.title} · {t(`s1.taskStatus.${dependency.status ?? 'planned'}`)}</Anchor> : <Text key={id} size="sm">{t('s1.missingTask')}</Text>
+            return dependency ? <Anchor key={id} href={`#task-${id}`} size="sm">{dependency.title} · {t(`caseDetail.taskStatus.${dependency.status ?? 'planned'}`)}</Anchor> : <Text key={id} size="sm">{t('caseDetail.missingTask')}</Text>
           })}
         </Stack></Table.Td>
         <Table.Td><Stack gap={4} align="flex-start">
-          {task.finding_id && <Button variant="subtle" size="compact-sm" onClick={() => showFinding(task.finding_id!)}>{t('s1.relatedFinding')}</Button>}
-          {task.result_document_id && <Button variant="subtle" size="compact-sm" onClick={(event) => openSource({ documentId: task.result_document_id! }, event.currentTarget)}>{t('s1.resultDocument')}</Button>}
+          {task.finding_id && <Button variant="subtle" size="compact-sm" onClick={() => showFinding(task.finding_id!)}>{t('caseDetail.relatedFinding')}</Button>}
+          {task.result_document_id && <Button variant="subtle" size="compact-sm" onClick={(event) => openSource({ documentId: task.result_document_id! }, event.currentTarget)}>{t('caseDetail.resultDocument')}</Button>}
         </Stack></Table.Td>
       </Table.Tr>)}</Table.Tbody>
     </Table></Table.ScrollContainer>}

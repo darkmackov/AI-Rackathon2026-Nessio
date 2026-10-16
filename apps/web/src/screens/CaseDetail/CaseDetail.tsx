@@ -57,16 +57,16 @@ function DetailContent({ caseId }: { caseId: string }) {
     if (section && !openSections.includes(section)) setChosenSections([...openSections, section])
     void navigate({ search: { tab: 'handover' }, hash: `field-${path}` })
   }
-  const back = <Anchor component={Link} to="/coordinator">← {t('s1.back')}</Anchor>
+  const back = <Anchor component={Link} to="/coordinator">← {t('caseDetail.back')}</Anchor>
   if (item.isPending) return <Stack>{back}<LoadingState /></Stack>
-  if (item.isError) return <Stack>{back}<PageHeading>{t('s1.unavailableCase')}</PageHeading><QueryError error={item.error} pending={item.isFetching} retry={() => { void item.refetch() }} /></Stack>
-  if (!allowed || !item.data) return <Stack>{back}<PageHeading>{t('s1.unavailableCase')}</PageHeading><EmptyState title={t('s1.unavailableCase')} /></Stack>
+  if (item.isError) return <Stack>{back}<PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><QueryError error={item.error} pending={item.isFetching} retry={() => { void item.refetch() }} /></Stack>
+  if (!allowed || !item.data) return <Stack>{back}<PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><EmptyState title={t('caseDetail.unavailableCase')} /></Stack>
   const current = item.data
   const referrer = actors.data?.find((person) => person.id === current.referring_doctor_id)
   const unresolved = findings.data?.filter((finding) => !finding.resolved).length ?? 0
   const handoverState = <>
     {handover.isPending && <LoadingState />}
-    {handover.isError && (handover.error instanceof ApiError && handover.error.status === 404 ? <EmptyState title={t('s1.noHandover')} retry={() => { void handover.refetch() }} /> : <QueryError error={handover.error} pending={handover.isFetching} retry={() => { void handover.refetch() }} />)}
+    {handover.isError && (handover.error instanceof ApiError && handover.error.status === 404 ? <EmptyState title={t('caseDetail.noHandover')} retry={() => { void handover.refetch() }} /> : <QueryError error={handover.error} pending={handover.isFetching} retry={() => { void handover.refetch() }} />)}
   </>
   const directoryState = <>
     {(actors.isPending || organizations.isPending) && <LoadingState />}
@@ -80,7 +80,7 @@ function DetailContent({ caseId }: { caseId: string }) {
       <Grid.Col span={selection && wide ? 7 : 12}>
         <Tabs value={tab} onChange={switchTab} keepMounted={false}>
           <Tabs.List>{detailTabs.map((value) => <Tabs.Tab key={value} value={value}
-            rightSection={value === 'findings' && unresolved > 0 ? <Badge size="sm" variant="filled" color="red.8">{unresolved}</Badge> : undefined}>{t(`s1.tabs.${value}`)}</Tabs.Tab>)}</Tabs.List>
+            rightSection={value === 'findings' && unresolved > 0 ? <Badge size="sm" variant="filled" color="red.8">{unresolved}</Badge> : undefined}>{t(`caseDetail.tabs.${value}`)}</Tabs.Tab>)}</Tabs.List>
           <Tabs.Panel value="overview" pt="lg">
             <OverviewTab item={current} names={names} referrer={referrer} handover={handover.data} handoverState={handoverState} directoryState={directoryState} />
           </Tabs.Panel>
@@ -92,11 +92,7 @@ function DetailContent({ caseId }: { caseId: string }) {
           <Tabs.Panel value="findings" pt="lg">
             <FindingsPanel caseId={caseId} handover={handover.data} names={names} documentNames={documentNames} openSource={openSource} showField={showField} />
           </Tabs.Panel>
-          <Tabs.Panel value="documents" pt="lg">
-            {documents.isPending && <LoadingState />}
-            {documents.isError && <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} />}
-            {documents.data && <DocumentsTab item={current} documents={documents.data} names={names} openSource={openSource} />}
-          </Tabs.Panel>
+          <Tabs.Panel value="documents" pt="lg"><DocumentsTab item={current} names={names} openSource={openSource} /></Tabs.Panel>
           <Tabs.Panel value="tasks" pt="lg"><TasksTab caseId={caseId} names={names} openSource={openSource} showFinding={(id) => { void navigate({ search: { tab: 'findings' }, hash: `finding-${id}` }) }} /></Tabs.Panel>
         </Tabs>
       </Grid.Col>
