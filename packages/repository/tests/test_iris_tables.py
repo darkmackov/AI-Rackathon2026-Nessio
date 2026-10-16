@@ -80,6 +80,26 @@ def test_posix_time_from_an_ordered_query_reads_as_a_datetime():
     assert _timestamp("2026-10-16 09:30:00") == "2026-10-16 09:30:00"
 
 
+def test_index_and_foreign_key_statements():
+    tasks = ModelTable("app_task", Task, key=("id",), indexes=("case_id",),
+                       bitmap_indexes=("status",), foreign_keys={"case_id": "app_case"})
+    assert tasks.index_sql("onko.app_task") == [
+        'CREATE INDEX idx_app_task_case_id ON onko.app_task ("case_id")',
+        'CREATE BITMAP INDEX bm_app_task_status ON onko.app_task ("status")',
+    ]
+    assert tasks.index_sql("onko.app_task", lambda name: name.startswith("bm_")) == [
+        'CREATE BITMAP INDEX bm_app_task_status ON onko.app_task ("status")',
+    ]
+    assert tasks.foreign_key_sql("onko.app_task", lambda t: f"onko.{t}") == [
+        (
+            'ALTER TABLE onko.app_task ADD CONSTRAINT fk_app_task_case_id FOREIGN KEY ("case_id") '
+            'REFERENCES onko.app_case ("id")'
+        ),
+    ]
+    assert tasks.foreign_key_sql("onko.app_task", lambda t: f"onko.{t}", lambda c: False) == []
+    assert "FOREIGN KEY" not in tasks.create_sql("onko.app_task")
+
+
 def test_vector_tables_carry_the_embedding_dimension_and_their_foreign_keys():
     from onko_contracts import DocChunk
     from onko_repository.adapters.iris import _vector, vector_tables

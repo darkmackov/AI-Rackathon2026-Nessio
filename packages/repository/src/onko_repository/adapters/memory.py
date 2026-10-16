@@ -81,6 +81,7 @@ class InMemoryRepository:
         return list(self.cases.values())
 
     def save_document(self, meta: DocumentMeta, data: bytes, text: str) -> None:
+        self._require_case(meta.case_id)
         self.documents[meta.id] = (meta, data, text)
 
     def list_documents(self, case_id: str) -> list[DocumentMeta]:
@@ -102,24 +103,28 @@ class InMemoryRepository:
         self.documents[meta.id] = (meta, data, text)
 
     def save_handover(self, handover: Handover, *, snapshot: bool = False) -> None:
+        self._require_case(handover.case_id)
         self.handovers[(handover.case_id, snapshot)] = handover
 
     def get_handover(self, case_id: str, *, snapshot: bool = False) -> Handover | None:
         return self.handovers.get((case_id, snapshot))
 
     def save_findings(self, case_id: str, findings: list[Finding]) -> None:
+        self._require_case(case_id)
         self.findings[case_id] = findings
 
     def list_findings(self, case_id: str) -> list[Finding]:
         return self.findings.get(case_id, [])
 
     def save_task(self, task: Task) -> None:
+        self._require_case(task.case_id)
         self.tasks[task.id] = task
 
     def list_tasks(self, case_id: str) -> list[Task]:
         return [t for t in self.tasks.values() if t.case_id == case_id]
 
     def save_message(self, message: Message) -> None:
+        self._require_case(message.case_id)
         self.messages[message.id] = message
 
     def list_messages(self, case_id: str) -> list[Message]:
@@ -139,7 +144,7 @@ class InMemoryRepository:
                       key=lambda j: j.created_at)
 
     def _require_case(self, case_id: str) -> None:
-        """The foreign key `case_id` -> case, as in IRIS (PER-13)."""
+        """The foreign key `case_id` -> case, as in IRIS (Q-I26, PER-13)."""
         if case_id not in self.cases:
             raise KeyError(case_id)
 

@@ -89,6 +89,12 @@ def _case(case_id: str = "c1", **update) -> Case:
     return case.model_copy(update=update)
 
 
+def _cases(repo, *case_ids: str) -> None:
+    """Save the cases a test's documents, tasks, … refer to (foreign keys, Q-I26)."""
+    for case_id in case_ids:
+        repo.save_case(_case(case_id))
+
+
 def test_case_round_trip_and_upsert(repo):
     repo.save_case(_case("c1"))
     repo.save_case(_case("c2"))
@@ -111,6 +117,7 @@ def test_ids_are_case_sensitive(repo):
 
 
 def test_documents_by_case_with_text(repo):
+    _cases(repo, "c1", "c2")
     long_text = "ZÁVĚR: " + "příliš žluťoučký kůň " * 5000  # beyond a short VARCHAR
     repo.save_document(DocumentMeta(id="d1", case_id="c1", filename="01.docx"), b"\x00\x01PK", long_text)
     repo.save_document(DocumentMeta(id="d2", case_id="c1", filename="02.docx"), b"", "druhá")
@@ -128,6 +135,7 @@ def test_documents_by_case_with_text(repo):
 
 
 def test_single_document_and_its_bytes(repo):
+    _cases(repo, "c1")
     meta = DocumentMeta(id="doc-0a1b2c3d", case_id="c1", filename="01.docx")
     repo.save_document(meta, b"\x00\x01PK\xff", "text")
 
@@ -138,6 +146,7 @@ def test_single_document_and_its_bytes(repo):
 
 
 def test_update_document_replaces_meta_and_keeps_content(repo):
+    _cases(repo, "c1")
     meta = DocumentMeta(id="d1", case_id="c1", filename="01.docx")
     repo.save_document(meta, b"\x00\x01PK", "původní text")
     updated = meta.model_copy(update={"title": "CT hrudníku", "document_date": date(2026, 10, 1)})
@@ -185,6 +194,7 @@ def test_jobs_by_case_ordered_by_created_at(repo):
 
 
 def test_live_handover_and_snapshot_are_separate(repo):
+    _cases(repo, "c1")
     assert repo.get_handover("c1") is None
 
     live = Handover(case_id="c1", as_of=date(2026, 10, 16))
@@ -204,6 +214,7 @@ def test_live_handover_and_snapshot_are_separate(repo):
 
 
 def test_findings_are_replaced_per_case_in_order(repo):
+    _cases(repo, "c1", "c2")
     def finding(fid: str) -> Finding:
         return Finding(id=fid, kind=FindingKind.MISSING, severity=Severity.WARNING, message_cs=fid)
 
@@ -217,6 +228,7 @@ def test_findings_are_replaced_per_case_in_order(repo):
 
 
 def test_tasks_by_case_and_update(repo):
+    _cases(repo, "c1", "c2")
     repo.save_task(Task(id="t1", case_id="c1", title="CT", kind="imaging", owner="koc", due=NOW))
     repo.save_task(Task(id="t2", case_id="c1", title="EUS", kind="biopsy", owner="k", depends_on=["t1"]))
     repo.save_task(Task(id="t3", case_id="c2", title="Lab", kind="lab", owner="k"))
@@ -231,6 +243,7 @@ def test_tasks_by_case_and_update(repo):
 
 
 def test_messages_and_receipts(repo):
+    _cases(repo, "c1", "c2")
     message = Message(id="m1", case_id="c1", kind=MessageKind.MDT_RESULT, sender_id="k",
                       recipient_ids=["pl-a"], subject="Závěr MDT", body="…", sent_at=NOW)
     repo.save_message(message)
@@ -320,12 +333,36 @@ def test_audit_is_append_only(repo):
 
 
 @pytest.mark.parametrize("save", [
+    lambda repo: repo.save_document(DocumentMeta(id="d1", case_id="nope", filename="01.docx"), b"",
+                                   "text"),
+    lambda repo: repo.save_handover(Handover(case_id="nope", as_of=date(2026, 10, 16))),
+    lambda repo: repo.save_handover(Handover(case_id="nope", as_of=date(2026, 10, 16)),
+                                    snapshot=True),
+    lambda repo: repo.save_findings("nope", [Finding(id="F01", kind=FindingKind.MISSING,
+                                                     severity=Severity.WARNING, message_cs="F01")]),
+    lambda repo: repo.save_findings("nope", []),
+    lambda repo: repo.save_task(Task(id="t1", case_id="nope", title="CT", kind="imaging",
+                                     owner="koc")),
+    lambda repo: repo.save_message(Message(id="m1", case_id="nope", kind=MessageKind.NOTIFICATION,
+                                           sender_id="k", recipient_ids=["k"], subject="T",
+                                           body="…")),
     lambda repo: repo.save_audit(_audit("a1", case_id="nope")),
     lambda repo: repo.save_mdt_conclusion(MdtConclusion(case_id="nope")),
-])
-def test_audit_and_conclusion_need_an_existing_case(repo, save):
+], ids=["document", "handover", "snapshot", "findings", "no-findings", "task", "message", "audit",
+        "conclusion"])
+def test_case_data_needs_an_existing_case(repo, save):
+    """Foreign keys `case_id` -> case hold in every adapter (Q-I26, PER-13); nothing is stored."""
+    repo.save_case(_case("c1"))
     with pytest.raises(KeyError):
         save(repo)
+    assert repo.list_documents("nope") == []
+    assert repo.get_handover("nope") is None
+    assert repo.get_handover("nope", snapshot=True) is None
+    assert repo.list_findings("nope") == []
+    assert repo.list_tasks("nope") == []
+    assert repo.list_messages("nope") == []
+    assert repo.list_audit("nope") == []
+    assert repo.get_mdt_conclusion("nope") is None
 
 
 def test_mdt_conclusion_round_trip_and_replace(repo):
@@ -345,6 +382,50 @@ def test_no_pending_fhir_writes_without_a_fhir_server(repo):
     repo.save_case(_case("c1"))
     repo.save_task(Task(id="t1", case_id="c1", title="CT", kind="imaging", owner="koc"))
     assert repo.pending_fhir_writes() == 0
+
+
+def _schema_state(repo: IrisRepository) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+    """(table, index name) and (table, foreign-key column) pairs in the repo's schema."""
+    with repo._cursor() as cur:
+        cur.execute("SELECT TABLE_NAME, INDEX_NAME FROM INFORMATION_SCHEMA.INDEXES "
+                    "WHERE TABLE_SCHEMA = ?", [repo.schema])
+        indexes = {(t.lower(), i.lower()) for t, i in cur.fetchall()}
+        cur.execute(
+            "SELECT c.TABLE_NAME, k.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS c "
+            "JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k ON k.CONSTRAINT_SCHEMA = c.TABLE_SCHEMA "
+            "AND k.TABLE_NAME = c.TABLE_NAME AND k.CONSTRAINT_NAME = c.CONSTRAINT_NAME "
+            "WHERE c.TABLE_SCHEMA = ? AND c.CONSTRAINT_TYPE = 'FOREIGN KEY'", [repo.schema])
+        foreign_keys = {(t.lower(), c.lower()) for t, c in cur.fetchall()}
+    return indexes, foreign_keys
+
+
+def test_iris_schema_has_bitmap_indexes_and_foreign_keys_and_migrates_older_tables(shared_iris):
+    """Q-I26, Q-I27: an older schema (normal index on `state`, no foreign key on `app_task` or
+    `app_handover`) is brought up to date on start."""
+    repo = shared_iris
+    repo.clear()
+    case_fks = {(t, "case_id") for t in ("app_document", "app_finding", "app_task", "app_message",
+                                         "app_handover", "app_audit", "app_mdt_conclusion")}
+    if repo.embed_dim:
+        case_fks |= {("doc_chunk", "case_id"), ("doc_chunk", "document_id")}
+    bitmaps = {("app_case", "bm_app_case_state"), ("app_case", "bm_app_case_queue"),
+               ("app_organization", "bm_app_organization_kind"), ("app_actor", "bm_app_actor_role")}
+    indexes, foreign_keys = _schema_state(repo)
+    assert bitmaps <= indexes
+    assert ("app_case", "idx_app_case_state") not in indexes
+    assert foreign_keys == case_fks
+
+    with repo._cursor() as cur:
+        cur.execute(f"DROP INDEX bm_app_case_state ON TABLE {repo._t('app_case')}")
+        cur.execute(f'CREATE INDEX idx_app_case_state ON {repo._t("app_case")} ("state")')
+        cur.execute(f"ALTER TABLE {repo._t('app_task')} DROP CONSTRAINT fk_app_task_case_id")
+        cur.execute(f"ALTER TABLE {repo._t('app_handover')} DROP CONSTRAINT fk_app_handover_case_id")
+    repo.create_tables()
+
+    indexes, foreign_keys = _schema_state(repo)
+    assert bitmaps <= indexes
+    assert ("app_case", "idx_app_case_state") not in indexes
+    assert foreign_keys == case_fks
 
 
 # --- vector search (S8, Q-I19) ---------------------------------------------------------------
