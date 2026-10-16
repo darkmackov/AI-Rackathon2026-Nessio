@@ -16,6 +16,7 @@ from onko_contracts import (
     Organization,
     Receipt,
     Task,
+    TaskSet,
 )
 
 
@@ -34,6 +35,7 @@ class InMemoryRepository:
         self.handovers: dict[tuple[str, bool], Handover] = {}
         self.findings: dict[str, list[Finding]] = {}
         self.tasks: dict[str, Task] = {}
+        self.task_sets: dict[str, TaskSet] = {}
         self.messages: dict[str, Message] = {}
         self.receipts: list[Receipt] = []
         self.jobs: dict[str, Job] = {}
@@ -109,8 +111,20 @@ class InMemoryRepository:
     def save_task(self, task: Task) -> None:
         self.tasks[task.id] = task
 
+    def get_task(self, task_id: str) -> Task | None:
+        return self.tasks.get(task_id)
+
     def list_tasks(self, case_id: str) -> list[Task]:
         return [t for t in self.tasks.values() if t.case_id == case_id]
+
+    def save_task_set(self, task_set: TaskSet) -> None:
+        self.task_sets[task_set.id] = task_set
+
+    def get_task_set(self, task_set_id: str) -> TaskSet | None:
+        return self.task_sets.get(task_set_id)
+
+    def list_task_sets(self) -> list[TaskSet]:
+        return list(self.task_sets.values())
 
     def save_message(self, message: Message) -> None:
         self.messages[message.id] = message

@@ -421,7 +421,7 @@
           "documents"
         ],
         "summary": "Upload Document",
-        "description": "Upload a report (GP while drafting or after a return, coordinator later). Stores it,\nparses the text and queues an `ingest_document` job: AI metadata + handover extraction +\nchecks.",
+        "description": "Upload a report (the case's GP while drafting or after a return, a coordinator of the\ncase's KOC later). Stores it, parses the text and queues an `ingest_document` job: AI metadata\n+ handover extraction + checks.",
         "operationId": "upload_document",
         "parameters": [
           {
@@ -529,7 +529,7 @@
           "documents"
         ],
         "summary": "Update Document",
-        "description": "Correct AI-extracted metadata (type, date, facility, …).",
+        "description": "Correct AI-extracted metadata (type, date, facility, …). The case's referring doctor or a\ncoordinator of the case's KOC.",
         "operationId": "update_document",
         "parameters": [
           {
@@ -1007,7 +1007,7 @@
           "jobs"
         ],
         "summary": "Reextract Case",
-        "description": "Re-run extraction + checks over all case documents (e.g. after the model choice).",
+        "description": "Re-run extraction + checks over all case documents (e.g. after the model choice). The\ncase's referring doctor or a coordinator of the case's KOC.",
         "operationId": "reextract_case",
         "parameters": [
           {
@@ -1179,7 +1179,7 @@
           "cases"
         ],
         "summary": "Take Over Case",
-        "description": "'Převzít': the current coordinator takes the case (sets coordinator_id), odeslano → v_triage.",
+        "description": "'Převzít': a coordinator of the case's KOC takes the case (sets coordinator_id),\nodeslano → v_triage. 409 in any other state.",
         "operationId": "take_over_case",
         "parameters": [
           {
@@ -1233,7 +1233,7 @@
           "cases"
         ],
         "summary": "Update Case",
-        "description": "Priority, coordinator, planned MDT board/date.",
+        "description": "Priority, coordinator, planned MDT board/date. Omitted fields stay unchanged; `null` clears\nthe MDT board or date. The coordinator and the board must belong to the case's KOC (400).",
         "operationId": "update_case",
         "parameters": [
           {
@@ -1337,7 +1337,7 @@
           "cases"
         ],
         "summary": "Transition Case",
-        "description": "Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).\n`vraceno_lekari` only through `return_case`, which requires a note.",
+        "description": "The coordinator's own moves: v_triage → ceka_na_podklady | kompletni and\nceka_na_podklady ↔ kompletni. Every other change has its own endpoint (take-over, return, MDT\nsnapshot and confirmation, feedback, receipt): 409. The note goes to the audit trail.",
         "operationId": "transition_case",
         "parameters": [
           {
@@ -1401,7 +1401,7 @@
           "cases"
         ],
         "summary": "Return Case",
-        "description": "'Vrátit lékaři': → vraceno_lekari; the note goes to the GP's inbox as a `case_returned`\nMessage (D-15). 409 outside v_triage / ceka_na_podklady / kompletni.",
+        "description": "'Vrátit lékaři': → vraceno_lekari; the note goes to the GP's inbox as a `case_returned`\nMessage (D-15) and the GP is on the move. 409 outside v_triage / ceka_na_podklady /\nkompletni; 400 for a finding the case doesn't have.",
         "operationId": "return_case",
         "parameters": [
           {
@@ -1465,7 +1465,7 @@
           "cases"
         ],
         "summary": "Set Hold",
-        "description": "'Odložit': manual on-hold flag (Q-F9).",
+        "description": "'Odložit': manual on-hold flag (Q-F9), from v_triage until the feedback is sent (409\notherwise). Setting it again replaces it; `until` is information only.",
         "operationId": "set_hold",
         "parameters": [
           {
@@ -1527,6 +1527,7 @@
           "cases"
         ],
         "summary": "Clear Hold",
+        "description": "Resume the case; a case that isn't on hold stays as it is.",
         "operationId": "clear_hold",
         "parameters": [
           {
@@ -1580,6 +1581,7 @@
           "cases"
         ],
         "summary": "Update Milestones",
+        "description": "Symptom onset and treatment start for time to treatment. Omitted fields stay unchanged;\n`null` clears one.",
         "operationId": "update_milestones",
         "parameters": [
           {
@@ -1686,6 +1688,7 @@
           "cases"
         ],
         "summary": "List Audit",
+        "description": "The case's audit trail, oldest first.",
         "operationId": "list_audit",
         "parameters": [
           {
@@ -1732,7 +1735,7 @@
           "findings"
         ],
         "summary": "Resolve Finding",
-        "description": "Resolve, override (note required) or dismiss a finding.",
+        "description": "Resolve, override (note required, 422 without; 409 if not overridable) or dismiss a finding.\nA later resolution replaces an earlier one.",
         "operationId": "resolve_finding",
         "parameters": [
           {
@@ -1805,7 +1808,7 @@
           "findings"
         ],
         "summary": "Request From Finding",
-        "description": "'Vyžádat': a request task linked to the finding (`Task.finding_id`).",
+        "description": "'Vyžádat': a `request_documents` task addressed to whoever holds the information, linked to\nthe finding (`Task.finding_id`). The case state doesn't change; the note goes to the audit.",
         "operationId": "request_from_finding",
         "parameters": [
           {
@@ -1878,7 +1881,7 @@
           "tasks"
         ],
         "summary": "Create Task",
-        "description": "'Přidat úkol': one-off task.",
+        "description": "'Přidat úkol': one-off task. The owner is a directory id; dependencies are tasks of the\ncase without a cycle (400). `external` is set when the owner is outside the KOC unless given.",
         "operationId": "create_task",
         "parameters": [
           {
@@ -1986,6 +1989,7 @@
           "tasks"
         ],
         "summary": "Update Task",
+        "description": "Status, owner, date, place, priority, dependencies, the arrived result document. Omitted\nfields stay unchanged.",
         "operationId": "update_task",
         "parameters": [
           {
@@ -2049,7 +2053,7 @@
           "tasks"
         ],
         "summary": "Start Task Set",
-        "description": "'Spustit sadu úkolů'.",
+        "description": "'Spustit sadu úkolů'. `owners` maps each step's owner role to a directory id; the\ncoordinator role defaults to the case's coordinator, any other missing role is 400. 409 if the\nset already runs on the case.",
         "operationId": "start_task_set",
         "parameters": [
           {
@@ -2117,6 +2121,7 @@
           "tasks"
         ],
         "summary": "List Task Sets",
+        "description": "Task sets; `diagnosis_code` keeps those for the diagnosis (a `C25` set fits `C25.0`).",
         "operationId": "list_task_sets",
         "parameters": [
           {
@@ -2168,6 +2173,7 @@
           "tasks"
         ],
         "summary": "Create Task Set",
+        "description": "A coordinator's new task set (Q-F2). Step keys are unique and dependencies name steps of\nthe set without a cycle (400).",
         "operationId": "create_task_set",
         "parameters": [
           {
@@ -2222,6 +2228,7 @@
           "tasks"
         ],
         "summary": "Update Task Set",
+        "description": "Replace a set's name, codes and steps. Tasks already started from it don't change.",
         "operationId": "update_task_set",
         "parameters": [
           {
@@ -2285,7 +2292,7 @@
           "tasks"
         ],
         "summary": "List Notifications",
-        "description": "In-app deadline notifications for the current user (Q-F17).",
+        "description": "In-app deadline notifications for the current user (Q-F17): open tasks due within\n`within_days` or overdue, that the user owns (as a person or through their organisation) or\nthat belong to a case they coordinate. Earliest due first.",
         "operationId": "list_notifications",
         "parameters": [
           {

@@ -29,7 +29,7 @@ Live docs while the API runs: `http://localhost:8000/docs`.
   | Code | Meaning |
   |---|---|
   | 400 | Bad input |
-  | 403 | Wrong role |
+  | 403 | Wrong role, or not this case's people: writes to a case need its referring doctor or a **coordinator of the case's KOC** (`Actor.organization_id == Case.koc_id`). Coordinator-only actions (S4) accept only the latter |
   | 404 | Not found. Every `/cases/{case_id}/…` route answers `case not found` for an unknown case, lists included; `200 []` means the case exists and has nothing yet (API-7) |
   | 409 | Not allowed in the current state, e.g. a transition outside `ALLOWED_TRANSITIONS`, or an MDT snapshot while blockers remain |
   | 415 | Upload of a file type we cannot parse (supported: .docx, .pptx, .pdf) |
@@ -37,6 +37,8 @@ Live docs while the API runs: `http://localhost:8000/docs`.
   | 501 | Not implemented yet |
 
 - **Manual entries** (`PATCH /cases/{id}/handover`) produce `Sourced` values with `origin=manual` and `entered={by, at}`. AI values carry `origin=ai` and verbatim `evidence`. The contracts enforce both.
+- **Audit:** every write that changes a case appends an `AuditEvent` (`listAudit`, append-only, PER-13): `referral_created`, `document_uploaded`, `document_updated`, `handover_field_updated`, `examination_added`, `handover_validated`, `referral_sent`, `reextraction_started`, `case_taken_over`, `case_updated`, `case_transitioned`, `case_returned`, `hold_set`, `hold_cleared`, `milestones_updated`, `finding_resolved`, `finding_requested`, `task_created`, `task_updated`, `task_set_started`. `detail` is Czech text; notes without a home on the models (`CaseTransition.note`, `RequestTaskCreate.note`) go there. Task sets belong to no case and are not audited.
+- **Who is on the move** (`Case.on_move`, `next_step`, `next_due`) is recomputed after every task change, take-over, return and resend: the earliest ready task (owner, title, due); without one the coordinator, with no step; while the case is `vraceno_lekari` the referring doctor.
 - **Storage:** app state is kept in IRIS, projected to FHIR only where needed (decision 16. 10.). Nothing in the API exposes FHIR directly; the one FHIR input is `createReferralFromBundle`, a referral Bundle uploaded as a file (S9, Q-I20).
 - **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23; `/api/mcp` in production). It is not part of the 64 REST operations or the OpenAPI spec. Its tools (`search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`) call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check; errors come back as MCP tool errors with the same `detail` text. "Ask the case" joins with S8.
 
@@ -57,8 +59,9 @@ sequenceDiagram
   GP->>API: POST /cases/{id}/handover/validate
   GP->>API: POST /cases/{id}/send
   K->>API: GET /cases (dashboard)
-  K->>API: POST /cases/{id}/transition {to: v_triage}
+  K->>API: POST /cases/{id}/take-over
   K->>API: POST /cases/{id}/findings/{F09}/request
+  K->>API: POST /cases/{id}/transition {to: ceka_na_podklady}
   K->>API: POST /cases/{id}/documents (01–06, 08–11 as they arrive)
   K->>API: POST /cases/{id}/task-sets/start
   K->>API: PUT /cases/{id}/hold, PATCH /tasks/{id}
@@ -212,38 +215,38 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `POST` | `/cases/{case_id}/take-over` | — | `Case` 200 | ✓ | `takeOverCase` | defined (501) |
-| `PATCH` | `/cases/{case_id}` | `CaseUpdate` | `Case` 200 | ✓ | `updateCase` | defined (501) |
+| `POST` | `/cases/{case_id}/take-over` | — | `Case` 200 | ✓ | `takeOverCase` | **works** (S4) |
+| `PATCH` | `/cases/{case_id}` | `CaseUpdate` | `Case` 200 | ✓ | `updateCase` | **works** (S4) |
 | `GET` | `/cases/{case_id}` | — | `Case` 200 |  | `getCase` | **works** (seeded) |
-| `POST` | `/cases/{case_id}/transition` | `CaseTransition` | `Case` 200 | ✓ | `transitionCase` | defined (501) |
-| `POST` | `/cases/{case_id}/return` | `CaseReturn` | `Case` 200 | ✓ | `returnCase` | defined (501) |
-| `PUT` | `/cases/{case_id}/hold` | `HoldSet` | `Case` 200 | ✓ | `setHold` | defined (501) |
-| `DELETE` | `/cases/{case_id}/hold` | — | `Case` 200 | ✓ | `clearHold` | defined (501) |
-| `PATCH` | `/cases/{case_id}/milestones` | `MilestonesUpdate` | `Case` 200 | ✓ | `updateMilestones` | defined (501) |
-| `GET` | `/cases/{case_id}/time-to-treatment` | — | `TimeToTreatment` 200 |  | `getTimeToTreatment` | defined (501) |
-| `GET` | `/cases/{case_id}/audit` | — | `list[AuditEvent]` 200 |  | `listAudit` | defined (501) |
+| `POST` | `/cases/{case_id}/transition` | `CaseTransition` | `Case` 200 | ✓ | `transitionCase` | **works** (S4) |
+| `POST` | `/cases/{case_id}/return` | `CaseReturn` | `Case` 200 | ✓ | `returnCase` | **works** (S4) |
+| `PUT` | `/cases/{case_id}/hold` | `HoldSet` | `Case` 200 | ✓ | `setHold` | **works** (S4) |
+| `DELETE` | `/cases/{case_id}/hold` | — | `Case` 200 | ✓ | `clearHold` | **works** (S4) |
+| `PATCH` | `/cases/{case_id}/milestones` | `MilestonesUpdate` | `Case` 200 | ✓ | `updateMilestones` | **works** (S4) |
+| `GET` | `/cases/{case_id}/time-to-treatment` | — | `TimeToTreatment` 200 |  | `getTimeToTreatment` | **works** (S4) |
+| `GET` | `/cases/{case_id}/audit` | — | `list[AuditEvent]` 200 |  | `listAudit` | **works** (S4) |
 | `GET` | `/cases` | — · query `referring_doctor_id`, `koc_id`, `state`, `queue` | `list[Case]` 200 |  | `listCases` | **works** (seeded) |
 
 ### findings
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `POST` | `/cases/{case_id}/findings/{finding_id}/resolve` | `FindingResolve` | `Finding` 200 | ✓ | `resolveFinding` | defined (501) |
-| `POST` | `/cases/{case_id}/findings/{finding_id}/request` | `RequestTaskCreate` | `Task` 201 | ✓ | `requestFromFinding` | defined (501) |
+| `POST` | `/cases/{case_id}/findings/{finding_id}/resolve` | `FindingResolve` | `Finding` 200 | ✓ | `resolveFinding` | **works** (S4) |
+| `POST` | `/cases/{case_id}/findings/{finding_id}/request` | `RequestTaskCreate` | `Task` 201 | ✓ | `requestFromFinding` | **works** (S4) |
 | `GET` | `/cases/{case_id}/findings` | — | `list[Finding]` 200 |  | `listFindings` | **works** (seeded) |
 
 ### tasks
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `POST` | `/cases/{case_id}/tasks` | `TaskCreate` | `Task` 201 | ✓ | `createTask` | defined (501) |
+| `POST` | `/cases/{case_id}/tasks` | `TaskCreate` | `Task` 201 | ✓ | `createTask` | **works** (S4) |
 | `GET` | `/cases/{case_id}/tasks` | — | `list[Task]` 200 |  | `listTasks` | **works** (seeded) |
-| `PATCH` | `/tasks/{task_id}` | `TaskUpdate` | `Task` 200 | ✓ | `updateTask` | defined (501) |
-| `POST` | `/cases/{case_id}/task-sets/start` | `TaskSetStart` | `list[Task]` 201 | ✓ | `startTaskSet` | defined (501) |
-| `GET` | `/task-sets` | — · query `diagnosis_code` | `list[TaskSet]` 200 |  | `listTaskSets` | defined (501) |
-| `POST` | `/task-sets` | `TaskSetUpsert` | `TaskSet` 201 | ✓ | `createTaskSet` | defined (501) |
-| `PUT` | `/task-sets/{task_set_id}` | `TaskSetUpsert` | `TaskSet` 200 | ✓ | `updateTaskSet` | defined (501) |
-| `GET` | `/notifications` | — · query `within_days` | `list[DueNotice]` 200 | ✓ | `listNotifications` | defined (501) |
+| `PATCH` | `/tasks/{task_id}` | `TaskUpdate` | `Task` 200 | ✓ | `updateTask` | **works** (S4) |
+| `POST` | `/cases/{case_id}/task-sets/start` | `TaskSetStart` | `list[Task]` 201 | ✓ | `startTaskSet` | **works** (S4) |
+| `GET` | `/task-sets` | — · query `diagnosis_code` | `list[TaskSet]` 200 |  | `listTaskSets` | **works** (S4) |
+| `POST` | `/task-sets` | `TaskSetUpsert` | `TaskSet` 201 | ✓ | `createTaskSet` | **works** (S4) |
+| `PUT` | `/task-sets/{task_set_id}` | `TaskSetUpsert` | `TaskSet` 200 | ✓ | `updateTaskSet` | **works** (S4) |
+| `GET` | `/notifications` | — · query `within_days` | `list[DueNotice]` 200 | ✓ | `listNotifications` | **works** (S4) |
 
 ### mdt
 

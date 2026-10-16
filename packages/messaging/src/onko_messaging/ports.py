@@ -11,3 +11,9 @@ class ChannelAdapter(Protocol):
     channel: Channel
 
     def deliver(self, message: Message) -> None: ...
+
+
+class MessageStore(Protocol):
+    """Where in-app messages are kept; the `CaseRepository` is one."""
+
+    def save_message(self, message: Message) -> None: ...

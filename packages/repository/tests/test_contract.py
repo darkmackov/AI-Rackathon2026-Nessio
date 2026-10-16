@@ -40,7 +40,9 @@ from onko_contracts import (
     Sourced,
     Stamp,
     Task,
+    TaskSet,
     TaskStatus,
+    TaskTemplate,
 )
 from onko_repository import InMemoryRepository, IrisRepository, IrisSettings
 
@@ -225,6 +227,25 @@ def test_tasks_by_case_and_update(repo):
     assert tasks[0].status is TaskStatus.DONE
     assert tasks[0].due == NOW
     assert tasks[1].depends_on == ["t1"]
+    assert repo.get_task("t1") == tasks[0]
+    assert repo.get_task("nope") is None
+
+
+def test_task_sets_round_trip_and_replace(repo):
+    steps = [TaskTemplate(key="ct", title="CT", kind="imaging", owner_role="imaging_site",
+                          due_offset_days=6),
+             TaskTemplate(key="mdt", title="MDT", kind="mdt", owner_role="coordinator",
+                          depends_on=["ct"])]
+    pancreas = TaskSet(id="ts-1", name="Pankreas", diagnosis_codes=["C25"], steps=steps,
+                       created_by="koord-a")
+    repo.save_task_set(pancreas)
+    repo.save_task_set(TaskSet(id="ts-2", name="Kolorektum", steps=[]))
+    renamed = pancreas.model_copy(update={"name": "Pankreas – diagnostika"})
+    repo.save_task_set(renamed)
+
+    assert repo.get_task_set("ts-1") == renamed
+    assert repo.get_task_set("nope") is None
+    assert [s.id for s in repo.list_task_sets()] == ["ts-1", "ts-2"]
 
 
 def test_messages_and_receipts(repo):
@@ -275,6 +296,7 @@ def test_clear_removes_everything(repo):
     repo.save_document(DocumentMeta(id="d1", case_id="c1", filename="01.docx"), b"", "text")
     repo.save_handover(Handover(case_id="c1", as_of=date(2026, 10, 16)))
     repo.save_job(_job("job-1"))
+    repo.save_task_set(TaskSet(id="ts-1", name="Pankreas", steps=[]))
     repo.save_audit(_audit("a1"))
     repo.save_mdt_conclusion(MdtConclusion(case_id="c1", conclusion="Chemoterapie"))
 
@@ -287,6 +309,7 @@ def test_clear_removes_everything(repo):
     assert repo.list_documents("c1") == []
     assert repo.get_handover("c1") is None
     assert repo.list_jobs("c1") == []
+    assert repo.list_task_sets() == []
     assert repo.list_audit("c1") == []
     assert repo.get_mdt_conclusion("c1") is None
 

@@ -14,25 +14,48 @@ from typing import Annotated, NoReturn
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from onko_cases import (
+    CaseStateError,
     HandoverEditError,
     HandoverLockedError,
     NotValidatedError,
+    OverrideNotAllowedError,
+    TaskError,
     TransitionError,
+    audit_event,
+    check_dependencies,
+    check_task_set,
+    due_notices,
+    is_external,
+    manual_transition,
+    matches_diagnosis,
     new_referral,
+    owner_organization,
+    put_on_hold,
     receive_referral,
+    refresh_progress,
     require_editable,
+    require_tasks_writable,
+    resolve_owners,
+    resume,
+    return_to_referrer,
     set_handover_field,
     sync_case_from_handover,
+    take_over,
+    task_set_started,
+    time_to_treatment,
 )
 from onko_cases import add_examination as add_manual_examination
+from onko_cases import resolve_finding as resolve_case_finding
 from onko_cases import (
     send_referral as send_case,
 )
+from onko_cases import start_task_set as start_case_task_set
 from onko_cases import validate_handover as validate_case_handover
 from onko_contracts import (
     Actor,
     AuditEvent,
     Case,
+    Channel,
     DocumentMeta,
     DueNotice,
     Finding,
@@ -43,6 +66,7 @@ from onko_contracts import (
     MdtRecord,
     Message,
     MessageKind,
+    Milestones,
     Organization,
     OrganizationKind,
     Receipt,
@@ -54,7 +78,9 @@ from onko_documents import DOCX as DOCX_MIME
 from onko_documents import PARSERS, parse
 from onko_documents import PDF as PDF_MIME
 from onko_documents import PPTX as PPTX_MIME
-from onko_repository import BundleError, referral_attachments
+from onko_messaging import InAppInbox
+from onko_messaging import send as send_message
+from onko_repository import BundleError, CaseRepository, referral_attachments
 from pydantic import ValidationError
 
 from .deps import ActorId, Clock, CurrentUser, Jobs, Llm, Repo
@@ -162,6 +188,7 @@ def create_referral(body: ReferralCreate, user: CurrentUser, repo: Repo, clock: 
     case, handover = new_referral(new_id("case"), body.koc_id, user.id, clock.now())
     repo.save_case(case)
     repo.save_handover(handover)
+    _audit(repo, case.id, user.id, "referral_created", case.created_at, f"KOC {body.koc_id}")
     return case
 
 
@@ -203,10 +230,12 @@ def create_referral_from_bundle(
     case, handover = receive_referral(new_id("case"), koc_id, user.id, now)
     repo.save_case(case)
     repo.save_handover(handover)
+    _audit(repo, case.id, user.id, "referral_created", now, f"KOC {koc_id}, FHIR Bundle")
     for attachment, mime, text in documents:
         meta = DocumentMeta(id=new_id("doc"), case_id=case.id, filename=attachment.filename,
                             received_at=now, uploaded_by=user.id, mime_type=mime)
         repo.save_document(meta, attachment.data, text)
+        _audit(repo, case.id, user.id, "document_uploaded", now, meta.filename)
         job = queue_ingest(repo, now, case.id, meta.id)
         jobs.submit(run_ingest, job.id, repo, clock, llm)
     return case
@@ -215,7 +244,7 @@ def create_referral_from_bundle(
 @router.post("/cases/{case_id}/documents", status_code=201, tags=["documents"])
 def upload_document(
     case_id: str,
-    actor_id: ActorId,
+    user: CurrentUser,
     file: Annotated[UploadFile, File()],
     repo: Repo,
     clock: Clock,
@@ -223,10 +252,11 @@ def upload_document(
     jobs: Jobs,
     received_at: ReceivedAt = None,
 ) -> UploadResult:
-    """Upload a report (GP while drafting or after a return, coordinator later). Stores it,
-    parses the text and queues an `ingest_document` job: AI metadata + handover extraction +
-    checks."""
-    _case_or_404(repo, case_id)
+    """Upload a report (the case's GP while drafting or after a return, a coordinator of the
+    case's KOC later). Stores it, parses the text and queues an `ingest_document` job: AI metadata
+    + handover extraction + checks."""
+    case = _case_or_404(repo, case_id)
+    _require_party(user, case)
     mime = _mime_type(file)
     data = file.file.read()
     try:
@@ -239,10 +269,11 @@ def upload_document(
         case_id=case_id,
         filename=file.filename or "dokument",
         received_at=received_at or now,
-        uploaded_by=actor_id,
+        uploaded_by=user.id,
         mime_type=mime,
     )
     repo.save_document(meta, data, text)
+    _audit(repo, case_id, user.id, "document_uploaded", now, meta.filename)
     job = queue_ingest(repo, now, case_id, meta.id)
     jobs.submit(run_ingest, job.id, repo, clock, llm)
     return UploadResult(document=meta, job=job)
@@ -267,14 +298,46 @@ def _require_referrer(user: Actor, case: Case) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "only the referring doctor of this case")
 
 
+def _is_koc_coordinator(user: Actor, case: Case) -> bool:
+    return user.role == "coordinator" and user.organization_id == case.koc_id
+
+
+def _require_koc_coordinator(user: Actor, case: Case) -> None:
+    if not _is_koc_coordinator(user, case):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "only a coordinator of the case's KOC")
+
+
+def _require_party(user: Actor, case: Case) -> None:
+    """The case's referring doctor or a coordinator of its KOC."""
+    if not (_is_koc_coordinator(user, case)
+            or (user.role == "referring_doctor" and user.id == case.referring_doctor_id)):
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "only the referring doctor or a coordinator of the case's KOC")
+
+
 def _require_editor(user: Actor, case: Case) -> None:
-    """The case's GP or a coordinator, each only in their own states (409 otherwise)."""
+    """The case's GP or a coordinator of its KOC, each only in their own states (409 otherwise)."""
     if user.role == "referring_doctor":
         _require_referrer(user, case)
+    else:
+        _require_koc_coordinator(user, case)
     try:
         require_editable(case, user.role)
     except HandoverLockedError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+
+
+def _audit(repo: CaseRepository, case_id: str, by: str, action: str, now: dt.datetime,
+           detail: str | None = None) -> None:
+    """Append one event to the case's audit trail (PER-13)."""
+    repo.save_audit(audit_event(new_id("audit"), case_id, by, action, now, detail))
+
+
+def _save_progress(repo: CaseRepository, case: Case) -> Case:
+    """Save the case with who is on the move, its next step and due date recomputed."""
+    case = refresh_progress(case, repo.list_tasks(case.id))
+    repo.save_case(case)
+    return case
 
 
 def _save_handover(repo: Repo, case: Case, handover: Handover) -> Handover:
@@ -301,13 +364,21 @@ def _mime_for(declared: str | None, filename: str | None) -> str:
 
 
 @router.patch("/documents/{document_id}", tags=["documents"])
-def update_document(document_id: str, body: DocumentMetaUpdate, actor_id: ActorId, repo: Repo) -> DocumentMeta:
-    """Correct AI-extracted metadata (type, date, facility, …)."""
+def update_document(
+    document_id: str, body: DocumentMetaUpdate, user: CurrentUser, repo: Repo, clock: Clock
+) -> DocumentMeta:
+    """Correct AI-extracted metadata (type, date, facility, …). The case's referring doctor or a
+    coordinator of the case's KOC."""
     meta = repo.get_document(document_id)
     if meta is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
-    meta = meta.model_copy(update=body.model_dump(exclude_unset=True))
+    case = _case_or_404(repo, meta.case_id)
+    _require_party(user, case)
+    changes = body.model_dump(exclude_unset=True)
+    meta = meta.model_copy(update=changes)
     repo.update_document(meta)
+    _audit(repo, case.id, user.id, "document_updated", clock.now(),
+           f"{meta.filename}: {', '.join(changes) or 'beze změny'}")
     return meta
 
 
@@ -342,7 +413,10 @@ def update_handover_field(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
     except ValidationError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
-    return _save_handover(repo, case, handover)
+    handover = _save_handover(repo, case, handover)
+    _audit(repo, case_id, user.id, "handover_field_updated", clock.now(),
+           f"{body.path}: není k dispozici" if body.not_available else body.path)
+    return handover
 
 
 @router.post("/cases/{case_id}/handover/examinations", status_code=201, tags=["handover"])
@@ -355,7 +429,10 @@ def add_examination(
     handover = add_manual_examination(
         _handover_or_404(repo, case_id), **body.model_dump(), by=user.id, now=clock.now()
     )
-    return _save_handover(repo, case, handover)
+    handover = _save_handover(repo, case, handover)
+    _audit(repo, case_id, user.id, "examination_added", clock.now(),
+           f"{body.date.isoformat()} {body.type}")
+    return handover
 
 
 @router.post("/cases/{case_id}/handover/validate", tags=["handover"])
@@ -368,6 +445,7 @@ def validate_handover(case_id: str, user: CurrentUser, repo: Repo, clock: Clock)
     except HandoverLockedError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
     repo.save_handover(handover)
+    _audit(repo, case_id, user.id, "handover_validated", handover.validated_by_referrer.at)
     return handover
 
 
@@ -382,12 +460,14 @@ def send_referral(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> 
         for m in repo.list_messages(case_id)
         if m.kind is MessageKind.CASE_RETURNED and m.sent_at is not None
     ]
+    now = clock.now()
     try:
-        case = send_case(case, _handover_or_404(repo, case_id), max(returns, default=None), clock.now())
+        sent = send_case(case, _handover_or_404(repo, case_id), max(returns, default=None), now)
     except (NotValidatedError, TransitionError) as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
-    repo.save_case(case)
-    return case
+    sent = _save_progress(repo, sent)
+    _audit(repo, case_id, user.id, "referral_sent", now, f"{case.state} → {sent.state}")
+    return sent
 
 
 # --- Jobs (AI work, slice S2) ------------------------------------------------------------------
@@ -409,10 +489,13 @@ def list_case_jobs(case_id: str, repo: Repo) -> list[Job]:
 
 
 @router.post("/cases/{case_id}/extract", status_code=202, tags=["jobs"])
-def reextract_case(case_id: str, actor_id: ActorId, repo: Repo, clock: Clock, llm: Llm, jobs: Jobs) -> Job:
-    """Re-run extraction + checks over all case documents (e.g. after the model choice)."""
-    _case_or_404(repo, case_id)
+def reextract_case(case_id: str, user: CurrentUser, repo: Repo, clock: Clock, llm: Llm, jobs: Jobs) -> Job:
+    """Re-run extraction + checks over all case documents (e.g. after the model choice). The
+    case's referring doctor or a coordinator of the case's KOC."""
+    case = _case_or_404(repo, case_id)
+    _require_party(user, case)
     job = queue_ingest(repo, clock.now(), case_id, None)
+    _audit(repo, case_id, user.id, "reextraction_started", job.created_at)
     jobs.submit(run_ingest, job.id, repo, clock, llm)
     return job
 
@@ -430,119 +513,395 @@ def suggest_tasks(case_id: str, actor_id: ActorId) -> Job:
     _todo()
 
 
-# --- Coordinator: case (slice S3) --------------------------------------------------------------
+# --- Coordinator: case (slice S4) --------------------------------------------------------------
 
 
 @router.post("/cases/{case_id}/take-over", tags=["cases"])
-def take_over_case(case_id: str, actor_id: ActorId) -> Case:
-    """'Převzít': the current coordinator takes the case (sets coordinator_id), odeslano → v_triage."""
-    _todo()
+def take_over_case(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> Case:
+    """'Převzít': a coordinator of the case's KOC takes the case (sets coordinator_id),
+    odeslano → v_triage. 409 in any other state."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    try:
+        taken = take_over(case, user.id, repo.list_tasks(case_id))
+    except TransitionError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    repo.save_case(taken)
+    _audit(repo, case_id, user.id, "case_taken_over", clock.now(), f"{case.state} → {taken.state}")
+    return taken
 
 
 @router.patch("/cases/{case_id}", tags=["cases"])
-def update_case(case_id: str, body: CaseUpdate, actor_id: ActorId) -> Case:
-    """Priority, coordinator, planned MDT board/date."""
-    _todo()
+def update_case(case_id: str, body: CaseUpdate, user: CurrentUser, repo: Repo, clock: Clock) -> Case:
+    """Priority, coordinator, planned MDT board/date. Omitted fields stay unchanged; `null` clears
+    the MDT board or date. The coordinator and the board must belong to the case's KOC (400)."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    changes = body.model_dump(exclude_unset=True)
+    if "coordinator_id" in changes:
+        coordinator_id = changes["coordinator_id"]
+        if coordinator_id is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "a taken-over case keeps a coordinator")
+        if not any(a.id == coordinator_id and a.role == "coordinator"
+                   and a.organization_id == case.koc_id for a in repo.list_actors()):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "not a coordinator of the case's KOC")
+    if changes.get("mdt_board_id") is not None and not any(
+        b.id == changes["mdt_board_id"] and b.organization_id == case.koc_id
+        for b in repo.list_mdt_boards()
+    ):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "not an MDT board of the case's KOC")
+    try:
+        updated = Case.model_validate({**case.model_dump(), **changes})
+    except ValidationError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
+    updated = _save_progress(repo, updated)
+    _audit(repo, case_id, user.id, "case_updated", clock.now(), _changed(changes))
+    return updated
+
+
+def _changed(changes: dict[str, object]) -> str:
+    """`priority=high, mdt_date=2026-10-21` for the audit detail."""
+    return ", ".join(f"{k}={'—' if v is None else getattr(v, 'value', v)}"
+                     for k, v in changes.items()) or "beze změny"
 
 
 @router.post("/cases/{case_id}/transition", tags=["cases"])
-def transition_case(case_id: str, body: CaseTransition, actor_id: ActorId) -> Case:
-    """Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).
-    `vraceno_lekari` only through `return_case`, which requires a note."""
-    _todo()
+def transition_case(case_id: str, body: CaseTransition, user: CurrentUser, repo: Repo, clock: Clock) -> Case:
+    """The coordinator's own moves: v_triage → ceka_na_podklady | kompletni and
+    ceka_na_podklady ↔ kompletni. Every other change has its own endpoint (take-over, return, MDT
+    snapshot and confirmation, feedback, receipt): 409. The note goes to the audit trail."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    try:
+        moved = manual_transition(case, body.to)
+    except TransitionError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    repo.save_case(moved)
+    detail = f"{case.state} → {moved.state}" + (f": {body.note}" if body.note else "")
+    _audit(repo, case_id, user.id, "case_transitioned", clock.now(), detail)
+    return moved
 
 
 @router.post("/cases/{case_id}/return", tags=["cases"])
-def return_case(case_id: str, body: CaseReturn, actor_id: ActorId) -> Case:
+def return_case(case_id: str, body: CaseReturn, user: CurrentUser, repo: Repo, clock: Clock) -> Case:
     """'Vrátit lékaři': → vraceno_lekari; the note goes to the GP's inbox as a `case_returned`
-    Message (D-15). 409 outside v_triage / ceka_na_podklady / kompletni."""
-    _todo()
+    Message (D-15) and the GP is on the move. 409 outside v_triage / ceka_na_podklady /
+    kompletni; 400 for a finding the case doesn't have."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    if body.finding_id is not None and not any(f.id == body.finding_id for f in repo.list_findings(case_id)):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "unknown finding")
+    try:
+        returned = return_to_referrer(case)
+    except TransitionError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    now = clock.now()
+    repo.save_case(returned)
+    message = Message(
+        id=new_id("msg"),
+        case_id=case_id,
+        kind=MessageKind.CASE_RETURNED,
+        sender_id=user.id,
+        recipient_ids=[case.referring_doctor_id],
+        subject="Doporučení vráceno k doplnění",
+        body=body.note,
+        finding_id=body.finding_id,
+    )
+    send_message(message, {Channel.IN_APP: InAppInbox(repo)}, now)
+    _audit(repo, case_id, user.id, "case_returned", now, body.note)
+    return returned
 
 
 @router.put("/cases/{case_id}/hold", tags=["cases"])
-def set_hold(case_id: str, body: HoldSet, actor_id: ActorId) -> Case:
-    """'Odložit': manual on-hold flag (Q-F9)."""
-    _todo()
+def set_hold(case_id: str, body: HoldSet, user: CurrentUser, repo: Repo, clock: Clock) -> Case:
+    """'Odložit': manual on-hold flag (Q-F9), from v_triage until the feedback is sent (409
+    otherwise). Setting it again replaces it; `until` is information only."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    now = clock.now()
+    try:
+        held = put_on_hold(case, body.reason, user.id, now, body.until)
+    except CaseStateError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    repo.save_case(held)
+    until = f" (do {body.until.isoformat()})" if body.until else ""
+    _audit(repo, case_id, user.id, "hold_set", now, body.reason + until)
+    return held
 
 
 @router.delete("/cases/{case_id}/hold", tags=["cases"])
-def clear_hold(case_id: str, actor_id: ActorId) -> Case:
-    _todo()
+def clear_hold(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> Case:
+    """Resume the case; a case that isn't on hold stays as it is."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    if case.on_hold is None:
+        return case
+    resumed = resume(case)
+    repo.save_case(resumed)
+    _audit(repo, case_id, user.id, "hold_cleared", clock.now(), case.on_hold.reason)
+    return resumed
 
 
 @router.patch("/cases/{case_id}/milestones", tags=["cases"])
-def update_milestones(case_id: str, body: MilestonesUpdate, actor_id: ActorId) -> Case:
-    _todo()
+def update_milestones(case_id: str, body: MilestonesUpdate, user: CurrentUser, repo: Repo, clock: Clock) -> Case:
+    """Symptom onset and treatment start for time to treatment. Omitted fields stay unchanged;
+    `null` clears one."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    changes = body.model_dump(exclude_unset=True)
+    milestones = Milestones.model_validate({**case.milestones.model_dump(), **changes})
+    updated = case.model_copy(update={"milestones": milestones})
+    repo.save_case(updated)
+    _audit(repo, case_id, user.id, "milestones_updated", clock.now(), _changed(changes))
+    return updated
 
 
 @router.get("/cases/{case_id}/time-to-treatment", tags=["cases"])
-def get_time_to_treatment(case_id: str) -> TimeToTreatment:
+def get_time_to_treatment(case_id: str, repo: Repo) -> TimeToTreatment:
     """T1 + T2 + T3 (Q-F18)."""
-    _todo()
+    return time_to_treatment(_case_or_404(repo, case_id))
 
 
 @router.get("/cases/{case_id}/audit", tags=["cases"])
-def list_audit(case_id: str) -> list[AuditEvent]:
-    _todo()
+def list_audit(case_id: str, repo: Repo) -> list[AuditEvent]:
+    """The case's audit trail, oldest first."""
+    _case_or_404(repo, case_id)
+    return repo.list_audit(case_id)
 
 
 # --- Findings (slice S4) -----------------------------------------------------------------------
 
 
+def _finding_or_404(repo: CaseRepository, case_id: str, finding_id: str) -> tuple[list[Finding], int]:
+    findings = repo.list_findings(case_id)
+    for i, finding in enumerate(findings):
+        if finding.id == finding_id:
+            return findings, i
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "finding not found")
+
+
 @router.post("/cases/{case_id}/findings/{finding_id}/resolve", tags=["findings"])
-def resolve_finding(case_id: str, finding_id: str, body: FindingResolve, actor_id: ActorId) -> Finding:
-    """Resolve, override (note required) or dismiss a finding."""
-    _todo()
+def resolve_finding(
+    case_id: str, finding_id: str, body: FindingResolve, user: CurrentUser, repo: Repo, clock: Clock
+) -> Finding:
+    """Resolve, override (note required, 422 without; 409 if not overridable) or dismiss a finding.
+    A later resolution replaces an earlier one."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    findings, i = _finding_or_404(repo, case_id, finding_id)
+    now = clock.now()
+    try:
+        resolved = resolve_case_finding(findings[i], body.kind, body.note, user.id, now)
+    except OverrideNotAllowedError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    except ValidationError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, e.errors()[0]["msg"]) from None
+    findings[i] = resolved
+    repo.save_findings(case_id, findings)
+    detail = f"{finding_id}: {body.kind.value}" + (f": {body.note}" if body.note else "")
+    _audit(repo, case_id, user.id, "finding_resolved", now, detail)
+    return resolved
+
+
+def _owner_org(repo: CaseRepository, owner_id: str) -> str | None:
+    try:
+        return owner_organization(owner_id, repo.list_actors(), repo.list_organizations())
+    except TaskError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
+
+
+def _writable_case(repo: CaseRepository, user: Actor, case_id: str) -> Case:
+    """The case, if this user may change its tasks now (403 / 409 otherwise)."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    try:
+        require_tasks_writable(case)
+    except CaseStateError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    return case
 
 
 @router.post("/cases/{case_id}/findings/{finding_id}/request", status_code=201, tags=["findings"])
-def request_from_finding(case_id: str, finding_id: str, body: RequestTaskCreate, actor_id: ActorId) -> Task:
-    """'Vyžádat': a request task linked to the finding (`Task.finding_id`)."""
-    _todo()
+def request_from_finding(
+    case_id: str, finding_id: str, body: RequestTaskCreate, user: CurrentUser, repo: Repo, clock: Clock
+) -> Task:
+    """'Vyžádat': a `request_documents` task addressed to whoever holds the information, linked to
+    the finding (`Task.finding_id`). The case state doesn't change; the note goes to the audit."""
+    case = _writable_case(repo, user, case_id)
+    findings, i = _finding_or_404(repo, case_id, finding_id)
+    finding = findings[i]
+    task = Task(
+        id=new_id("task"),
+        case_id=case_id,
+        title=body.title or f"Vyžádat: {finding.message_cs}",
+        kind="request_documents",
+        owner=body.owner_id,
+        priority=body.priority,
+        due=body.due,
+        external=is_external(_owner_org(repo, body.owner_id), case),
+        finding_id=finding.id,
+    )
+    repo.save_task(task)
+    _save_progress(repo, case)
+    detail = f"{finding.id} → {body.owner_id}" + (f": {body.note}" if body.note else "")
+    _audit(repo, case_id, user.id, "finding_requested", clock.now(), detail)
+    return task
 
 
-# --- Tasks and task sets (slice S5) ------------------------------------------------------------
+# --- Tasks and task sets (slice S4) ------------------------------------------------------------
 
 
 @router.post("/cases/{case_id}/tasks", status_code=201, tags=["tasks"])
-def create_task(case_id: str, body: TaskCreate, actor_id: ActorId) -> Task:
-    """'Přidat úkol': one-off task."""
-    _todo()
+def create_task(case_id: str, body: TaskCreate, user: CurrentUser, repo: Repo, clock: Clock) -> Task:
+    """'Přidat úkol': one-off task. The owner is a directory id; dependencies are tasks of the
+    case without a cycle (400). `external` is set when the owner is outside the KOC unless given."""
+    case = _writable_case(repo, user, case_id)
+    owner_org = _owner_org(repo, body.owner_id)
+    task_id = new_id("task")
+    try:
+        check_dependencies(task_id, body.depends_on, repo.list_tasks(case_id))
+    except TaskError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
+    task = Task(
+        id=task_id,
+        case_id=case_id,
+        title=body.title,
+        kind=body.kind,
+        location=body.location,
+        owner=body.owner_id,
+        priority=body.priority,
+        due=body.due,
+        depends_on=body.depends_on,
+        external=body.external if "external" in body.model_fields_set
+        else is_external(owner_org, case),
+    )
+    repo.save_task(task)
+    _save_progress(repo, case)
+    _audit(repo, case_id, user.id, "task_created", clock.now(), task.title)
+    return task
 
 
 @router.patch("/tasks/{task_id}", tags=["tasks"])
-def update_task(task_id: str, body: TaskUpdate, actor_id: ActorId) -> Task:
-    _todo()
+def update_task(task_id: str, body: TaskUpdate, user: CurrentUser, repo: Repo, clock: Clock) -> Task:
+    """Status, owner, date, place, priority, dependencies, the arrived result document. Omitted
+    fields stay unchanged."""
+    task = repo.get_task(task_id)
+    if task is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "task not found")
+    case = _writable_case(repo, user, task.case_id)
+    changes = body.model_dump(exclude_unset=True)
+    if "owner_id" in changes:
+        changes["owner"] = changes.pop("owner_id")
+        if changes["owner"] is not None:
+            owner_org = _owner_org(repo, changes["owner"])
+            changes.setdefault("external", is_external(owner_org, case))
+    if changes.get("depends_on") is not None:
+        try:
+            check_dependencies(task.id, changes["depends_on"], repo.list_tasks(case.id))
+        except TaskError as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
+    if changes.get("result_document_id") is not None:
+        document = repo.get_document(changes["result_document_id"])
+        if document is None or document.case_id != case.id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "not a document of this case")
+    try:
+        updated = Task.model_validate({**task.model_dump(), **changes})
+    except ValidationError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
+    repo.save_task(updated)
+    _save_progress(repo, case)
+    _audit(repo, case.id, user.id, "task_updated", clock.now(), f"{updated.title}: {_changed(changes)}")
+    return updated
 
 
 @router.post("/cases/{case_id}/task-sets/start", status_code=201, tags=["tasks"])
-def start_task_set(case_id: str, body: TaskSetStart, actor_id: ActorId) -> list[Task]:
-    """'Spustit sadu úkolů'."""
-    _todo()
+def start_task_set(case_id: str, body: TaskSetStart, user: CurrentUser, repo: Repo, clock: Clock) -> list[Task]:
+    """'Spustit sadu úkolů'. `owners` maps each step's owner role to a directory id; the
+    coordinator role defaults to the case's coordinator, any other missing role is 400. 409 if the
+    set already runs on the case."""
+    case = _writable_case(repo, user, case_id)
+    task_set = repo.get_task_set(body.task_set_id)
+    if task_set is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "task set not found")
+    if task_set_started(case, task_set, repo.list_tasks(case_id)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "the task set already runs on this case")
+    try:
+        owners = resolve_owners(task_set, body.owners, case)
+    except TaskError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
+    owner_orgs = {owner: _owner_org(repo, owner) for owner in set(owners.values())}
+    now = clock.now()
+    tasks = [
+        t.model_copy(update={"external": is_external(owner_orgs[t.owner], case)})
+        for t in start_case_task_set(case, task_set, owners, body.start or now)
+    ]
+    for t in tasks:
+        repo.save_task(t)
+    _save_progress(repo, case)
+    _audit(repo, case_id, user.id, "task_set_started", now, task_set.name)
+    return tasks
 
 
 @router.get("/task-sets", tags=["tasks"])
-def list_task_sets(diagnosis_code: str | None = None) -> list[TaskSet]:
-    _todo()
+def list_task_sets(repo: Repo, diagnosis_code: str | None = None) -> list[TaskSet]:
+    """Task sets; `diagnosis_code` keeps those for the diagnosis (a `C25` set fits `C25.0`)."""
+    task_sets = repo.list_task_sets()
+    if diagnosis_code:
+        task_sets = [s for s in task_sets if matches_diagnosis(s, diagnosis_code)]
+    return task_sets
+
+
+def _require_coordinator(user: Actor) -> None:
+    if user.role != "coordinator":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "only a coordinator")
+
+
+def _checked_steps(body: TaskSetUpsert) -> None:
+    try:
+        check_task_set(body.steps)
+    except TaskError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
 
 
 @router.post("/task-sets", status_code=201, tags=["tasks"])
-def create_task_set(body: TaskSetUpsert, actor_id: ActorId) -> TaskSet:
-    _todo()
+def create_task_set(body: TaskSetUpsert, user: CurrentUser, repo: Repo) -> TaskSet:
+    """A coordinator's new task set (Q-F2). Step keys are unique and dependencies name steps of
+    the set without a cycle (400)."""
+    _require_coordinator(user)
+    _checked_steps(body)
+    task_set = TaskSet(id=new_id("taskset"), created_by=user.id, **body.model_dump())
+    repo.save_task_set(task_set)
+    return task_set
 
 
 @router.put("/task-sets/{task_set_id}", tags=["tasks"])
-def update_task_set(task_set_id: str, body: TaskSetUpsert, actor_id: ActorId) -> TaskSet:
-    _todo()
+def update_task_set(task_set_id: str, body: TaskSetUpsert, user: CurrentUser, repo: Repo) -> TaskSet:
+    """Replace a set's name, codes and steps. Tasks already started from it don't change."""
+    _require_coordinator(user)
+    existing = repo.get_task_set(task_set_id)
+    if existing is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "task set not found")
+    _checked_steps(body)
+    task_set = TaskSet(id=existing.id, created_by=existing.created_by, **body.model_dump())
+    repo.save_task_set(task_set)
+    return task_set
 
 
 @router.get("/notifications", tags=["tasks"])
-def list_notifications(actor_id: ActorId, within_days: Annotated[int, Query(ge=0)] = 2) -> list[DueNotice]:
-    """In-app deadline notifications for the current user (Q-F17)."""
-    _todo()
+def list_notifications(
+    user: CurrentUser, repo: Repo, clock: Clock, within_days: Annotated[int, Query(ge=0)] = 2
+) -> list[DueNotice]:
+    """In-app deadline notifications for the current user (Q-F17): open tasks due within
+    `within_days` or overdue, that the user owns (as a person or through their organisation) or
+    that belong to a case they coordinate. Earliest due first."""
+    cases = repo.list_cases()
+    owner_ids = {user.id} | ({user.organization_id} if user.organization_id else set())
+    coordinated = {c.id for c in cases if c.coordinator_id == user.id}
+    tasks = [t for c in cases for t in repo.list_tasks(c.id)]
+    return due_notices(tasks, owner_ids, coordinated, clock.now(), within_days)
 
 
-# --- MDT (slice S6) ----------------------------------------------------------------------------
+# --- MDT (slice S5) ----------------------------------------------------------------------------
 
 
 @router.post("/cases/{case_id}/mdt/snapshot", status_code=201, tags=["mdt"])
@@ -598,7 +957,7 @@ def get_mdt_conclusion_pdf(case_id: str) -> Response:
     _todo()
 
 
-# --- Feedback and messages (slice S7) ----------------------------------------------------------
+# --- Feedback and messages (slice S6) ----------------------------------------------------------
 
 
 @router.post("/cases/{case_id}/feedback", status_code=201, tags=["feedback"])
