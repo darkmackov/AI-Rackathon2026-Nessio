@@ -1,5 +1,6 @@
 """FHIR R4 projection of the app state (Q-A7, PER-4 … PER-8): the showcase resources from slices.md
-S7, mapped as docs/data-model.md says, pushed to the IRIS FHIR server as transaction bundles.
+S7 and the exchange resources from S9 (tasks, audit, the MDT conclusion document Bundle), mapped as
+docs/data-model.md says, pushed to the IRIS FHIR server as transaction bundles.
 
 The mapping functions are pure (domain model -> FHIR JSON); `FhirClient` does the HTTP.
 Resource ids are derived from the app-state ids, so re-projecting updates in place (PUT).
@@ -10,13 +11,27 @@ from __future__ import annotations
 import base64
 import html
 import re
+import uuid
 from collections.abc import Iterable
 from datetime import date, datetime, time
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import httpx
-from onko_contracts import Case, DocumentMeta, FieldStatus, Handover, Origin, Sourced, Stamp
+from onko_contracts import (
+    AuditEvent,
+    Case,
+    DocumentMeta,
+    FieldStatus,
+    Handover,
+    MdtConclusion,
+    Origin,
+    Priority,
+    Sourced,
+    Stamp,
+    Task,
+    TaskStatus,
+)
 
 from ..settings import IrisSettings
 
@@ -34,6 +49,8 @@ CONDITION_VERIFICATION = "http://terminology.hl7.org/CodeSystem/condition-ver-st
 CONDITION_CATEGORY = "http://terminology.hl7.org/CodeSystem/condition-category"
 INTERPRETATION = "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"
 PARTICIPANT_TYPE = "http://terminology.hl7.org/CodeSystem/provenance-participant-type"
+DICOM = "http://dicom.nema.org/resources/ontology/DCM"
+URI_SYSTEM = "urn:ietf:rfc:3986"
 
 # meta.profile per resource (data-model.md › FHIR R4 mapping; canonicals from the packages).
 CZ_CORE = "https://hl7.cz/fhir/core/StructureDefinition/"
@@ -54,6 +71,7 @@ PROFILE_BODY_HEIGHT = "http://hl7.org/fhir/StructureDefinition/bodyheight"
 LOCAL_TZ = ZoneInfo("Europe/Prague")
 
 AI_AGENT = "Onko-koordinace AI"
+APP_NAME = "Onko-koordinace"
 _GENDER = {"žena": "female", "zena": "female", "muž": "male", "muz": "male"}
 _INTERPRETATIONS = {"H", "L", "HH", "LL", "A", "AA", "N"}
 
@@ -545,6 +563,14 @@ class FhirClient:
         response.raise_for_status()
         return response.json()
 
+    def validate(self, resource: Resource) -> Resource:
+        """`$validate` against the resource's declared `meta.profile` (Q-I25). Returns the
+        `OperationOutcome`; the server answers 400 for an invalid resource, still with an outcome."""
+        response = self._http.post(f"/{resource['resourceType']}/$validate", json=resource)
+        if response.status_code not in (200, 400, 422):
+            response.raise_for_status()
+        return response.json()
+
     def close(self) -> None:
         self._http.close()
 
@@ -562,8 +588,217 @@ class FhirProjector:
         password = settings.fhir_password.get_secret_value() if settings.fhir_password else None
         return cls(FhirClient(settings.fhir_base_url, settings.fhir_username, password))
 
+    def send(self, bundle: Resource) -> None:
+        """Send one transaction Bundle, as queued in the outbox (D-14)."""
+        self.client.transaction(bundle)
+
     def project_document(self, meta: DocumentMeta, data: bytes, text: str) -> None:
         self.client.transaction(transaction(document_resources(meta, data, text)))
 
     def project_handover(self, handover: Handover, case: Case | None, *, snapshot: bool) -> None:
         self.client.transaction(transaction(handover_resources(handover, case, snapshot=snapshot)))
+
+
+# --- tasks (S9, Q-I20) -----------------------------------------------------------------------
+
+_TASK_STATUS = {
+    TaskStatus.PLANNED: "requested",
+    TaskStatus.BOOKED: "accepted",
+    TaskStatus.DONE: "completed",
+    TaskStatus.CANCELLED: "cancelled",
+}
+_TASK_PRIORITY = {Priority.NORMAL: "routine", Priority.HIGH: "urgent", Priority.URGENT: "asap"}
+
+
+def task_id(task: Task) -> str:
+    return fhir_id("task", task.id)
+
+
+def _patient_ref(case_id: str, on_server: bool, display: str | None) -> dict[str, str]:
+    """A reference to the case's `Patient` once the handover projection has written it, else
+    only a display (the FHIR server rejects references to resources it doesn't hold)."""
+    if on_server:
+        return {"reference": f"Patient/{patient_id(case_id)}"}
+    return {"display": display or case_id}
+
+
+def task_resource(
+    task: Task, *, requester: str, owner: str, patient_on_server: bool, patient_name: str | None
+) -> Resource:
+    """A journey step or request task as FHIR `Task` (base R4): requester = the KOC, owner =
+    whoever is on the move, both as names from the directory (CDex pattern, Q-I20)."""
+    resource: Resource = {
+        "resourceType": "Task",
+        "id": task_id(task),
+        "status": _TASK_STATUS[task.status],
+        "intent": "order",
+        "priority": _TASK_PRIORITY[task.priority],
+        "code": {"text": task.kind},
+        "description": task.title,
+        "for": _patient_ref(task.case_id, patient_on_server, patient_name),
+        "requester": {"display": requester},
+        "owner": {"display": owner},
+    }
+    if task.due:
+        resource["restriction"] = {"period": {"end": instant(task.due)}}
+    if task.location:
+        resource["note"] = [{"text": f"Místo: {task.location}"}]
+    if task.result_document_id:
+        resource["output"] = [{
+            "type": {"text": "Výsledek"},
+            "valueReference": {
+                "reference": f"DocumentReference/{document_reference_id(task.result_document_id)}"
+            },
+        }]
+    return resource
+
+
+# --- audit (S9, Q-I26) -----------------------------------------------------------------------
+
+
+def audit_resource(event: AuditEvent, *, patient_on_server: bool) -> Resource:
+    """One `app_audit` row as FHIR `AuditEvent` (base R4)."""
+    entity: dict[str, Any] = {"what": _patient_ref(event.case_id, patient_on_server, None)}
+    if event.detail:
+        entity["description"] = event.detail
+    return {
+        "resourceType": "AuditEvent",
+        "id": fhir_id("audit", event.id),
+        "type": {"system": DICOM, "code": "110110", "display": "Patient Record"},
+        "subtype": [{"code": event.action, "display": event.action}],
+        "recorded": instant(event.at),
+        "outcome": "0",
+        "agent": [{"who": {"display": event.actor_id}, "requestor": True}],
+        "source": {"observer": {"display": APP_NAME}},
+        "entity": [entity],
+    }
+
+
+# --- MDT conclusion document Bundle (S9, Q-I20) ----------------------------------------------
+
+
+def mdt_conclusion_id(conclusion: MdtConclusion) -> str:
+    """Unique per confirmation: a corrected (re-confirmed) conclusion is a new Bundle."""
+    if conclusion.confirmed is None:
+        raise ValueError("only a confirmed MDT conclusion becomes a FHIR document")
+    stamp = conclusion.confirmed.at.strftime("%Y%m%d%H%M%S")
+    return fhir_id(conclusion.case_id, "mdt-conclusion", stamp)
+
+
+def _urn(bundle_id: str, resource: Resource) -> str:
+    key = f"onko:{bundle_id}:{resource['resourceType']}/{resource['id']}"
+    return f"urn:uuid:{uuid.uuid5(uuid.NAMESPACE_URL, key)}"
+
+
+def mdt_conclusion_resources(
+    conclusion: MdtConclusion,
+    handover: Handover | None,
+    case: Case | None,
+    *,
+    patient_on_server: bool,
+) -> list[Resource]:
+    """The sent MDT conclusion: a FHIR document `Bundle` (`Composition` first, then only the
+    resources it references) and the `DocumentReference` indexing it, with the Bundle and the PDF
+    as attachments. Never changed once assembled: its id follows the confirmation (Q-I20)."""
+    confirmed = conclusion.confirmed
+    bundle_id = mdt_conclusion_id(conclusion)
+    assert confirmed is not None  # checked by mdt_conclusion_id
+
+    if handover is not None:
+        mapper = _HandoverMapper(handover, case, snapshot=True)
+        mapper._patient()
+        patient = mapper.patient
+    else:
+        patient = {"resourceType": "Patient", "id": patient_id(conclusion.case_id),
+                   "meta": {"profile": [PROFILE_PATIENT]}}
+        if case is not None:
+            patient["name"] = [{"text": case.patient_name}]
+    patient_urn = _urn(bundle_id, patient)
+    entries: list[Resource] = [patient]
+
+    sections: list[dict[str, Any]] = []
+
+    def section(title: str, text: str | None, entry: list[dict[str, str]] | None = None) -> None:
+        if text or entry:
+            item: dict[str, Any] = {"title": title, "text": _narrative(text or title)}
+            if entry:
+                item["entry"] = entry
+            sections.append(item)
+
+    if conclusion.diagnosis_name or conclusion.diagnosis_code:
+        code: dict[str, Any] = {}
+        if conclusion.diagnosis_code:
+            code["coding"] = [{"system": ICD10_SYSTEM, "code": conclusion.diagnosis_code}]
+        if conclusion.diagnosis_name:
+            code["text"] = conclusion.diagnosis_name
+        condition: Resource = {
+            "resourceType": "Condition",
+            "id": fhir_id(bundle_id, "dx"),
+            "meta": {"profile": [PROFILE_CONDITION]},
+            "clinicalStatus": _coding(CONDITION_CLINICAL, "active"),
+            # The MDT conclusion records the definitive diagnosis (Q-C9).
+            "verificationStatus": _coding(CONDITION_VERIFICATION, "confirmed"),
+            "category": [_coding(CONDITION_CATEGORY, "encounter-diagnosis")],
+            "code": code,
+            "subject": {"reference": patient_urn},
+        }
+        entries.append(condition)
+        label = " – ".join(v for v in (conclusion.diagnosis_code, conclusion.diagnosis_name) if v)
+        section("Diagnóza", label, [{"reference": _urn(bundle_id, condition)}])
+    section("Klinické zhodnocení", conclusion.clinical_assessment)
+    section("Závěr", conclusion.conclusion)
+    section("Doporučení", "\n".join(conclusion.recommendations) or None)
+    section("Kopie", ", ".join(conclusion.copy_to) or None)
+
+    held = conclusion.date.isoformat() if conclusion.date else confirmed.at.date().isoformat()
+    composition: Resource = {
+        "resourceType": "Composition",
+        "id": fhir_id(bundle_id, "composition"),
+        "meta": {"profile": [PROFILE_COMPOSITION]},
+        "status": "final",
+        "type": {"text": "Závěr MDT"},
+        "subject": {"reference": patient_urn},
+        "date": instant(confirmed.at),
+        "author": [{"display": conclusion.chair or confirmed.by}],
+        "title": f"Závěr MDT k {held}",
+        "attester": [{"mode": "legal", "time": instant(confirmed.at),
+                      "party": {"display": confirmed.by}}],
+        "section": sections,
+    }
+    if conclusion.place:
+        composition["event"] = [{"detail": [{"display": conclusion.place}]}]
+
+    ordered = [composition, *entries]
+    bundle: Resource = {
+        "resourceType": "Bundle",
+        "id": bundle_id,
+        "identifier": {"system": URI_SYSTEM,
+                       "value": f"urn:uuid:{uuid.uuid5(uuid.NAMESPACE_URL, f'onko:{bundle_id}')}"},
+        "type": "document",
+        "timestamp": instant(confirmed.at),
+        "entry": [{"fullUrl": _urn(bundle_id, r), "resource": r} for r in ordered],
+    }
+
+    attachments: list[dict[str, Any]] = [{"attachment": {
+        "contentType": "application/fhir+json", "url": f"Bundle/{bundle_id}",
+        "title": composition["title"],
+    }}]
+    if conclusion.document_id:  # the uploaded MDT report (source=uploaded)
+        attachments.append({"attachment": {
+            "contentType": "application/pdf",
+            "url": f"Binary/{document_reference_id(conclusion.document_id)}",
+            "title": "Závěr MDT (PDF)",
+        }})
+    reference: Resource = {
+        "resourceType": "DocumentReference",
+        "id": bundle_id,
+        "status": "current",
+        "type": {"text": "Závěr MDT"},
+        "subject": _patient_ref(conclusion.case_id, patient_on_server,
+                                case.patient_name if case else None),
+        "date": instant(confirmed.at),
+        "author": [{"display": conclusion.chair or confirmed.by}],
+        "description": composition["title"],
+        "content": attachments,
+    }
+    return [bundle, reference]

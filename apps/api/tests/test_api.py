@@ -120,3 +120,10 @@ def test_committed_openapi_spec_is_current():
 
     spec = Path(__file__).resolve().parents[2] / "web" / "openapi.json"
     assert json.loads(spec.read_text(encoding="utf-8")) == app.openapi(), "run scripts/export_openapi.py"
+
+
+def test_health_shows_pending_fhir_writes():
+    with TestClient(app) as client:
+        health = client.get("/health").json()
+    assert health["ok"] is True
+    assert health["fhir_pending"] == 0  # the in-memory fake has no FHIR projection (D-14)

@@ -4039,7 +4039,7 @@ export type HealthResponses = {
      * Successful Response
      */
     200: {
-        [key: string]: boolean;
+        [key: string]: boolean | number;
     };
 };
 

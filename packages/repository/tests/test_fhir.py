@@ -12,15 +12,28 @@ from pathlib import Path
 
 import httpx
 import pytest
-from onko_contracts import Case, DocumentMeta, Handover, Stamp
+from onko_contracts import (
+    AuditEvent,
+    Case,
+    DocumentMeta,
+    Handover,
+    MdtConclusion,
+    Priority,
+    Stamp,
+    Task,
+    TaskStatus,
+)
 from onko_repository import IrisSettings
 from onko_repository.adapters.fhir import (
     ICD10_SYSTEM,
     RC_SYSTEM,
     FhirClient,
     FhirProjector,
+    audit_resource,
     document_resources,
     handover_resources,
+    mdt_conclusion_resources,
+    task_resource,
     transaction,
 )
 
@@ -127,13 +140,17 @@ def test_projector_posts_one_transaction(handover, case):
     assert all(e["request"]["method"] == "PUT" for e in bundle["entry"])
 
 
-def test_live_fhir_round_trip(handover, case):
+def _live_projector() -> FhirProjector:
     if os.environ.get("ONKO_TEST_IRIS") != "1":
         pytest.skip("set ONKO_TEST_IRIS=1 to run against the IRIS FHIR server")
     settings = IrisSettings()
     if not settings.fhir_configured:
         pytest.skip("ONKO_FHIR_BASE_URL is not set")
-    projector = FhirProjector.from_settings(settings)
+    return FhirProjector.from_settings(settings)
+
+
+def test_live_fhir_round_trip(handover, case):
+    projector = _live_projector()
     # Dev-prefixed ids keep the shared server's demo data clean (PER-10).
     test_case = case.model_copy(update={"id": "test-fhir-roundtrip"})
     test_handover = handover.model_copy(update={"case_id": test_case.id})
@@ -144,3 +161,152 @@ def test_live_fhir_round_trip(handover, case):
     patient = projector.client.read("Patient", "test-fhir-roundtrip-patient")
     assert patient is not None
     assert patient["identifier"][0]["system"] == RC_SYSTEM
+
+
+NOW = datetime(2026, 10, 16, 9, 30)
+CONFIRMED = Stamp(by="koordinator", at=datetime(2026, 10, 22, 10, 15))
+
+
+def _task(**update) -> Task:
+    task = Task(id="t-ct", case_id="c1", title="CT hrudníku", kind="imaging", owner="koc-1",
+                due=datetime(2026, 10, 9, 8), priority=Priority.HIGH, status=TaskStatus.BOOKED,
+                location="KOC 1", result_document_id="09")
+    return task.model_copy(update=update)
+
+
+def test_task_is_a_fhir_task_from_the_koc_to_its_owner():
+    task = task_resource(_task(), requester="KOC 2", owner="KOC 1", patient_on_server=True,
+                         patient_name="Jana Testová")
+
+    assert FHIR_ID.match(task["id"])
+    assert (task["status"], task["intent"], task["priority"]) == ("accepted", "order", "urgent")
+    assert task["requester"] == {"display": "KOC 2"}
+    assert task["owner"] == {"display": "KOC 1"}
+    assert task["for"] == {"reference": "Patient/c1-patient"}
+    assert task["restriction"]["period"]["end"] == "2026-10-09T08:00:00+02:00"
+    assert task["output"][0]["valueReference"] == {"reference": "DocumentReference/doc-09"}
+
+
+def test_task_without_a_projected_patient_names_the_patient_only():
+    task = task_resource(_task(status=TaskStatus.DONE, due=None, result_document_id=None),
+                         requester="KOC 2", owner="KOC 1", patient_on_server=False,
+                         patient_name="Jana Testová")
+    assert task["status"] == "completed"
+    assert task["for"] == {"display": "Jana Testová"}
+    assert "restriction" not in task and "output" not in task
+
+
+def test_audit_event_projection():
+    event = AuditEvent(id="a1", case_id="c1", at=NOW, actor_id="koordinator", action="transition",
+                       detail="odeslano -> v_triage")
+    audit = audit_resource(event, patient_on_server=True)
+
+    assert audit["id"] == "audit-a1"
+    assert audit["subtype"] == [{"code": "transition", "display": "transition"}]
+    assert audit["recorded"] == "2026-10-16T09:30:00+02:00"
+    assert audit["agent"] == [{"who": {"display": "koordinator"}, "requestor": True}]
+    assert audit["entity"] == [{"what": {"reference": "Patient/c1-patient"},
+                                "description": "odeslano -> v_triage"}]
+
+
+def _conclusion(handover: Handover, **update) -> MdtConclusion:
+    conclusion = MdtConclusion(
+        case_id=handover.case_id, diagnosis_name="Karcinom pankreatu", diagnosis_code="C25.0",
+        conclusion="Indikována chemoterapie.", recommendations=["FOLFIRINOX", "Kontrola CT"],
+        chair="MUDr. Předseda", confirmed=CONFIRMED,
+    )
+    return conclusion.model_copy(update=update)
+
+
+def test_mdt_conclusion_is_a_document_bundle_composition_first(handover, case):
+    bundle, reference = mdt_conclusion_resources(_conclusion(handover), handover, case,
+                                                 patient_on_server=True)
+
+    assert bundle["type"] == "document"
+    assert bundle["timestamp"] == "2026-10-22T10:15:00+02:00"
+    assert bundle["identifier"]["value"].startswith("urn:uuid:")
+    resources = [e["resource"] for e in bundle["entry"]]
+    assert [r["resourceType"] for r in resources] == ["Composition", "Patient", "Condition"]
+    composition, patient, condition = resources
+    assert composition["status"] == "final"
+    # Only what the Composition references, resolved inside the Bundle.
+    full_urls = {e["fullUrl"] for e in bundle["entry"]}
+    referenced = {composition["subject"]["reference"]} | {
+        ref["reference"] for sec in composition["section"] for ref in sec.get("entry", [])}
+    assert referenced == full_urls - {bundle["entry"][0]["fullUrl"]}
+    assert patient["identifier"][0]["system"] == RC_SYSTEM
+    assert condition["verificationStatus"]["coding"][0]["code"] == "confirmed"  # Q-C9
+    assert condition["code"]["coding"] == [{"system": ICD10_SYSTEM, "code": "C25.0"}]
+
+    assert reference["resourceType"] == "DocumentReference"
+    assert reference["content"][0]["attachment"]["url"] == f"Bundle/{bundle['id']}"
+    assert reference["subject"] == {"reference": f"Patient/{patient['id']}"}
+
+
+def test_uploaded_conclusion_attaches_its_pdf(handover, case):
+    _, reference = mdt_conclusion_resources(_conclusion(handover, document_id="mdt-pdf"), handover,
+                                            case, patient_on_server=True)
+    assert [c["attachment"]["contentType"] for c in reference["content"]] == [
+        "application/fhir+json", "application/pdf"]
+    assert reference["content"][1]["attachment"]["url"] == "Binary/doc-mdt-pdf"
+
+
+def test_a_corrected_conclusion_is_a_new_bundle(handover, case):
+    first, _ = mdt_conclusion_resources(_conclusion(handover), handover, case,
+                                        patient_on_server=True)
+    again, _ = mdt_conclusion_resources(_conclusion(handover), handover, case,
+                                        patient_on_server=True)
+    corrected, _ = mdt_conclusion_resources(
+        _conclusion(handover, confirmed=Stamp(by="koordinator", at=datetime(2026, 10, 23, 8))),
+        handover, case, patient_on_server=True)
+
+    assert again == first  # re-projecting the same confirmation never changes the Bundle
+    assert corrected["id"] != first["id"]
+    assert corrected["identifier"] != first["identifier"]
+
+
+def test_unconfirmed_conclusion_is_not_a_document(handover, case):
+    with pytest.raises(ValueError):
+        mdt_conclusion_resources(_conclusion(handover, confirmed=None), handover, case,
+                                 patient_on_server=True)
+
+
+def test_validate_returns_the_operation_outcome():
+    outcome = {"resourceType": "OperationOutcome",
+               "issue": [{"severity": "error", "code": "invalid"}]}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/r4/Task/$validate"
+        return httpx.Response(400, json=outcome)
+
+    client = FhirClient("https://fhir.example/r4", transport=httpx.MockTransport(handler))
+    assert client.validate({"resourceType": "Task", "id": "x"}) == outcome
+
+
+def _errors(outcome: dict) -> list[str]:
+    return [i.get("diagnostics", i.get("code", "")) for i in outcome.get("issue", [])
+            if i.get("severity") in ("error", "fatal")]
+
+
+def test_live_validate_every_projected_resource(handover, case):
+    """$validate against the declared profiles (Q-I25): every resource the projection writes."""
+    projector = _live_projector()
+    test_case = case.model_copy(update={"id": "test-fhir-validate"})
+    test_handover = handover.model_copy(update={"case_id": test_case.id})
+    meta = DocumentMeta(id="test-validate-07", case_id=test_case.id, filename="07.docx",
+                        received_at=NOW)
+    resources = [
+        *document_resources(meta, b"PK", "text"),
+        *handover_resources(test_handover, test_case, snapshot=False),
+        *handover_resources(test_handover, test_case, snapshot=True),
+        task_resource(_task(case_id=test_case.id), requester="KOC 2", owner="KOC 1",
+                      patient_on_server=True, patient_name=None),
+        audit_resource(AuditEvent(id="test-validate", case_id=test_case.id, at=NOW,
+                                  actor_id="koordinator", action="transition"),
+                       patient_on_server=True),
+        *mdt_conclusion_resources(_conclusion(test_handover), test_handover, test_case,
+                                  patient_on_server=True),
+    ]
+    failures = {f"{r['resourceType']}/{r['id']}": errors for r in resources
+                if (errors := _errors(projector.client.validate(r)))}
+    assert failures == {}

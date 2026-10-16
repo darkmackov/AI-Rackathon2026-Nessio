@@ -1,16 +1,21 @@
 """IRIS repository: app state in IRIS SQL tables, projected to FHIR R4 (EU/CZ profiles) where
-needed (Q-A7, PER-4); vector chunks in Phase 2.
+needed (Q-A7, PER-4) through the FHIR outbox (D-14); vector chunks in Phase 2.
 
 Workflow state is relational: one table per model with a typed column per field, generated from the
 contract models (`iris_tables`, Q-I14). Only the handover, a deep aggregate of `Sourced` values,
 stays one JSON document per row; its clinical content is what the FHIR projection carries. The
 tables are listed in docs/data-model.md › Non-FHIR storage (PER-11).
+
+Each save that is projected queues its FHIR transaction in `fhir_outbox` in the same SQL
+transaction, and sends it right after the commit; what fails is retried by `Outbox` (S9, D-14).
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
+import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any, TypeVar
@@ -18,12 +23,14 @@ from typing import Any, TypeVar
 import iris.dbapi
 from onko_contracts import (
     Actor,
+    AuditEvent,
     Case,
     DocumentMeta,
     Finding,
     Handover,
     Job,
     MdtBoard,
+    MdtConclusion,
     Message,
     Organization,
     Receipt,
@@ -32,8 +39,18 @@ from onko_contracts import (
 from pydantic import BaseModel
 
 from ..settings import IrisSettings, parse_connection_string
-from .fhir import FhirProjector
+from .fhir import (
+    FhirProjector,
+    Resource,
+    audit_resource,
+    document_resources,
+    handover_resources,
+    mdt_conclusion_resources,
+    task_resource,
+    transaction,
+)
 from .iris_tables import BINARY, ID, STREAM, TEXT, ModelTable, quote
+from .outbox import DEFAULT_RETRY_SECONDS, Outbox, OutboxEntry
 
 log = logging.getLogger(__name__)
 
@@ -52,14 +69,27 @@ TASKS = ModelTable("app_task", Task, key=("id",), indexes=("case_id", "owner", "
 MESSAGES = ModelTable("app_message", Message, key=("id",), indexes=("case_id",))
 RECEIPTS = ModelTable("app_receipt", Receipt, key=("message_id", "recipient_id"))
 JOBS = ModelTable("app_job", Job, key=("id",), indexes=("case_id",))
+# Append-only (PER-13); both have the foreign key case_id -> app_case (Q-I26).
+AUDIT = ModelTable("app_audit", AuditEvent, key=("id",), indexes=("case_id",),
+                   foreign_keys={"case_id": "app_case"})
+MDT_CONCLUSIONS = ModelTable("app_mdt_conclusion", MdtConclusion, key=("case_id",),
+                             foreign_keys={"case_id": "app_case"})
+# Parents before children: created in this order, cleared and dropped in reverse.
 MODEL_TABLES: list[ModelTable[Any]] = [
     ORGANIZATIONS, ACTORS, MDT_BOARDS, CASES, DOCUMENTS, FINDINGS, TASKS, MESSAGES, RECEIPTS, JOBS,
+    AUDIT, MDT_CONCLUSIONS,
 ]
 
 # The handover as one JSON document per (case, live | MDT snapshot). A plain string, not a stream,
 # so IRIS SQL can query inside it with JSON_TABLE.
 HANDOVER_TABLE = "app_handover"
 HANDOVER_COLUMNS = {"case_id": ID, "is_snapshot": "BIT", "body": TEXT}
+
+# Pending FHIR writes (S9, D-14): the transaction Bundle as JSON, deleted once sent. Sent in %ID
+# order. case_id has no foreign key: a document can be saved before its case.
+OUTBOX_TABLE = "fhir_outbox"
+OUTBOX_COLUMNS = {"id": ID, "case_id": ID, "bundle": STREAM, "attempts": "INTEGER NOT NULL",
+                  "last_error": TEXT}
 
 
 def _text(value: Any) -> str | None:
@@ -95,7 +125,9 @@ class IrisRepository:
         schema: str | None = None,
         projector: FhirProjector | None = None,
         connect: Callable[[], Any] | None = None,
+        retry_seconds: float | None = DEFAULT_RETRY_SECONDS,
     ) -> None:
+        """`retry_seconds=None` sends only right after each save, with no retry thread."""
         self.settings = settings or IrisSettings()
         if self.settings.iris_connection_string is None:
             raise RuntimeError("Set ONKO_IRIS_CONNECTION_STRING in .env")
@@ -110,6 +142,12 @@ class IrisRepository:
         self._lock = threading.RLock()
         self._conn: Any = None
         self.create_tables()
+        self.outbox: Outbox | None = None
+        if projector is not None:
+            self.outbox = Outbox(_OutboxTable(self), projector.send,
+                                 retry_seconds=retry_seconds or DEFAULT_RETRY_SECONDS)
+            if retry_seconds is not None:
+                self.outbox.start()
 
     # --- connection --------------------------------------------------------------------------
 
@@ -142,6 +180,8 @@ class IrisRepository:
                 cursor.close()
 
     def close(self) -> None:
+        if self.outbox is not None:
+            self.outbox.stop()
         with self._lock:
             if self._conn is not None:
                 self._conn.close()
@@ -168,7 +208,7 @@ class IrisRepository:
             for table in MODEL_TABLES:
                 qualified = self._t(table.name)
                 if table.name not in existing:
-                    cur.execute(table.create_sql(qualified))
+                    cur.execute(table.create_sql(qualified, self._t))
                     for column in table.indexes:
                         cur.execute(f"CREATE INDEX idx_{table.name}_{column} "
                                     f"ON {qualified} ({quote(column)})")
@@ -182,6 +222,11 @@ class IrisRepository:
                 cur.execute(f"CREATE TABLE {self._t(HANDOVER_TABLE)} ({columns}, "
                             f"PRIMARY KEY ({quote('case_id')}, {quote('is_snapshot')}))")
 
+            if OUTBOX_TABLE not in existing:
+                columns = ", ".join(f"{quote(n)} {t}" for n, t in OUTBOX_COLUMNS.items())
+                cur.execute(f"CREATE TABLE {self._t(OUTBOX_TABLE)} ({columns}, "
+                            f"PRIMARY KEY ({quote('id')}))")
+
     def drop_tables(self) -> None:
         """Drop every app-state table in this schema (tests and demo resets only)."""
         with self._cursor() as cur:
@@ -190,27 +235,65 @@ class IrisRepository:
                 [self.schema],
             )
             existing = {row[0].lower() for row in cur.fetchall()}
-            for name in [t.name for t in MODEL_TABLES] + [HANDOVER_TABLE]:
+            for name in self._table_names():
                 if name in existing:
                     cur.execute(f"DROP TABLE {self._t(name)}")
 
+    @staticmethod
+    def _table_names() -> list[str]:
+        """Children first, so foreign keys hold while rows or tables go."""
+        return [OUTBOX_TABLE, HANDOVER_TABLE, *reversed([t.name for t in MODEL_TABLES])]
+
     def clear(self) -> None:
-        """Delete every row of the app-state tables, keeping the schema (demo reset). The FHIR
-        projection is left as is: resources are upserted by id on the next save."""
+        """Delete every row of the app-state tables and the pending FHIR writes, keeping the schema
+        (demo reset). The FHIR projection is left as is: resources are upserted by id on the next
+        save."""
         with self._cursor() as cur:
-            for name in [t.name for t in MODEL_TABLES] + [HANDOVER_TABLE]:
+            for name in self._table_names():
                 cur.execute(f"DELETE FROM {self._t(name)}")
 
     # --- helpers -----------------------------------------------------------------------------
 
-    def _upsert(self, table: str, values: dict[str, Any]) -> None:
+    def _upsert_sql(self, table: str, values: dict[str, Any], *, verb: str = "INSERT OR UPDATE"
+                    ) -> tuple[str, list[Any]]:
         columns = ", ".join(quote(c) for c in values)
         marks = ", ".join("?" for _ in values)
+        return f"{verb} INTO {self._t(table)} ({columns}) VALUES ({marks})", list(values.values())
+
+    def _upsert(self, table: str, values: dict[str, Any]) -> None:
+        self._write([self._upsert_sql(table, values)])
+
+    def _write(self, statements: list[tuple[str, list[Any]]], *, case_id: str | None = None,
+               fhir: list[Resource] | None = None) -> None:
+        """Run the statements in one transaction, together with queuing their FHIR write (D-14);
+        then send what is pending."""
         with self._cursor() as cur:
-            cur.execute(
-                f"INSERT OR UPDATE INTO {self._t(table)} ({columns}) VALUES ({marks})",
-                list(values.values()),
-            )
+            for sql, params in statements:
+                cur.execute(sql, params)
+            if fhir:
+                cur.execute(*self._upsert_sql(OUTBOX_TABLE, {
+                    "id": uuid.uuid4().hex, "case_id": case_id,
+                    "bundle": json.dumps(transaction(fhir), ensure_ascii=False),
+                    "attempts": 0, "last_error": None,
+                }, verb="INSERT"))
+        if fhir and self.outbox is not None:
+            self.outbox.flush()
+
+    def _projection(self, build: Callable[[], list[Resource]]) -> list[Resource] | None:
+        """The FHIR resources for a save, or None without a FHIR server. A mapping bug never loses
+        the app-state save: it is logged and the save goes ahead unprojected."""
+        if self.projector is None:
+            return None
+        try:
+            return build()
+        except Exception:
+            log.exception("FHIR projection failed")
+            return None
+
+    def pending_fhir_writes(self) -> int:
+        with self._cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM {self._t(OUTBOX_TABLE)}")
+            return int(cur.fetchone()[0])
 
     def _select(self, table: ModelTable[M], where: str = "", params: list[Any] | None = None,
                 order: str = "%ID") -> list[M]:
@@ -222,15 +305,6 @@ class IrisRepository:
             # Read every value while the cursor is open (large values are fetched lazily).
             rows = [list(row) for row in cur.fetchall()]
         return [table.model_from(row) for row in rows]
-
-    def _project(self, action: Callable[[FhirProjector], None]) -> None:
-        """The FHIR projection follows the app state; a failed projection never loses the save."""
-        if self.projector is None:
-            return
-        try:
-            action(self.projector)
-        except Exception:
-            log.exception("FHIR projection failed")
 
     def _get_by_id(self, table: ModelTable[M], model_id: str) -> M:
         found = self._select(table, '"id" = ?', [model_id])
@@ -278,8 +352,10 @@ class IrisRepository:
     # --- documents ---------------------------------------------------------------------------
 
     def save_document(self, meta: DocumentMeta, data: bytes, text: str) -> None:
-        self._upsert(DOCUMENTS.name, DOCUMENTS.row(meta, doc_text=text, doc_data=data))
-        self._project(lambda p: p.project_document(meta, data, text))
+        self._write([self._upsert_sql(DOCUMENTS.name, DOCUMENTS.row(meta, doc_text=text,
+                                                                     doc_data=data))],
+                    case_id=meta.case_id,
+                    fhir=self._projection(lambda: document_resources(meta, data, text)))
 
     def list_documents(self, case_id: str) -> list[DocumentMeta]:
         return self._select(DOCUMENTS, '"case_id" = ?', [case_id])
@@ -315,23 +391,22 @@ class IrisRepository:
             cur.execute(f'SELECT COUNT(*) FROM {self._t(DOCUMENTS.name)} WHERE "id" = ?', [meta.id])
             if not cur.fetchone()[0]:
                 raise KeyError(meta.id)
-            cur.execute(f'UPDATE {self._t(DOCUMENTS.name)} SET {assignments} WHERE "id" = ?',
-                        [*values.values(), meta.id])
-        if self.projector is not None:
-            data = self._document_column("doc_data", meta.id)
-            text = self._document_column("doc_text", meta.id)
-            self._project(lambda p: p.project_document(meta, data, text))
+        fhir = self._projection(lambda: document_resources(
+            meta, self._document_column("doc_data", meta.id),
+            self._document_column("doc_text", meta.id)))
+        self._write([(f'UPDATE {self._t(DOCUMENTS.name)} SET {assignments} WHERE "id" = ?',
+                      [*values.values(), meta.id])], case_id=meta.case_id, fhir=fhir)
 
     # --- handover ----------------------------------------------------------------------------
 
     def save_handover(self, handover: Handover, *, snapshot: bool = False) -> None:
-        self._upsert(HANDOVER_TABLE, {
+        fhir = self._projection(lambda: handover_resources(
+            handover, self._case_or_none(handover.case_id), snapshot=snapshot))
+        self._write([self._upsert_sql(HANDOVER_TABLE, {
             "case_id": handover.case_id,
             "is_snapshot": 1 if snapshot else 0,
             "body": handover.model_dump_json(),
-        })
-        self._project(lambda p: p.project_handover(handover, self._case_or_none(handover.case_id),
-                                                   snapshot=snapshot))
+        })], case_id=handover.case_id, fhir=fhir)
 
     def get_handover(self, case_id: str, *, snapshot: bool = False) -> Handover | None:
         with self._cursor() as cur:
@@ -349,6 +424,28 @@ class IrisRepository:
             return self.get_case(case_id)
         except KeyError:
             return None
+
+    def _patient_projected(self, case_id: str) -> bool:
+        """The case's FHIR `Patient` comes from the handover projection, queued before this write."""
+        with self._cursor() as cur:
+            cur.execute(f'SELECT COUNT(*) FROM {self._t(HANDOVER_TABLE)} WHERE "case_id" = ?',
+                        [case_id])
+            return bool(cur.fetchone()[0])
+
+    def _directory_name(self, actor_or_org_id: str) -> str:
+        """A person's or organisation's name for FHIR `display`; the id if it is not listed."""
+        for table in (ACTORS, ORGANIZATIONS):
+            found = self._select(table, '"id" = ?', [actor_or_org_id])
+            if found:
+                return found[0].name
+        return actor_or_org_id
+
+    def _require_case(self, case_id: str) -> None:
+        """The foreign key `case_id` -> `app_case`, as a `KeyError` like the in-memory fake."""
+        with self._cursor() as cur:
+            cur.execute(f'SELECT COUNT(*) FROM {self._t(CASES.name)} WHERE "id" = ?', [case_id])
+            if not cur.fetchone()[0]:
+                raise KeyError(case_id)
 
     # --- findings ----------------------------------------------------------------------------
 
@@ -370,7 +467,18 @@ class IrisRepository:
     # --- tasks -------------------------------------------------------------------------------
 
     def save_task(self, task: Task) -> None:
-        self._upsert(TASKS.name, TASKS.row(task))
+        def build() -> list[Resource]:
+            case = self._case_or_none(task.case_id)
+            return [task_resource(
+                task,
+                requester=self._directory_name(case.koc_id) if case else task.case_id,
+                owner=self._directory_name(task.owner),
+                patient_on_server=self._patient_projected(task.case_id),
+                patient_name=case.patient_name if case else None,
+            )]
+
+        self._write([self._upsert_sql(TASKS.name, TASKS.row(task))], case_id=task.case_id,
+                    fhir=self._projection(build))
 
     def list_tasks(self, case_id: str) -> list[Task]:
         return self._select(TASKS, '"case_id" = ?', [case_id])
@@ -397,3 +505,69 @@ class IrisRepository:
 
     def list_jobs(self, case_id: str) -> list[Job]:
         return self._select(JOBS, '"case_id" = ?', [case_id], order='"created_at", %ID')
+
+    # --- audit (append-only, PER-13) ----------------------------------------------------------
+
+    def save_audit(self, event: AuditEvent) -> None:
+        self._require_case(event.case_id)
+        with self._cursor() as cur:
+            cur.execute(f'SELECT COUNT(*) FROM {self._t(AUDIT.name)} WHERE "id" = ?', [event.id])
+            if cur.fetchone()[0]:
+                raise ValueError(f"audit event {event.id} exists; audit rows are append-only")
+        fhir = self._projection(lambda: [audit_resource(
+            event, patient_on_server=self._patient_projected(event.case_id))])
+        self._write([self._upsert_sql(AUDIT.name, AUDIT.row(event), verb="INSERT")],
+                    case_id=event.case_id, fhir=fhir)
+
+    def list_audit(self, case_id: str) -> list[AuditEvent]:
+        return self._select(AUDIT, '"case_id" = ?', [case_id], order='"at", %ID')
+
+    # --- MDT conclusion -----------------------------------------------------------------------
+
+    def save_mdt_conclusion(self, conclusion: MdtConclusion) -> None:
+        """A confirmed conclusion is also sent as a FHIR document Bundle (S9, Q-I20)."""
+        self._require_case(conclusion.case_id)
+        fhir = None
+        if conclusion.confirmed is not None:
+            case_id = conclusion.case_id
+            fhir = self._projection(lambda: mdt_conclusion_resources(
+                conclusion,
+                self.get_handover(case_id, snapshot=True) or self.get_handover(case_id),
+                self._case_or_none(case_id),
+                patient_on_server=self._patient_projected(case_id),
+            ))
+        self._write([self._upsert_sql(MDT_CONCLUSIONS.name, MDT_CONCLUSIONS.row(conclusion))],
+                    case_id=conclusion.case_id, fhir=fhir)
+
+    def get_mdt_conclusion(self, case_id: str) -> MdtConclusion | None:
+        found = self._select(MDT_CONCLUSIONS, '"case_id" = ?', [case_id])
+        return found[0] if found else None
+
+
+class _OutboxTable:
+    """`OutboxStore` on the `fhir_outbox` table."""
+
+    def __init__(self, repo: IrisRepository) -> None:
+        self.repo = repo
+        self.table = repo._t(OUTBOX_TABLE)
+
+    def oldest_pending(self) -> OutboxEntry | None:
+        with self.repo._cursor() as cur:
+            cur.execute(f'SELECT TOP 1 "id", "bundle", "attempts" FROM {self.table} ORDER BY %ID')
+            row = cur.fetchone()
+            if row is None:
+                return None
+            return OutboxEntry(id=row[0], bundle=json.loads(_text(row[1]) or "{}"),
+                               attempts=int(row[2]))
+
+    def mark_sent(self, entry_id: str) -> None:
+        with self.repo._cursor() as cur:
+            cur.execute(f'DELETE FROM {self.table} WHERE "id" = ?', [entry_id])
+
+    def mark_failed(self, entry_id: str, error: str) -> None:
+        with self.repo._cursor() as cur:
+            cur.execute(f'UPDATE {self.table} SET "attempts" = "attempts" + 1, "last_error" = ? '
+                        'WHERE "id" = ?', [error, entry_id])
+
+    def count_pending(self) -> int:
+        return self.repo.pending_fhir_writes()

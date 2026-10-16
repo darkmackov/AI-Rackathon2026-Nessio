@@ -84,8 +84,10 @@ app.include_router(router)
 
 
 @app.get("/health", tags=["system"])
-def health() -> dict[str, bool]:
-    return {"ok": True, "iris_configured": _iris_configured()}
+def health(repo: Repo) -> dict[str, bool | int]:
+    """`fhir_pending`: FHIR writes still waiting in the outbox (D-14), never silent."""
+    return {"ok": True, "iris_configured": _iris_configured(),
+            "fhir_pending": repo.pending_fhir_writes()}
 
 
 @app.get("/cases", tags=["cases"])

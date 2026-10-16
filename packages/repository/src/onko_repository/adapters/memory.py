@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from onko_contracts import (
     Actor,
+    AuditEvent,
     Case,
     DocumentMeta,
     Finding,
     Handover,
     Job,
     MdtBoard,
+    MdtConclusion,
     Message,
     Organization,
     Receipt,
@@ -35,6 +37,8 @@ class InMemoryRepository:
         self.messages: dict[str, Message] = {}
         self.receipts: list[Receipt] = []
         self.jobs: dict[str, Job] = {}
+        self.audit: dict[str, AuditEvent] = {}
+        self.mdt_conclusions: dict[str, MdtConclusion] = {}
 
     def save_organization(self, organization: Organization) -> None:
         self.organizations[organization.id] = organization
@@ -126,3 +130,27 @@ class InMemoryRepository:
     def list_jobs(self, case_id: str) -> list[Job]:
         return sorted((j for j in self.jobs.values() if j.case_id == case_id),
                       key=lambda j: j.created_at)
+
+    def _require_case(self, case_id: str) -> None:
+        """The foreign key `case_id` -> case, as in IRIS (PER-13)."""
+        if case_id not in self.cases:
+            raise KeyError(case_id)
+
+    def save_audit(self, event: AuditEvent) -> None:
+        self._require_case(event.case_id)
+        if event.id in self.audit:
+            raise ValueError(f"audit event {event.id} exists; audit rows are append-only")
+        self.audit[event.id] = event
+
+    def list_audit(self, case_id: str) -> list[AuditEvent]:
+        return sorted((e for e in self.audit.values() if e.case_id == case_id), key=lambda e: e.at)
+
+    def save_mdt_conclusion(self, conclusion: MdtConclusion) -> None:
+        self._require_case(conclusion.case_id)
+        self.mdt_conclusions[conclusion.case_id] = conclusion
+
+    def get_mdt_conclusion(self, case_id: str) -> MdtConclusion | None:
+        return self.mdt_conclusions.get(case_id)
+
+    def pending_fhir_writes(self) -> int:
+        return 0  # no FHIR projection

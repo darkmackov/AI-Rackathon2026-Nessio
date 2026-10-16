@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import json
 import types
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from enum import Enum
 from typing import Any, Generic, TypeVar, Union, get_args, get_origin
 
@@ -25,6 +26,17 @@ CODE = "VARCHAR(60) COLLATE %EXACT"  # enum values
 TEXT = "VARCHAR(3641144)"  # IRIS's longest string; plain strings, so JSON_TABLE can read JSON
 STREAM = "LONGVARCHAR"
 BINARY = "LONGVARBINARY"
+
+
+# IRIS stores TIMESTAMP as %PosixTime: microseconds since 1970 offset by 2**60. A query ordered by a
+# timestamp column hands back that logical integer instead of the display value.
+_POSIX_OFFSET = 1 << 60
+
+
+def _timestamp(value: Any) -> Any:
+    if isinstance(value, (int, str)) and str(value).isdigit() and int(value) >= _POSIX_OFFSET:
+        return datetime(1970, 1, 1) + timedelta(microseconds=int(value) - _POSIX_OFFSET)
+    return value
 
 
 def quote(name: str) -> str:
@@ -109,12 +121,14 @@ class ModelTable(Generic[M]):
         key: tuple[str, ...],
         extra: dict[str, str] | None = None,
         indexes: tuple[str, ...] = (),
+        foreign_keys: dict[str, str] | None = None,
     ) -> None:
         self.name = name
         self.model = model
         self.key = key
         self.extra = extra or {}
         self.indexes = indexes
+        self.foreign_keys = foreign_keys or {}  # column -> referenced table (its "id")
         self.columns = model_columns(model)
         self.column_names = [c.name for c in self.columns]
 
@@ -123,9 +137,11 @@ class ModelTable(Generic[M]):
         types_.update(self.extra)
         return types_
 
-    def create_sql(self, qualified: str) -> str:
+    def create_sql(self, qualified: str, qualify: Callable[[str], str] = lambda name: name) -> str:
         parts = [f"{quote(n)} {t}" for n, t in self.column_types().items()]
         parts.append(f"PRIMARY KEY ({', '.join(quote(k) for k in self.key)})")
+        for column, table in self.foreign_keys.items():
+            parts.append(f"FOREIGN KEY ({quote(column)}) REFERENCES {qualify(table)} ({quote('id')})")
         return f"CREATE TABLE {qualified} ({', '.join(parts)})"
 
     def select_list(self) -> str:
@@ -167,6 +183,8 @@ class ModelTable(Generic[M]):
                 value = json.loads(value)
             elif column.sql_type == "BIT":
                 value = bool(value)
+            elif column.sql_type == "TIMESTAMP":
+                value = _timestamp(value)
             node = data
             for key in column.path[:-1]:
                 node = node.setdefault(key, {})

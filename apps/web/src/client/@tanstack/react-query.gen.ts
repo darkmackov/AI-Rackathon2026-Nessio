@@ -1158,6 +1158,8 @@ export const healthQueryKey = (options?: Options<HealthData>) => createQueryKey(
 
 /**
  * Health
+ *
+ * `fhir_pending`: FHIR writes still waiting in the outbox (D-14), never silent.
  */
 export const healthOptions = (options?: Options<HealthData>) => queryOptions<HealthResponse, DefaultError, HealthResponse, ReturnType<typeof healthQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

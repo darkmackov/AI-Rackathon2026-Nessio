@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta
 import pytest
 from onko_contracts import (
     Actor,
+    AuditEvent,
     Case,
     CaseState,
     DocumentMeta,
@@ -28,6 +29,7 @@ from onko_contracts import (
     JobKind,
     JobStatus,
     MdtBoard,
+    MdtConclusion,
     MdtMember,
     Message,
     MessageKind,
@@ -36,6 +38,7 @@ from onko_contracts import (
     Receipt,
     Severity,
     Sourced,
+    Stamp,
     Task,
     TaskStatus,
 )
@@ -56,17 +59,25 @@ def _iris_repo() -> IrisRepository:
                           schema=f"test_{user}_{uuid.uuid4().hex[:8]}")
 
 
-@pytest.fixture(params=["memory", "iris"])
-def repo(request):
-    if request.param == "memory":
-        yield InMemoryRepository()
-        return
+@pytest.fixture(scope="module")
+def shared_iris():
+    """One schema and connection for the whole module: creating tables over the remote link is
+    the slow part, so each test starts from `clear()` instead (TEST-6)."""
     iris_repo = _iris_repo()
     try:
         yield iris_repo
     finally:
         iris_repo.drop_tables()
         iris_repo.close()
+
+
+@pytest.fixture(params=["memory", "iris"])
+def repo(request):
+    if request.param == "memory":
+        return InMemoryRepository()
+    iris_repo = request.getfixturevalue("shared_iris")
+    iris_repo.clear()
+    return iris_repo
 
 
 def _case(case_id: str = "c1", **update) -> Case:
@@ -264,6 +275,8 @@ def test_clear_removes_everything(repo):
     repo.save_document(DocumentMeta(id="d1", case_id="c1", filename="01.docx"), b"", "text")
     repo.save_handover(Handover(case_id="c1", as_of=date(2026, 10, 16)))
     repo.save_job(_job("job-1"))
+    repo.save_audit(_audit("a1"))
+    repo.save_mdt_conclusion(MdtConclusion(case_id="c1", conclusion="Chemoterapie"))
 
     repo.clear()
 
@@ -274,3 +287,58 @@ def test_clear_removes_everything(repo):
     assert repo.list_documents("c1") == []
     assert repo.get_handover("c1") is None
     assert repo.list_jobs("c1") == []
+    assert repo.list_audit("c1") == []
+    assert repo.get_mdt_conclusion("c1") is None
+
+
+def _audit(event_id: str, case_id: str = "c1", minutes: int = 0) -> AuditEvent:
+    return AuditEvent(id=event_id, case_id=case_id, at=NOW + timedelta(minutes=minutes),
+                      actor_id="koord-a", action="transition", detail="odeslano -> v_triage")
+
+
+def test_audit_is_listed_per_case_oldest_first(repo):
+    repo.save_case(_case("c1"))
+    repo.save_case(_case("c2"))
+    repo.save_audit(_audit("a-late", minutes=10))
+    repo.save_audit(_audit("a-early"))
+    repo.save_audit(_audit("a-other", case_id="c2"))
+
+    assert [e.id for e in repo.list_audit("c1")] == ["a-early", "a-late"]
+    assert repo.list_audit("c1")[0] == _audit("a-early")
+    assert [e.id for e in repo.list_audit("c2")] == ["a-other"]
+
+
+def test_audit_is_append_only(repo):
+    repo.save_case(_case("c1"))
+    repo.save_audit(_audit("a1"))
+    with pytest.raises(ValueError):
+        repo.save_audit(_audit("a1").model_copy(update={"detail": "přepsáno"}))
+    assert repo.list_audit("c1") == [_audit("a1")]
+
+
+@pytest.mark.parametrize("save", [
+    lambda repo: repo.save_audit(_audit("a1", case_id="nope")),
+    lambda repo: repo.save_mdt_conclusion(MdtConclusion(case_id="nope")),
+])
+def test_audit_and_conclusion_need_an_existing_case(repo, save):
+    with pytest.raises(KeyError):
+        save(repo)
+
+
+def test_mdt_conclusion_round_trip_and_replace(repo):
+    repo.save_case(_case("c1"))
+    assert repo.get_mdt_conclusion("c1") is None
+
+    draft = MdtConclusion(case_id="c1", diagnosis_code="C25.0", recommendations=["CT", "Chemo"])
+    repo.save_mdt_conclusion(draft)
+    assert repo.get_mdt_conclusion("c1") == draft
+
+    confirmed = draft.model_copy(update={"confirmed": Stamp(by="koord-a", at=NOW)})
+    repo.save_mdt_conclusion(confirmed)
+    assert repo.get_mdt_conclusion("c1") == confirmed
+
+
+def test_no_pending_fhir_writes_without_a_fhir_server(repo):
+    repo.save_case(_case("c1"))
+    repo.save_task(Task(id="t1", case_id="c1", title="CT", kind="imaging", owner="koc"))
+    assert repo.pending_fhir_writes() == 0

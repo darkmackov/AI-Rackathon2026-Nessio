@@ -3187,6 +3187,7 @@
           "system"
         ],
         "summary": "Health",
+        "description": "`fhir_pending`: FHIR writes still waiting in the outbox (D-14), never silent.",
         "operationId": "health",
         "responses": {
           "200": {
@@ -3195,7 +3196,14 @@
               "application/json": {
                 "schema": {
                   "additionalProperties": {
-                    "type": "boolean"
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
                   },
                   "type": "object",
                   "title": "Response Health"
