@@ -50,4 +50,4 @@ sequenceDiagram
 | 13 | Coordinator | Send to the GP | Result + original context attached | Feedback |
 | 14 | GP | In-app inbox (MDT results) → *Potvrzuji převzetí* | Receipt in the audit → **Uzavřeno**; T2 = 19 days | Confirmed delivery |
 | 15 | Coordinator | Upload 12–13 (after the MDT) | The live case updates, the MDT record does not | Brief rule: only what was known on 21. 10. |
-| 16 | (InterSystems) | Show the FHIR server: `Patient` with the RČ identifier, `Provenance` of AI values and confirmations. *(If Phase 2 is done: "ask the case" via IRIS vector search)* | Interop + GenAI on IRIS | IRIS criteria |
+| 16 | (InterSystems) | Show the FHIR server: `Patient` with the RČ identifier, `Provenance` of AI values and confirmations, the MDT conclusion `Bundle` and the request `Task`s, `Patient/$everything` for the whole case, and a `$validate` against the CZ profile (S9). "Ask the case" and an MKN-10 code suggestion via IRIS vector search (S8). Claude Desktop connected to `/mcp` asks which cases are overdue and what's missing (S10) | Interop + GenAI + agents on IRIS | IRIS criteria |
