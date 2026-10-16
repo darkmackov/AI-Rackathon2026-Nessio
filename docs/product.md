@@ -32,8 +32,8 @@ There are **two users: the referring doctor and the KOC coordinator** (Q-F21).
 
 | Role | Does in the app |
 |---|---|
-| **Referring doctor** (GP / specialist) | **Owns the handover** (Q-F22). Picks a KOC → uploads the referral (epikríza, plus whatever is at hand) → reviews the AI-extracted handover, with soft "fill in if you know" prompts for gaps → validates → sends. In Phase 2 also answers KOC requests from an inbox (Q-F23). Receives the MDT result and confirms receipt |
-| **KOC coordinator** | Works the queue. Takes over cases. Coordinates everything after the referral: arranges examinations, requests and uploads their results, fills remaining gaps, starts task sets or adds one-off tasks, flags cases as on hold. Writes the MDT question and the final epikríza. Confirms the MDT snapshot. Records the MDT conclusion (writes it or uploads it). Sends it to the GP |
+| **Referring doctor** (GP / specialist) | **Owns the handover** (Q-F22). Picks a KOC → uploads the referral (epikríza, plus whatever is at hand) → reviews the AI-extracted handover, with soft "fill in if you know" prompts for gaps → validates → sends. Fixes and resends a referral the coordinator returned with a note (D-15). In Phase 2 also answers KOC requests from an inbox (Q-F23). Receives the MDT result and confirms receipt |
+| **KOC coordinator** | Works the queue. Takes over cases, or returns a referral to the GP with a note on what is missing (D-15). Sees the GP's original documents next to the structured handover. Coordinates everything after the referral: arranges examinations, requests and uploads their results, fills remaining gaps, starts task sets or adds one-off tasks, flags cases as on hold. Writes the MDT question and the final epikríza. Confirms the MDT snapshot. Records the MDT conclusion (writes it or uploads it). Sends it to the GP |
 
 Not users, but present as information:
 - **MDT doctors:** a roster per MDT board (Q-F13). They are recorded on the MDT record as members and signatories.
@@ -64,6 +64,7 @@ stateDiagram-v2
   state "7 Zpětná vazba odeslána" as S7
   state "8 Uzavřeno" as S8
   state "0 Koncept (GP draft)" as S0
+  state "R Vráceno lékaři" as SR
   [*] --> S0
   S0 --> S1: Validovat a odeslat
   S1 --> S2
@@ -71,6 +72,10 @@ stateDiagram-v2
   S2 --> S4: vše dodáno
   S3 --> S4
   S4 --> S3: nový požadavek
+  S2 --> SR: vrátit lékaři
+  S3 --> SR: vrátit lékaři
+  S4 --> SR: vrátit lékaři
+  SR --> S2: lékař doplnil a odeslal
   S4 --> S5: snapshot handoveru
   S5 --> S6
   S6 --> S7
@@ -83,6 +88,7 @@ stateDiagram-v2
 | Koncept (draft, ours, D-8) | The GP is preparing the referral; not visible on the KOC dashboard |
 | Odesláno (sent) | The referring doctor sent the request and the available documents |
 | V triage (in triage) | The case is accepted and checked; the documents get a first assessment |
+| Vráceno lékaři (returned to the GP, ours, D-15) | The coordinator sent the referral back with a note on what is missing. The GP fixes the handover or adds documents and resends it; it returns to *V triage* with the same coordinator. Possible until the MDT snapshot |
 | Čeká na podklady (waiting for documents) | Missing information was found and requested (in the MVP: open request tasks) |
 | Kompletní (complete) | All required documents are in and prepared for the next step |
 | Připraveno k MDT (ready for MDT) | The case is complete and handed to the KOC/MDT for expert review |
@@ -92,7 +98,7 @@ stateDiagram-v2
 
 Dashboard columns (slide 9):
 - **Nový** (new): states 1–2, waiting to be taken over.
-- **Aktivní** (active): everything else.
+- **Aktivní** (active): everything else. A returned case stays here with the GP on the move.
 - **Odložený** (on hold): a **manual flag** the coordinator sets with a reason and an optional resume date (Q-F9), e.g. "waiting for a CT slot at KOC 1".
 
 ## Screens (MVP)
@@ -103,7 +109,8 @@ Dashboard columns (slide 9):
    - The GP reviews the extracted handover. Empty fields (e.g. ECOG, the patient's email) appear as **soft "fill in if you know" prompts** that never block sending (Q-F22).
    - *Validovat a odeslat* (validate and send).
    - Done when: the coordinator gets everything in one step.
-   - *Phase 2 (Q-F23):* KOC requests reach the GP's inbox; the GP uploads the reports and confirms the updated handover.
+   - **Returned referrals** (D-15): the GP sees the coordinator's note in the inbox, edits the handover or uploads documents, re-validates and resends.
+   - *Phase 2 (Q-F23):* other KOC requests reach the GP's inbox; the GP uploads the reports and confirms the updated handover.
 2. **Coordinator dashboard, slide 9.**
    - Kanban with Nový / Aktivní / Odložený (manual flag).
    - Each card shows patient, diagnosis, state, next step, owner, due date, priority/overdue, and time to treatment so far.
@@ -112,7 +119,9 @@ Dashboard columns (slide 9):
 3. **Case detail.**
    - Tabs: *Handover · Dokumenty (documents) · Úkoly/cesta (tasks/journey) · Komunikace (communication) · Audit*.
    - Every handover value links to its source document with the quote highlighted.
+   - **Dokumenty** lists every document of the case in one place. Each one opens as the **original file** and as its parsed text ("strukturovaná zpráva + originál", slide 9). The documents the GP handed over are marked as such (`uploaded_by`).
    - Gaps and conflicts sit at the top, each with **Vyžádat** (creates a request task addressed to whoever holds the information, linked to the finding; the reply comes outside the app in the MVP) or **Doplnit** (fill in manually, or upload, and AI re-extracts).
+   - **Vrátit lékaři** (return to the GP, D-15): the coordinator writes what is missing, optionally pointing at a finding. The note goes to the GP's inbox and the case moves to *Vráceno lékaři*.
    - Every section is copy-ready (slide 8).
    - **Epikríza side by side** (Q-F15): the referring doctor's text verbatim next to the AI summary proposal; the coordinator writes or confirms the final version.
    - **MDT question**: written by the coordinator, optionally prefilled by AI (Q-F14).
@@ -141,7 +150,7 @@ Decided in Q-F1 to Q-F6, Q-F22 and Q-F23. There are **two handover flows**:
 | **1. Initial GP handover** | The GP uploads the referral → AI extraction → the GP reviews with soft "fill in if you know" prompts → validates → sends | **MVP** |
 | **2. Additional document handovers** | The KOC requests a report from whoever holds it (GP or facility) → the request appears in their inbox → they upload → re-extraction → the GP re-confirms the handover | **Phase 2** |
 
-In the MVP, flow 2 is replaced by the coordinator: they log a request task and **upload** the report when it arrives through another channel (email, post, eZprávy).
+In the MVP, flow 2 is replaced by the coordinator: they log a request task and **upload** the report when it arrives through another channel (email, post, eZprávy). One exception is in the MVP: when the GP's referral itself is not good enough, the coordinator **returns it to the GP with a note** (D-15), and the GP fixes it and resends it through flow 1.
 
 ```mermaid
 flowchart TD
@@ -151,7 +160,9 @@ flowchart TD
     rev --> send["Validovat a odeslat"]
   end
   subgraph koc["Coordinator (MVP)"]
-    take["Takes over"] --> detect["Sees what is referenced<br/>but not attached (F09)"]
+    take["Takes over"] -.->|"referral not good enough"| ret["Vrátit lékaři + note (D-15)"]
+    ret -.-> rev
+    take --> detect["Sees what is referenced<br/>but not attached (F09)"]
     detect --> task["Request task: 'vyžádat 01–06'<br/>(from whoever holds them)"]
     take --> plan["Task set / one-off tasks,<br/>arranges exams 08+"]
     task --> upl["Uploads reports as they arrive"]

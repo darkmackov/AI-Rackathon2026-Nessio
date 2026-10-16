@@ -90,6 +90,13 @@ class CaseTransition(Body):
     note: str | None = None
 
 
+class CaseReturn(Body):
+    """'Vrátit lékaři': send the referral back to the GP with what is missing (D-15)."""
+
+    note: str = Field(min_length=1, description="What the GP should add or fix")
+    finding_id: str | None = Field(default=None, description="The gap this return is about")
+
+
 class HoldSet(Body):
     """'Odložit': manual on-hold flag (Q-F9)."""
 
