@@ -6,9 +6,14 @@ from datetime import date, datetime
 
 from onko_contracts import (
     Case,
+    ConclusionPrefill,
+    DraftKind,
+    DraftResult,
     Evidence,
     Finding,
     FindingKind,
+    Job,
+    JobKind,
     MdtMember,
     MdtRecord,
     MdtResultRow,
@@ -67,6 +72,19 @@ def test_lists_and_optional_nested_models():
     task = Task(id="t1", case_id="c1", title="CT", kind="imaging", owner="koc", depends_on=["t0"],
                 external=True)
     assert _round_trip(tasks, task) == task
+
+
+def test_job_with_a_nested_draft_round_trips():
+    jobs = ModelTable("app_job", Job, key=("id",))
+    prefill = DraftResult(kind=DraftKind.MDT_CONCLUSION,
+                          fields=ConclusionPrefill(diagnosis_code="C25.0", date=date(2026, 10, 21),
+                                                   copy_to=["MUDr. Řezníček"]))
+    rows = DraftResult(kind=DraftKind.MDT_RESULTS,
+                       rows=[MdtResultRow(date=date(2026, 10, 8), examination="CT", result="35 mm")])
+    for draft in (prefill, rows, None):
+        job = Job(id="job-1", kind=JobKind.DRAFT, case_id="c1", created_at=NOW, draft=draft)
+        assert _round_trip(jobs, job) == job
+    assert jobs.column_types()["draft__fields__date"] == "DATE"
 
 
 def test_mdt_record_round_trip():

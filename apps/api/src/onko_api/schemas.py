@@ -10,6 +10,7 @@ from onko_contracts import (
     CaseState,
     DocumentMeta,
     DocumentType,
+    DraftKind,
     Job,
     MdtMember,
     MdtResultRow,
@@ -165,13 +166,6 @@ class TaskSetStart(Body):
 
 
 # --- AI drafts / suggestions -----------------------------------------------------------------
-
-
-class DraftKind(StrEnum):
-    EPICRISIS_SUMMARY = "epicrisis_summary"  # Q-F15, AI
-    MDT_QUESTION = "mdt_question"  # Q-F14, AI
-    MDT_RESULTS = "mdt_results"  # one-line result rows for the MDT record, AI
-    MDT_CONCLUSION = "mdt_conclusion"  # Q-F37: no AI, the MDT_zaver parts that restate the record
 
 
 class DraftCreate(Body):

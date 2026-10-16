@@ -109,7 +109,15 @@ classDiagram
   class Job {
     kind
     status
-    result
+    result: ingest counts
+    answer: CaseAnswer
+    draft: DraftResult
+  }
+  class DraftResult {
+    kind: DraftKind
+    text (epikríza, MDT question)
+    rows: MdtResultRow[] (mdt_results)
+    fields: ConclusionPrefill (mdt_conclusion, not AI)
   }
   class Organization {
     kind: koc|clinic|...
@@ -124,6 +132,7 @@ classDiagram
   Case "1" --> "0..1" MdtConclusion
   MdtRecord ..> MdtBoard : members from
   Case "1" --> "*" Job
+  Job *-- DraftResult
   Case "1" --> "*" AuditEvent
   Case ..> Organization : koc_id
   Case "1" --> "*" DocumentMeta
@@ -142,6 +151,8 @@ How the MDT snapshot works (S5, Q-F39):
 - *Připravit podklad pro MDT* copies the live handover with `as_of` = the MDT date and `confirmed_by_coordinator` stamped, and the case moves to *Připraveno k MDT*. Nothing is re-extracted.
 - The snapshot only uses documents with `received_at <= as_of`: it is refused (409) when any value, examination or lab panel quotes a later document, and while blockers are unresolved.
 - The live handover keeps updating; the snapshot stays frozen. The `MdtRecord` is built from it once (members copied from the board roster) and edited only before the meeting.
+
+Drafts (S5, Q-F37) come back typed in `Job.draft` (`DraftResult`), exactly the part of their `DraftKind`: `text` for the epikríza summary and the MDT question, `rows` (`MdtResultRow`) for the record's result one-liners, `fields` (`ConclusionPrefill`) for the conclusion prefill, which is not AI and never holds the MDT's decision. A draft changes nothing until the coordinator applies it. In IRIS it is part of the job row (`draft__…` columns).
 
 ## FHIR R4 mapping
 
