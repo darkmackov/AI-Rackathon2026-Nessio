@@ -75,10 +75,19 @@ fi
 if [ ${#secrets[@]} -gt 0 ]; then
   az containerapp secret set --name "$APP" --resource-group "$RG" --secrets "${secrets[@]}" --output none
 fi
-# One replica: the demo clock and the job runner live in the process (D-10).
+# ONKO_* variables the app has but .env no longer sets are removed, so an emptied value doesn't linger.
+stale=()
+for name in $(az containerapp show --name "$APP" --resource-group "$RG" \
+    --query 'properties.template.containers[0].env[].name' --output tsv); do
+  [[ "$name" == ONKO_* ]] || continue
+  [[ " ${env_vars[*]-} " == *" $name="* ]] || stale+=("$name")
+done
+# One replica: the demo clock and the job runner live in the process (D-10). 3 GiB: the local
+# embedding model (fastembed, Q-M2) runs in the process too.
 az containerapp update --name "$APP" --resource-group "$RG" --image "$image" \
-  --min-replicas 1 --max-replicas 1 \
-  ${env_vars[@]+--set-env-vars "${env_vars[@]}"} --output none
+  --min-replicas 1 --max-replicas 1 --cpu 1.5 --memory 3.0Gi \
+  ${env_vars[@]+--set-env-vars "${env_vars[@]}"} \
+  ${stale[@]+--remove-env-vars "${stale[@]}"} --output none
 
 fqdn="$(az containerapp show --name "$APP" --resource-group "$RG" \
   --query properties.configuration.ingress.fqdn --output tsv)"

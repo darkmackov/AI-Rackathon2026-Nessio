@@ -7,7 +7,15 @@ import os
 
 import httpx
 import pytest
-from onko_llm_gateway import Gateway, ModelSlot, load_slots, strict_schema
+from onko_llm_gateway import (
+    LOCAL_BASE_URL,
+    EmbedResult,
+    Gateway,
+    ModelSlot,
+    load_slots,
+    strict_schema,
+)
+from onko_llm_gateway.adapters.local_embed import LocalEmbedClient
 from onko_llm_gateway.adapters.openai_compat import OpenAICompatClient
 from pydantic import BaseModel, ValidationError
 
@@ -199,3 +207,52 @@ def test_embed_without_an_embedding_slot_is_an_error():
     assert not gw.can_embed
     with pytest.raises(RuntimeError, match="ONKO_EMBED_MODEL"):
         gw.embed(["text"])
+
+
+LOCAL = ModelSlot("e", LOCAL_BASE_URL, "", "local-model")
+
+
+class FakeLocal:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, list[str]]] = []
+
+    def embed(self, slot: ModelSlot, texts: list[str]) -> EmbedResult:
+        self.calls.append((slot.model, texts))
+        return EmbedResult(vectors=[[float(len(t))] for t in texts])
+
+
+def test_a_local_embedding_slot_embeds_in_process_without_an_endpoint():
+    seen: list[httpx.Request] = []
+    local = FakeLocal()
+    client = OpenAICompatClient(
+        http_client=httpx.Client(transport=httpx.MockTransport(lambda r: seen.append(r)))
+    )
+    gw = Gateway({"a": SLOT, "e": LOCAL}, "a", "e", client=client, local=local)
+
+    assert gw.can_embed
+    assert gw.embed(["ab", "abc"]) == [[2.0], [3.0]]
+    assert local.calls == [("local-model", ["ab", "abc"])]
+    assert seen == []
+
+
+def test_local_embed_client_loads_each_fastembed_model_once(monkeypatch):
+    import fastembed
+
+    loaded: list[str] = []
+
+    class FakeTextEmbedding:
+        def __init__(self, model_name: str) -> None:
+            loaded.append(model_name)
+
+        def embed(self, texts: list[str]):
+            return (iter([len(t), 0]) for t in texts)
+
+    monkeypatch.setattr(fastembed, "TextEmbedding", FakeTextEmbedding)
+    client = LocalEmbedClient()
+
+    first = client.embed(LOCAL, ["ab"])
+    second = client.embed(LOCAL, ["abcd"])
+
+    assert first.vectors == [[2.0, 0.0]] and second.vectors == [[4.0, 0.0]]
+    assert all(isinstance(x, float) for x in first.vectors[0])
+    assert loaded == ["local-model"]
