@@ -4,6 +4,7 @@ from .audit import AuditEvent
 from .cases import (
     ALLOWED_TRANSITIONS,
     Case,
+    CaseOverview,
     CaseState,
     Milestones,
     OnHold,
@@ -38,6 +39,7 @@ __all__ = [
     "Actor",
     "AuditEvent",
     "Case",
+    "CaseOverview",
     "CaseState",
     "Channel",
     "ConclusionSource",
