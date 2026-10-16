@@ -46,7 +46,8 @@ Return:
    allergen), performance_status (only an explicit ECOG / WHO / Karnofsky score), weight_kg and height_cm
    (numbers as measured in this document), symptoms (complaints and their onset), histology (the
    histological conclusion), other (patient wishes, consent to share, social situation, warnings).
-   Use certainty=unspecified except for diagnosis_code.
+   certainty (for diagnosis and diagnosis_code only, else unspecified): confirmed when the document
+   states it as histologically / definitively verified, suspected when it says suspected / probable.
 2. examinations: the examination this document is the report of (one entry; a visit with several
    investigations, e.g. clinical exam + ECG + echo, is ONE examination named after all of them),
    including the author's own clinical examination. Not examinations of other departments that this
@@ -54,7 +55,7 @@ Return:
    mark the clinical sections (findings, ZÁVĚR, DOPORUČENÍ, epikríza, anamnéza) without the
    administrative header (facility, patient identification) and without the signature.
    Labs and histology are NOT examinations; they have their own fields.
-3. labs: each laboratory panel with every value row as printed (name, value without the flag,
+3. labs: only if this document is a laboratory report: its panels with every value row as printed (name, value without the flag,
    unit, reference range, flag H/L if printed).
 4. epicrisis_start_quote / epicrisis_end_quote: only in a referring doctor's (GP) document, the
    section headed EPIKRÍZA through the end of the anamnesis (before the list of examinations or the

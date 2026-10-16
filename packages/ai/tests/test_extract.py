@@ -6,8 +6,8 @@ import datetime as dt
 
 from ai_testkit import FakeGateway, claim, make_doc, out
 from onko_ai import DocExtraction, Extraction, LlmExtractor, keep_manual, locate, merge
-from onko_ai.models import ExamClaim, FieldPath, LabClaim, LabValueClaim
-from onko_contracts import FieldStatus, Origin, Sourced, Stamp
+from onko_ai.models import Certainty, ExamClaim, FieldPath, LabClaim, LabValueClaim
+from onko_contracts import DocumentType, FieldStatus, Origin, Sourced, Stamp
 
 D1, D2, D3 = dt.date(2026, 5, 1), dt.date(2026, 8, 1), dt.date(2026, 9, 1)
 
@@ -98,7 +98,7 @@ def test_sex_is_derived_from_the_birth_number_when_not_stated():
 
 def test_examination_full_text_is_a_verbatim_slice_and_labs_keep_printed_values():
     text = "Hlavička\n\nPOPIS\nJátra bez ložisek.\n\nZÁVĚR\nNormální nález.\n\nMUDr. X\n\n| Hemoglobin | 131 | g/l |"
-    doc = make_doc("a", text, D2, title="CT")
+    doc = make_doc("a", text, D2, DocumentType.LAB, title="CT")
     exam = ExamClaim(
         date="2026-08-01",
         place="RDG",
@@ -153,7 +153,7 @@ def test_extractor_calls_the_model_once_per_document():
 
 def test_one_examination_and_one_lab_panel_per_document():
     text = "EKG: sinus.\nECHO: EF 60 %.\n| Hemoglobin | 131 |\n| CRP | 4 |"
-    doc = make_doc("a", text, D2)
+    doc = make_doc("a", text, D2, DocumentType.LAB)
     exams = [
         ExamClaim(
             date="2026-08-01",
@@ -222,3 +222,44 @@ def test_a_drug_mentioned_in_passing_does_not_replace_the_medication_list():
         ],
     )
     assert h.medications.value == meds
+
+
+def test_lab_values_quoted_outside_a_lab_report_are_not_a_panel():
+    doc = make_doc("a", "Hemoglobin 131 g/l", D2, DocumentType.OUTPATIENT_REPORT)
+    lab = LabClaim(
+        date="2026-08-01",
+        place="L",
+        date_quote="Hemoglobin",
+        values=[
+            LabValueClaim(
+                name="Hemoglobin", value="131", unit=None, reference_range=None, flag=None
+            )
+        ],
+    )
+    assert merge("c", D3, [Extraction(doc, out(labs=[lab]))]).labs == []
+
+
+def test_the_pathology_report_settles_the_diagnosis_over_newer_documents():
+    hist = make_doc("h", "Závěr: adenokarcinom G2", D1, DocumentType.HISTOLOGY)
+    mri = make_doc("m", "Závěr: karcinom rekta mrT3", D2, DocumentType.IMAGING)
+    h = merge(
+        "c",
+        D3,
+        [
+            Extraction(
+                hist,
+                out(
+                    claim(
+                        FieldPath.DIAGNOSIS,
+                        "adenokarcinom G2",
+                        "adenokarcinom G2",
+                        certainty=Certainty.CONFIRMED,
+                    )
+                ),
+            ),
+            Extraction(
+                mri, out(claim(FieldPath.DIAGNOSIS, "karcinom rekta", "karcinom rekta mrT3"))
+            ),
+        ],
+    )
+    assert h.diagnosis.value == "adenokarcinom G2"

@@ -11,6 +11,7 @@ from typing import Any
 
 from onko_contracts import (
     DocumentMeta,
+    DocumentType,
     Evidence,
     Examination,
     FieldStatus,
@@ -25,6 +26,7 @@ from onko_llm_gateway import Gateway
 
 from ..models import (
     LIST_FIELDS,
+    Certainty,
     DocExtraction,
     DocMetaDraft,
     Extraction,
@@ -45,7 +47,8 @@ IDENTITY = {
 }
 # Facts that should not change between documents: disagreement is a conflict a human decides.
 STABLE = {FieldPath.ALLERGIES, FieldPath.INSURANCE_CODE}
-# Everything else changes over time: the newest document wins.
+# Everything else changes over time: the newest document wins, except the diagnosis itself.
+DIAGNOSTIC = {FieldPath.DIAGNOSIS, FieldPath.HISTOLOGY}
 
 _NONE_WORDS = {"neguje", "negativní", "žádné", "žádná", "nejsou", "bez alergií", "nemá", "0", "-"}
 
@@ -151,8 +154,16 @@ def verified(claim: FieldClaim, doc: ParsedDocument) -> list[Evidence]:
 
 
 class _Candidate:
-    def __init__(self, value: Any, ev: list[Evidence], order: tuple, claim: FieldClaim):
+    def __init__(
+        self,
+        value: Any,
+        ev: list[Evidence],
+        order: tuple,
+        claim: FieldClaim,
+        doc_type: DocumentType,
+    ):
         self.value, self.evidence, self.order, self.claim = value, ev, order, claim
+        self.doc_type = doc_type
 
 
 def _order(doc: ParsedDocument, i: int) -> tuple:
@@ -170,12 +181,18 @@ def merge(case_id: str, as_of: dt.date, extractions: list[Extraction]) -> Handov
             if value is None or not ev:
                 continue  # never infer: no verbatim quote, no value (D-2)
             candidates.setdefault(claim.path, []).append(
-                _Candidate(value, ev, _order(ex.document, i), claim)
+                _Candidate(value, ev, _order(ex.document, i), claim, ex.document.meta.doc_type)
             )
 
     data: dict[str, Any] = {}
     for path, cands in candidates.items():
         cands.sort(key=lambda c: c.order)
+        if path in DIAGNOSTIC:
+            # The pathology report settles the diagnosis; otherwise a confirmed statement beats a suspicion.
+            best = [c for c in cands if c.doc_type is DocumentType.HISTOLOGY] or [
+                c for c in cands if c.claim.certainty is Certainty.CONFIRMED
+            ]
+            cands = best or cands
         if path in IDENTITY:
             counts = Counter(norm(c.value) for c in cands)
             best = max(cands, key=lambda c: (counts[norm(c.value)], c.order))
@@ -217,30 +234,35 @@ def merge(case_id: str, as_of: dt.date, extractions: list[Extraction]) -> Handov
     epicrisis: list[tuple[tuple, Sourced]] = []
     for i, ex in enumerate(extractions):
         doc, out = ex.document, ex.output
-        # One report = one examination (Q-C7, Q-C8): keep the most complete one.
+        span = None
+        if out.epicrisis_start_quote and out.epicrisis_end_quote:
+            span = section(out.epicrisis_start_quote, out.epicrisis_end_quote, doc)
+        # One report = one examination (Q-C7, Q-C8): keep the most complete one. In a referral the
+        # clinical part is the epikríza + anamnéza, not the list of examinations and the request.
         exams = [x for e in out.examinations if (x := _examination(e, doc)) is not None]
         if exams:
-            examinations.append(max(exams, key=lambda x: len(x.result_full_text)))
-        # A lab report printed in sections is still one panel per sample date.
-        panels: dict[dt.date, LabPanel] = {}
-        for lab in out.labs:
-            panel = _lab_panel(lab, doc)
-            if panel is None:
-                continue
-            if panel.date in panels:
-                first = panels[panel.date]
-                panel = first.model_copy(update={"values": first.values + panel.values})
-            panels[panel.date] = panel
-        labs.extend(panels.values())
-        if out.epicrisis_start_quote and out.epicrisis_end_quote:
-            found = section(out.epicrisis_start_quote, out.epicrisis_end_quote, doc)
-            if found is not None:
-                epicrisis.append(
-                    (
-                        _order(doc, i),
-                        Sourced(value=found[0], status=FieldStatus.FOUND, evidence=[found[1]]),
-                    )
+            exam = max(exams, key=lambda x: len(x.result_full_text))
+            if span is not None and doc.meta.doc_type is DocumentType.REFERRAL:
+                exam = exam.model_copy(update={"result_full_text": span[0]})
+            examinations.append(exam)
+        # Panels come only from laboratory reports (values quoted in other reports stay in their
+        # text), one panel per report.
+        panels = [p for lab in out.labs if (p := _lab_panel(lab, doc)) is not None]
+        if panels and doc.meta.doc_type is DocumentType.LAB:
+            date = doc.meta.document_date or panels[0].date
+            labs.append(
+                panels[0].model_copy(
+                    update={"date": date, "values": [v for p in panels for v in p.values]}
                 )
+            )
+        if span is not None:
+            found = span
+            epicrisis.append(
+                (
+                    _order(doc, i),
+                    Sourced(value=found[0], status=FieldStatus.FOUND, evidence=[found[1]]),
+                )
+            )
     if epicrisis:
         _put(data, "epicrisis_source", max(epicrisis, key=lambda x: x[0])[1])
 
