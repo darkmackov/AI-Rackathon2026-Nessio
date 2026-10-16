@@ -151,7 +151,7 @@ flowchart LR
 
 ## S8: Vector search + MKN-10 code suggestions
 - **Goal:** InterSystems criterion GenAI + vector search, used inside the evidence model (Q-I19), not as a side feature.
-- **Endpoints:** new ones for "ask the case" and code candidates, added to api.md by a contract PR first (new models: document chunk, answer with quotes, code candidate).
+- **Endpoints:** `askCase` (a `Job` of kind `ask_case`, the `CaseAnswer` in `job.answer`), `listCodeCandidates`, `pickDiagnosisCode` ([api.md](api.md)); models `DocChunk`, `CaseAnswer`, `CodeCandidate` and the finding kind `unverified_quote` (contract PR).
 - **Modules:**
   - `repository`: the `doc_chunk` table with a `VECTOR` column, filtered by `case_id` with an exact scan, no approximate index ([data-model.md](data-model.md) › Non-FHIR storage); the MKN-10 code table with embeddings (Q-C12).
   - `ai`: chunk every parsed document along its sections (document id + character offsets) and embed it; a quote not found verbatim is flagged and shown with the nearest chunk (D-2 unchanged); "ask the case" retrieves the top chunks, answers only with quotes and checks each verbatim, else "not found" (no similarity cut-off); MKN-10 candidates.

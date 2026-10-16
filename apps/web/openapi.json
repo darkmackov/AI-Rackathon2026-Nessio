@@ -804,6 +804,117 @@
         }
       }
     },
+    "/cases/{case_id}/handover/code-candidates": {
+      "get": {
+        "tags": [
+          "handover"
+        ],
+        "summary": "List Code Candidates",
+        "description": "MKN-10 candidates for a diagnosis without a code (S8, Q-C11), best first, from vector search\nover the code list. AI proposals only: nothing is filled in. 409 if the handover has no\ndiagnosis or its code is already set.",
+        "operationId": "list_code_candidates",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CodeCandidate"
+                  },
+                  "title": "Response List Code Candidates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/handover/diagnosis-code": {
+      "post": {
+        "tags": [
+          "handover"
+        ],
+        "summary": "Pick Diagnosis Code",
+        "description": "Store the picked candidate as `diagnosis_code` (origin=manual) and keep the AI suggestion in\nthe audit log (Q-C11, until Q-I21 adds it to the contract). 400 if the code is not a current\ncandidate.",
+        "operationId": "pick_diagnosis_code",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiagnosisCodePick"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cases/{case_id}/handover/validate": {
       "post": {
         "tags": [
@@ -1149,6 +1260,70 @@
             "description": "Current user (demo role switcher)"
           }
         ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/ask": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Ask Case",
+        "description": "'Ask the case' (S8, Q-I19): the nearest document chunks go to the model, which may answer\nonly with quotes; each is checked verbatim. The `CaseAnswer` arrives in `job.answer`\n(`found=false`, 'nenalezeno', when no quote passes).",
+        "operationId": "ask_case",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseAsk"
+              }
+            }
+          }
+        },
         "responses": {
           "202": {
             "description": "Successful Response",
@@ -3788,6 +3963,50 @@
         ],
         "title": "Case"
       },
+      "CaseAnswer": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "quotes": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Quotes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question",
+          "found"
+        ],
+        "title": "CaseAnswer",
+        "description": "'Ask the case' (Q-I19): the answer is only verbatim quotes from the case's documents, each\nchecked like extracted evidence. No quote passed: `found` is false ('nenalezeno')."
+      },
+      "CaseAsk": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Question",
+            "description": "e.g. 'Jaké je ECOG pacienta?'"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "CaseAsk",
+        "description": "'Ask the case' (Q-I19): a question in Czech, answered only with verbatim quotes."
+      },
       "CaseReturn": {
         "properties": {
           "note": {
@@ -3921,6 +4140,28 @@
         ],
         "title": "Channel"
       },
+      "CodeCandidate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "MKN-10 code, e.g. 'C25.0'"
+          },
+          "title_cs": {
+            "type": "string",
+            "title": "Title Cs",
+            "description": "Name of the code in the MKN-10 list"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "title_cs"
+        ],
+        "title": "CodeCandidate",
+        "description": "An MKN-10 code proposed by vector search for a diagnosis without a code (Q-C11). Only a\nproposal: a person picks one. Candidates are listed best first; similarity scores are not shown,\nthey are not calibrated (Q-I19)."
+      },
       "ConclusionSource": {
         "type": "string",
         "enum": [
@@ -4011,6 +4252,23 @@
           "reference_at_mdt"
         ],
         "title": "DemoScenario"
+      },
+      "DiagnosisCodePick": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Code",
+            "description": "One of the codes from listCodeCandidates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "DiagnosisCodePick",
+        "description": "The MKN-10 code a person picked from the AI candidates (Q-C11)."
       },
       "DocumentMeta": {
         "properties": {
@@ -4557,7 +4815,8 @@
           "temporal",
           "identity",
           "unattached_reference",
-          "trend"
+          "trend",
+          "unverified_quote"
         ],
         "title": "FindingKind"
       },
@@ -4874,6 +5133,17 @@
             ],
             "title": "Result",
             "description": "e.g. {'text': ...} for drafts"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseAnswer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Kind ask_case, once done; the question is in `params`"
           }
         },
         "additionalProperties": false,
@@ -4891,7 +5161,8 @@
         "enum": [
           "ingest_document",
           "draft",
-          "suggest_tasks"
+          "suggest_tasks",
+          "ask_case"
         ],
         "title": "JobKind"
       },

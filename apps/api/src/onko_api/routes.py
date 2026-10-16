@@ -33,6 +33,7 @@ from onko_contracts import (
     Actor,
     AuditEvent,
     Case,
+    CodeCandidate,
     DocumentMeta,
     DueNotice,
     Finding,
@@ -60,12 +61,14 @@ from pydantic import ValidationError
 from .deps import ActorId, Clock, CurrentUser, Jobs, Llm, Repo
 from .jobs import new_id, queue_ingest, run_ingest
 from .schemas import (
+    CaseAsk,
     CaseReturn,
     CaseTransition,
     CaseUpdate,
     DemoClock,
     DemoClockSet,
     DemoReset,
+    DiagnosisCodePick,
     DocumentMetaUpdate,
     DraftCreate,
     ExaminationCreate,
@@ -358,6 +361,22 @@ def add_examination(
     return _save_handover(repo, case, handover)
 
 
+@router.get("/cases/{case_id}/handover/code-candidates", tags=["handover"])
+def list_code_candidates(case_id: str) -> list[CodeCandidate]:
+    """MKN-10 candidates for a diagnosis without a code (S8, Q-C11), best first, from vector search
+    over the code list. AI proposals only: nothing is filled in. 409 if the handover has no
+    diagnosis or its code is already set."""
+    _todo()
+
+
+@router.post("/cases/{case_id}/handover/diagnosis-code", tags=["handover"])
+def pick_diagnosis_code(case_id: str, body: DiagnosisCodePick, user: CurrentUser) -> Handover:
+    """Store the picked candidate as `diagnosis_code` (origin=manual) and keep the AI suggestion in
+    the audit log (Q-C11, until Q-I21 adds it to the contract). 400 if the code is not a current
+    candidate."""
+    _todo()
+
+
 @router.post("/cases/{case_id}/handover/validate", tags=["handover"])
 def validate_handover(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> Handover:
     """Referring doctor validates the AI proposal (sets `validated_by_referrer`)."""
@@ -427,6 +446,14 @@ def create_draft(case_id: str, body: DraftCreate, actor_id: ActorId) -> Job:
 @router.post("/cases/{case_id}/suggestions/tasks", status_code=202, tags=["jobs"])
 def suggest_tasks(case_id: str, actor_id: ActorId) -> Job:
     """Bonus (Q-F3): high-precision, quote-backed task proposals in `job.result.tasks`."""
+    _todo()
+
+
+@router.post("/cases/{case_id}/ask", status_code=202, tags=["jobs"])
+def ask_case(case_id: str, body: CaseAsk, actor_id: ActorId) -> Job:
+    """'Ask the case' (S8, Q-I19): the nearest document chunks go to the model, which may answer
+    only with quotes; each is checked verbatim. The `CaseAnswer` arrives in `job.answer`
+    (`found=false`, 'nenalezeno', when no quote passes)."""
     _todo()
 
 

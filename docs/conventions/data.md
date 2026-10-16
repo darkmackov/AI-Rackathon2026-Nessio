@@ -2,7 +2,7 @@
 
 Rules for the three shapes data takes in this repo: **domain models**, **API models**, and **persisted IRIS/FHIR**. Every rule has an ID so reviews (human or AI) can cite it. The [root AGENTS.md](../../AGENTS.md) makes these binding for AI agents.
 
-The API itself (all 64 endpoints, request/response, status codes) is defined in [api.md](../api.md). This page doesn't repeat it; it says how to work with it. Decisions behind this page: Q-K1 to Q-K7 in [open-questions.md](../open-questions.md#k-code-conventions), plus Q-A1 to Q-A8 (API design).
+The API itself (all 67 endpoints, request/response, status codes) is defined in [api.md](../api.md). This page doesn't repeat it; it says how to work with it. Decisions behind this page: Q-K1 to Q-K7 in [open-questions.md](../open-questions.md#k-code-conventions), plus Q-A1 to Q-A8 (API design).
 
 ## Three shapes, three owners
 
@@ -27,7 +27,7 @@ flowchart LR
 | ID | Rule |
 |---|---|
 | DM-1 | Every domain model subclasses `onko_contracts.common.Model` (`extra="forbid"`), never `BaseModel` directly. |
-| DM-2 | One file per topic (`cases.py`, `documents.py`, `findings.py`, `handover.py`, `messaging.py`, `mdt.py`, `jobs.py`, `directory.py`, `audit.py`, `common.py`). Every public name is exported from `onko_contracts/__init__.py` and listed in `__all__`. |
+| DM-2 | One file per topic (`cases.py`, `documents.py`, `findings.py`, `handover.py`, `messaging.py`, `mdt.py`, `jobs.py`, `directory.py`, `audit.py`, `search.py`, `common.py`). Every public name is exported from `onko_contracts/__init__.py` and listed in `__all__`. |
 | DM-3 | Class names are plain English nouns with no suffix (`Case`, `Task`, `MdtRecord`). |
 | DM-4 | Field names are English `snake_case`. Czech domain terms go in docstrings and `Field(description=…)`. **Data is Czech** (Q-A6): a field holding Czech text ends in `_cs` (`message_cs`), and notes and drafts are Czech. |
 | DM-5 | Enums are `StrEnum`. Member names are English `UPPER_SNAKE`. **Values are stable wire and storage identifiers**: never rename or remove an existing value. New values are lowercase ASCII `snake_case`. |

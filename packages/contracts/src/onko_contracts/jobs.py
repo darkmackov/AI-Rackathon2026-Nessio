@@ -9,12 +9,14 @@ from typing import Any
 from pydantic import Field
 
 from .common import Model
+from .search import CaseAnswer
 
 
 class JobKind(StrEnum):
     INGEST_DOCUMENT = "ingest_document"  # AI metadata (Q-8) + handover extraction + checks
     DRAFT = "draft"  # epicrisis_summary | mdt_question | mdt_conclusion
     SUGGEST_TASKS = "suggest_tasks"  # bonus (Q-F3)
+    ASK_CASE = "ask_case"  # 'ask the case' over the case's document chunks (S8, Q-I19)
 
 
 class JobStatus(StrEnum):
@@ -36,3 +38,6 @@ class Job(Model):
     finished_at: datetime | None = None
     error: str | None = None
     result: dict[str, Any] | None = Field(default=None, description="e.g. {'text': ...} for drafts")
+    answer: CaseAnswer | None = Field(
+        default=None, description="Kind ask_case, once done; the question is in `params`"
+    )
