@@ -1,6 +1,7 @@
 """Create the FHIR R4 server on the IRIS for Health instance in .env (Q-I5). Idempotent.
 
-Creates namespace FHIRSERVER (if missing) and the endpoint at the path of ONKO_FHIR_BASE_URL
+Creates namespace FHIRSERVER (if missing) and the endpoint, reinstalling one that a cut-off run left
+without its web application, at the path of ONKO_FHIR_BASE_URL
 (default /fhir/r4), over the Native API with the credentials of ONKO_IRIS_CONNECTION_STRING.
 The installer calls follow the InterSystems FHIR-AI-Hackathon-Kit (fhir_server_setup_native.py).
 
@@ -39,12 +40,22 @@ def main() -> None:
     finally:
         connection.close()
 
+    connection, irispy = native("%SYS")
+    try:
+        # The installer creates the web application last; without it the gateway answers 503.
+        web_app = irispy.classMethodBoolean("Security.Applications", "Exists", endpoint)
+    finally:
+        connection.close()
+
     connection, irispy = native(NAMESPACE)
     try:
         if irispy.classMethodBoolean("HS.FHIRServer.ServiceInstance", "ExistsByUrl", endpoint):
-            print(f"FHIR endpoint {endpoint} already exists in {NAMESPACE}")
-            return
-        print(f"Creating FHIR endpoint {endpoint} in {NAMESPACE}")
+            if web_app:
+                print(f"FHIR endpoint {endpoint} already exists in {NAMESPACE}")
+                return
+            print(f"FHIR endpoint {endpoint} is half-installed (no web application): reinstalling")
+            irispy.classMethodVoid("HS.FHIRServer.Installer", "UninstallInstance", endpoint)
+        print(f"Creating FHIR endpoint {endpoint} in {NAMESPACE} (can take 20+ minutes)")
         irispy.classMethodVoid("HS.FHIRServer.Installer", "InstallNamespace")
         irispy.classMethodVoid("HS.FHIRServer.Installer", "InstallInstance", endpoint, STRATEGY, METADATA)
         print("Done")
