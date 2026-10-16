@@ -39,9 +39,10 @@ Integration rules (full list in [conventions](conventions/)):
 
 ## Phase 2: extensions (priority order, each behind an existing interface)
 1. **Additional document handovers** (Q-F23): KOC requests reach the GP's / facility's inbox, they upload, the GP re-confirms the handover.
-2. **Repeated MDT rounds** if Q-F8 is answered "yes".
-3. **Deadline notifications:** email/SMS channel adapters.
-4. **Reviewing-doctor feed** (the patient's insurer, Q-F10).
-5. **Image/scan parser** through a vision model.
+2. **Handover and record corrections** (S11, [slices.md](slices.md)): correct or remove examinations and lab results, add lab results, remove a document or a task set, undo a manual entry. Waits on Q-F24–Q-F27.
+3. **Repeated MDT rounds** if Q-F8 is answered "yes".
+4. **Deadline notifications:** email/SMS channel adapters.
+5. **Reviewing-doctor feed** (the patient's insurer, Q-F10).
+6. **Image/scan parser** through a vision model.
 
 Moved into the MVP on 16. 10. (Q-I17): vector search + "ask the case" (S8), FHIR exchange (S9), a read-only MCP server for agents (S10, Q-I23). Dropped: an in-app copilot chat and agent write tools (Q-I17, Q-I23), Embedded Python and the IRIS Interoperability production (no ObjectScript or Management Portal work, Q-I18).

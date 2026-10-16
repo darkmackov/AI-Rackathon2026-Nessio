@@ -11,7 +11,7 @@ Every endpoint already has its request and response shape in the OpenAPI spec ([
 - **Status `works (seeded)`:** the endpoint already serves the reference case from the in-memory repository.
 - **Status `works`:** implemented by its slice.
 
-64 operations in total.
+64 operations in total. Things users need that no operation covers yet, not even as a 501 stub, are listed in [Not in the API yet](#not-in-the-api-yet).
 
 **S0 web demo (Q-W6):** the standalone web simulates the eight S0 directory/identity and demo clock/reset operations, plus `/cases` for the existing provisional S1 queue, using MSW and these existing models. Contract tests check the implemented success responses and `HTTPValidationError` response shapes against the committed OpenAPI. This does not implement or change backend endpoints; the statuses below still describe the actual API. The simulation does not cover the full API or every undocumented backend coercion. `VITE_API_MODE=real` disables it without falling back on errors. See [web README](../apps/web/README.md).
 
@@ -125,6 +125,22 @@ Checked against [Zadani_ulohy](../data/vzp-structured/brief/Zadani_ulohy.md), th
 | Several KOCs and doctors | directory seed [`data/demo/directory.json`](../data/demo/directory.json): 5 KOCs with a coordinator each, 5 referring doctors, report specialists, 5 MDT boards, all insurers |
 
 **Consciously deferred** (team decisions): in-app communication with the doctor beyond returning the referral (D-15) and email/SMS (Q-F23), the reviewing-doctor feed (Q-F10), repeated MDT rounds (Q-F8, still open), bonus AI task suggestions (`suggestTasks` is defined but optional).
+
+## Not in the API yet
+
+Needs with **no operation at all**, not even a 501 stub. Each one gets its operations and models through a contract PR first, then a new row in the tables below.
+
+| # | Gap | Today | Owner |
+|---|---|---|---|
+| 1 | **Lab results:** add, correct or remove a lab panel or one of its values | No write operation. `LabPanel` already has `origin` and `entered` for manual entries, and `updateHandoverField` rejects `labs` (not a `Sourced` field) | S11 (Phase 2) |
+| 2 | **Examinations:** correct or remove one (date, place, type, result text) | Add only (`addExamination`). A wrong date also moves the examination across the MDT cut-off | S11 (Phase 2) |
+| 3 | **Remove a document** (wrong upload, duplicate) | No operation. The duplicate check on upload only warns (Q-I22) | S11 (Phase 2) |
+| 4 | **Undo a manual entry** back to the AI value and its evidence | A manual value can be overwritten or marked "Není k dispozici", never reverted; `Sourced` keeps no history | S11 (Phase 2) |
+| 5 | **Remove a task set** | `createTaskSet` / `updateTaskSet` only | S11 (Phase 2) |
+| 6 | **"Ask the case"** and **MKN-10 code candidates** | New operations and models still to be defined | S8 |
+| 7 | **Normalised lab values and performance status** (Q-C13) | `LabValue.value` and `performance_status` are plain strings | S2 |
+
+Open design questions for S11: Q-F24–Q-F27 in [open-questions.md](open-questions.md).
 
 ## Endpoints
 

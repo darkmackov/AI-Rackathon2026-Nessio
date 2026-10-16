@@ -189,7 +189,29 @@ flowchart LR
 - **Done when:** demo step 16: Claude Desktop connected to the deployed `/mcp` answers "which cases at KOC 2 are overdue and what's missing?" with quotes; tests call every tool against the in-memory fake.
 
 ## After the MVP (Phase 2)
-Bonus AI task suggestions (`suggestTasks`), then the Phase 2 list in [delivery.md](delivery.md): additional document handovers (flow 2), repeated MDT, and the rest.
+Bonus AI task suggestions (`suggestTasks`), then the Phase 2 list in [delivery.md](delivery.md): additional document handovers (flow 2), handover and record corrections (S11), repeated MDT, and the rest.
+
+## S11: Handover and record corrections (Phase 2)
+- **Goal:** people can fix what the AI or a person got wrong, beyond single `Sourced` fields. Covers the S11 gaps in [api.md › Not in the API yet](api.md#not-in-the-api-yet). Not part of the MVP build order or the demo.
+- **Depends on:** S2 (extraction, re-extraction), S3 (manual handover edits), S4 (task sets).
+- **Endpoints:** new ones, added to api.md by a contract PR first (new request bodies, possibly a contract change for Q-F24 and Q-F26). They must cover:
+  - labs: add a lab panel; correct or remove a lab panel or one value
+  - examinations: correct or remove one
+  - documents: remove one
+  - handover: undo a manual entry back to the previous AI value and its evidence
+  - task sets: remove one
+- **Modules:**
+  - `cases`: the edits, as `origin=manual` with `entered`, with the same editable states as `updateHandoverField` (`EDITABLE_STATES`).
+  - `ai`: `keep_manual` must not bring back a removed AI row or duplicate a corrected one on re-extraction (Q-F24).
+  - `documents`, `repository`: removing a document and what refers to it (Q-F25).
+  - `api`, `web`: the operations above and their UI. Every change goes to the audit log.
+- **UI:**
+  - Correct or remove every examination and lab panel; add a lab panel next to adding an examination.
+  - Revert a manual value that replaced an AI one.
+  - Remove a document in the Dokumenty tab, after a confirmation that names what refers to it.
+  - Remove a task set in the task-set editor.
+- **Open questions:** Q-F24, Q-F25, Q-F26, Q-F27 ([open-questions.md](open-questions.md)). The slice can't start before they are answered.
+- **Done when:** on the reference case, a wrong examination date and a wrong lab value are corrected, a duplicate upload is removed and a manual value is reverted to the AI one; re-extraction afterwards keeps every correction; each change shows its origin and appears in the audit log.
 
 ## Notes for slice owners
 - The seed puts the reference case at *Připraveno k MDT*. S3–S6 start from `resetDemo {scenario: empty}`. Frontend S0 simulates this operation; its actual backend implementation remains a follow-up (Q-W6).
