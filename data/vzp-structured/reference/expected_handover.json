@@ -1,0 +1,777 @@
+{
+  "schema_version": "1",
+  "case_id": "vzp-prochazkova",
+  "as_of": "2026-10-21",
+  "patient": {
+    "first_name": {
+      "value": "Alena",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Pacientka: Alena Procházková"
+        }
+      ]
+    },
+    "last_name": {
+      "value": "Procházková",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Pacientka: Alena Procházková"
+        }
+      ]
+    },
+    "birth_number": {
+      "value": "635722/1013",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Rodné číslo: 635722/1013"
+        }
+      ]
+    },
+    "birth_date": {
+      "value": "1963-07-22",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Datum narození: 22. 7. 1963 (63 let)"
+        }
+      ]
+    },
+    "age": {
+      "value": 63,
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Datum narození: 22. 7. 1963 (63 let)"
+        }
+      ]
+    },
+    "sex": {
+      "value": "žena",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Pacientka: Alena Procházková"
+        }
+      ],
+      "note": "Odvozeno z označení 'Pacientka' a RČ (měsíc +50); konzistentní."
+    },
+    "insurance_code": {
+      "value": "211",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Zdravotní pojišťovna: 211"
+        }
+      ]
+    },
+    "address": {
+      "value": "Za Školou 17, 252 41 Dolní Břežany",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Bydliště: Za Školou 17, 252 41 Dolní Břežany"
+        }
+      ]
+    }
+  },
+  "contacts": {
+    "patient_phone": {
+      "value": "+420 777 000 541",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Telefon: +420 777 000 541"
+        }
+      ]
+    },
+    "patient_email": {
+      "value": null,
+      "status": "missing",
+      "note": "E-mail pacientky není v žádném podkladu."
+    },
+    "contact_person": {
+      "value": "Petra Horká (dcera)",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Kontaktní osoba: Petra Horká (dcera), tel. +420 777 000 542"
+        }
+      ]
+    },
+    "contact_person_phone": {
+      "value": "+420 777 000 542",
+      "status": "found",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Kontaktní osoba: Petra Horká (dcera), tel. +420 777 000 542"
+        }
+      ]
+    }
+  },
+  "diagnosis": {
+    "value": "Duktální adenokarcinom hlavy pankreatu, G2–G3, s perineurální invazí",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "11",
+        "quote": "Duktální adenokarcinom pankreatu, středně až málo diferencovaný (G2–G3), s perineurální invazí. MKN-O 8500/3."
+      },
+      {
+        "document_id": "11",
+        "quote": "Materiál: ložisko hlavy pankreatu, EUS-FNB 22G"
+      }
+    ]
+  },
+  "diagnosis_code": {
+    "value": "C25.0",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "Suspektní diagnóza: C25.0 – suspektní tumor hlavy pankreatu, cholestatický syndrom"
+      }
+    ],
+    "note": "C25.0 uvedeno PL jako suspektní; histologie (11) uvádí jen MKN-O 8500/3. Definitivní kód MKN-10 potvrdí lékař."
+  },
+  "epicrisis_source": {
+    "value": "EPIKRÍZA\n63letá pacientka sledovaná v naší ordinaci. Od poloviny srpna 2026 bolesti břicha v epigastriu a pravém podžebří, na přelomu srpna a září intermitentní teploty se zimnicí a tmavší moč. Při vyšetření 1. 9. 2026 febrilní (38,1 °C), se subikterem sklér. Provedeny laboratorní odběry včetně vyšetření moči a kultivace a RTG plic. Pro suspektní infekci močových cest vs. biliární infekci léčena ciprofloxacinem 7 dní, poté afebrilní.\nPro přetrvávající cholestázu vyšetřena 15. 9. 2026 gastroenterologem, který doporučil UZ břicha. UZ provedené 29. 9. 2026 prokázalo ložisko hlavy pankreatu suspektní z malignity. Gastroenterolog doporučil doplnit CT břicha dle pankreatického protokolu, případně EUS.\nTermín CT se nám v dostupných pracovištích nepodařilo zajistit.\nPři kontrole dnes bolesti v epigastriu s propagací do zad přetrvávají, zhoršují se po jídle a v noci, na paracetamolu jen částečná úleva. Nechutenství, pokračující úbytek hmotnosti, moč nadále tmavší. Teploty od září neměla. Soběstačná, v práci t. č. v pracovní neschopnosti. Psychicky pacientka velmi úzkostná, špatně spí.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "Od poloviny srpna 2026 bolesti břicha v epigastriu a pravém podžebří"
+      }
+    ],
+    "note": "Epikríza referujícího lékaře doslovně; vedle ní návrh AI shrnutí (epicrisis), finální verzi píše/potvrzuje koordinátor(ka)."
+  },
+  "epicrisis": {
+    "value": "63letá pacientka s bolestmi v epigastriu a pravém podžebří od poloviny srpna 2026, febrilní epizodou se subikterem a cholestázou (léčena ciprofloxacinem), poté přetrvávající cholestáza, bolesti s propagací do zad a úbytek hmotnosti. UZ 29. 9. 2026: ložisko hlavy pankreatu suspektní z malignity. CT 8. 10. 2026: tumor hlavy pankreatu 35 mm s postižením VMS a kontaktem s AMS, suspektní peripankreatická uzlina, bez vzdálených metastáz. EUS-FNB 12. 10. 2026, histologie 19. 10. 2026: duktální adenokarcinom G2–G3.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "Od poloviny srpna 2026 bolesti břicha v epigastriu a pravém podžebří"
+      },
+      {
+        "document_id": "06",
+        "quote": "Ložisková léze hlavy pankreatu suspektní z malignity s mírnou dilatací žlučových cest."
+      },
+      {
+        "document_id": "08",
+        "quote": "Tumor hlavy pankreatu 35 mm s venózním postižením VMS se zúžením lumen a s kontaktem s AMS. Suspektní peripankreatická uzlina. Bez známek vzdálených metastáz."
+      },
+      {
+        "document_id": "11",
+        "quote": "Duktální adenokarcinom pankreatu, středně až málo diferencovaný (G2–G3), s perineurální invazí."
+      }
+    ]
+  },
+  "mdt_question": {
+    "value": "Převzetí do péče KOC k dokončení diagnostiky (CT břicha, histologická verifikace) a stanovení dalšího postupu v rámci MDT; urgentní řešení vzhledem k progresi obtíží.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "Žádám o převzetí pacientky do péče KOC k dokončení diagnostiky (CT břicha, histologická verifikace) a stanovení dalšího postupu v rámci MDT."
+      }
+    ]
+  },
+  "comorbidities": {
+    "value": [
+      "Paroxysmální fibrilace síní od r. 2021 na antikoagulaci (CHA₂DS₂-VASc 2 b., HAS-BLED 1 b.)",
+      "Arteriální hypertenze",
+      "Hypercholesterolémie",
+      "St. p. hysterektomii pro myomy (2010)",
+      "V r. 2019 po úmrtí manžela přechodně depresivní ladění, neléčena"
+    ],
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "OA: paroxysmální fibrilace síní od r. 2021 na antikoagulaci (kardiolog MUDr. Petr Malý, Jesenice), arteriální hypertenze, hypercholesterolémie, st. p. hysterektomii pro myomy (2010), v r. 2019 po úmrtí manžela přechodně depresivní ladění, neléčena"
+      },
+      {
+        "document_id": "01",
+        "quote": "I48.0 Paroxysmální fibrilace síní, CHA₂DS₂-VASc 2 b., HAS-BLED 1 b., na antikoagulační léčbě"
+      }
+    ]
+  },
+  "medications": {
+    "value": [
+      "apixaban 5 mg 1-0-1",
+      "bisoprolol 5 mg 1-0-0",
+      "perindopril 4 mg 1-0-0",
+      "rosuvastatin 10 mg 0-0-1",
+      "paracetamol 500 mg při bolesti max. 4× denně"
+    ],
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "FA: apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1, paracetamol 500 mg při bolesti max. 4× denně"
+      }
+    ],
+    "note": "Apixaban vysazen před EUS-FNB; znovu nasadit od 21. 10. 2026 ráno dle protokolu (09)."
+  },
+  "allergies": {
+    "value": "neguje",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "AA: neguje"
+      }
+    ]
+  },
+  "performance_status": {
+    "value": null,
+    "status": "missing",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "Soběstačná, v práci t. č. v pracovní neschopnosti."
+      }
+    ],
+    "note": "ECOG ani Karnofsky nejsou v podkladech výslovně stanoveny; uvedeno jen 'soběstačná'. Nedomýšlet."
+  },
+  "weight_kg": {
+    "value": 65,
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "05",
+        "quote": "Hmotnost 65 kg."
+      },
+      {
+        "document_id": "05",
+        "quote": "úbytek hmotnosti 4 kg za poslední měsíc (z 69 na 65 kg)"
+      }
+    ],
+    "note": "Poslední změřená hodnota k 21. 10. (15. 9. 2026, tj. 5 týdnů stará při úbytku hmotnosti). 20. 7. 2026: 69 kg (01)."
+  },
+  "height_cm": {
+    "value": 165,
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "01",
+        "quote": "Výška 165 cm, hmotnost 69 kg."
+      }
+    ]
+  },
+  "symptoms": {
+    "value": "Od poloviny srpna 2026 bolesti v epigastriu a pravém podžebří, později s propagací do zad, horší po jídle a v noci (paracetamol jen částečně účinný). Na přelomu srpna a září intermitentní teploty do 38,6 °C se zimnicí, tmavší moč, subikterus sklér, občas světlejší stolice. Nechutenství, úbytek hmotnosti 4 kg za měsíc, únava. Výrazná úzkost, špatný spánek.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "Od poloviny srpna 2026 bolesti břicha v epigastriu a pravém podžebří, na přelomu srpna a září intermitentní teploty se zimnicí a tmavší moč."
+      },
+      {
+        "document_id": "04",
+        "quote": "intermitentní teploty do 38,6 °C se zimnicí, únavu, nechutenství a tmavší moč posledních 5 dní"
+      },
+      {
+        "document_id": "05",
+        "quote": "Přetrvávají tupé bolesti v epigastriu s propagací do zad, horší po jídle a v noci. Nechutenství, úbytek hmotnosti 4 kg za poslední měsíc (z 69 na 65 kg). Moč stále tmavší, stolice občas světlejší."
+      },
+      {
+        "document_id": "07",
+        "quote": "Psychicky pacientka velmi úzkostná, špatně spí."
+      }
+    ]
+  },
+  "examinations": [
+    {
+      "date": "2026-07-20",
+      "place": "Kardiologická ambulance Jesenice",
+      "type": "Kardiologická kontrola, EKG, orientační echokardiografie",
+      "result_full_text": "SUBJEKTIVNĚ\nOd poslední kontroly v lednu 2026 bez palpitací, bez dušnosti, bolesti na hrudi neguje. Zátěž toleruje dobře (2 patra bez zastavení). Otoky dolních končetin neguje. Zažívací obtíže neguje.\nOBJEKTIVNĚ\nTK 132/80 mmHg, TF 68/min, pravidelná. Výška 165 cm, hmotnost 69 kg. Akce srdeční pravidelná, ozvy ohraničené, bez šelestu. Dýchání čisté, sklípkové. Bez otoků DK.\nEKG\nSinusový rytmus, 68/min, PQ 0,16 s, QRS 0,09 s, osa intermediární, bez ischemických změn ST-T.\nEchokardiografie (orientační)\nLK nedilatovaná, normální kinetika, EF LK 60 %. LS 42 mm. Chlopně bez hemodynamicky významné vady. Perikard bez výpotku.\nMEDIKACE\napixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1\nZÁVĚR A DOPORUČENÍ\nStabilní stav, sinusový rytmus, bez recidivy fibrilace síní. Hypertenze kompenzovaná. Medikace beze změn. Kontrola za 6 měsíců (leden 2027).\nPřed plánovaným invazivním výkonem s vysokým rizikem krvácení vysadit apixaban 48 hodin předem, bez nutnosti překlenovací léčby.",
+      "evidence": [
+        {
+          "document_id": "01",
+          "quote": "EF LK 60 %."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-01",
+      "place": "Ordinace praktického lékaře, Dolní Břežany",
+      "type": "Vyšetření praktickým lékařem (febrilní stav), epikríza a odeslání ke gastroenterologovi",
+      "result_full_text": "EPIKRÍZA\n63letá pacientka přišla 1. 9. 2026 pro asi 2 týdny trvající bolesti břicha v epigastriu a pravém podžebří, intermitentní teploty do 38,6 °C se zimnicí, únavu, nechutenství a tmavší moč posledních 5 dní. Dysurii a polakisurii neguje, průjem ani zvracení neguje.\nObjektivně TT 38,1 °C, TK 128/78 mmHg, TF 92/min pravidelná. Subikterus sklér. Břicho měkké, palpačně citlivé v epigastriu a pravém podžebří, Murphyho znamení negativní, bez hmatné rezistence. Tapottement bilaterálně negativní.\nLaboratorně leukocytóza 12,8, CRP 86 mg/l, cholestáza (bilirubin 38 µmol/l, GGT 4,20, ALP 3,10 µkat/l), v moči bilirubin ++ a leukocyturie, kultivačně E. coli 10⁴ CFU/ml (hraniční). RTG hrudníku 3. 9. bez zánětlivých změn.\nZávěr: febrilní stav, suspektní infekce močových cest vs. biliární infekce, cholestatický syndrom nejasné etiologie.\nTerapie: od 2. 9. 2026 ciprofloxacin 500 mg 1-0-1 po dobu 7 dní, paracetamol 500 mg při bolesti nebo teplotě max. 4× denně, dostatek tekutin. Při telefonické kontrole 4. 9. afebrilní, bolesti mírnější, moč nadále tmavší.\nANAMNÉZA\nRA: matka diabetes mellitus 2. typu, otec infarkt myokardu v 70 letech\nOA: paroxysmální fibrilace síní od r. 2021 na antikoagulaci (sledována kardiologem, poslední kontrola 20. 7. 2026), arteriální hypertenze, hypercholesterolémie, st. p. hysterektomii pro myomy (2010), v r. 2019 po úmrtí manžela přechodně depresivní ladění, neléčena\nFA: apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1\nAA: neguje\nAbusus: nekuřačka, alkohol abstinentka\nSA: vdova, žije sama v bytě, dcera bydlí v téže obci\nPA: účetní, dosud pracuje\nDOPORUČENÍ\n1. Vyšetření gastroenterologem pro cholestatický syndrom – objednána na 15. 9. 2026, MUDr. Ivana Křížová, Poliklinika Jižní.\n2. Kontrola u PL po dobrání ATB 9. 9. 2026 s kontrolním odběrem.\n3. Při návratu teplot, zežloutnutí nebo zhoršení bolestí neprodleně kontaktovat lékaře.",
+      "evidence": [
+        {
+          "document_id": "04",
+          "quote": "Subikterus sklér."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-03",
+      "place": "Radiologické centrum Modřany",
+      "type": "RTG hrudníku PA",
+      "result_full_text": "POPIS\nPlicní parenchym bez ložiskových a infiltrativních změn. Hily nerozšířené, strukturně přiměřené. Cévní kresba nezmnožená. Bránice hladká, kostofrenické úhly volné. Srdeční stín nezvětšen. Mediastinum nerozšířeno. Skelet hrudníku bez zjevných patologických změn.\nZÁVĚR\nBez známek zánětlivých změn plic. Přiměřený nález na srdci a plicích.",
+      "evidence": [
+        {
+          "document_id": "03",
+          "quote": "Bez známek zánětlivých změn plic."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-15",
+      "place": "Poliklinika Jižní – gastroenterologická ambulance",
+      "type": "Vstupní gastroenterologické vyšetření",
+      "result_full_text": "SUBJEKTIVNĚ\nOdeslána PL pro cholestázu po febrilní epizodě. Po ciprofloxacinu afebrilní od 4. 9. Přetrvávají tupé bolesti v epigastriu s propagací do zad, horší po jídle a v noci. Nechutenství, úbytek hmotnosti 4 kg za poslední měsíc (z 69 na 65 kg). Moč stále tmavší, stolice občas světlejší. Pruritus neguje. Nauzea občasná, zvracení neguje.\nOBJEKTIVNĚ\nHmotnost 65 kg. Subikterus sklér. Břicho měkké, palpačně citlivé v epigastriu, bez hmatné rezistence, játra nezvětšena, bez ascitu. Per rektum neprovedeno.\nZÁVĚR\nCholestatický syndrom s bolestmi v epigastriu propagujícími do zad a úbytkem hmotnosti, st. p. febrilní epizodě léčené ATB. Diferenciálně diagnosticky choledocholitiáza, stenóza žlučových cest, tumor pankreatu.\nDOPORUČENÍ\n1. UZ břicha – objednána na nejbližší volný termín 29. 9. 2026, RDG pracoviště Polikliniky Jižní.\n2. Dle výsledku UZ CT břicha dle pankreatického protokolu, případně EUS.\n3. Kontrola v gastroenterologické ambulanci s výsledkem UZ.\n4. Pacientka užívá apixaban – před případným invazivním výkonem nutno vysadit 48 h předem.\n5. Při teplotách nebo progresi ikteru neprodleně kontaktovat lékaře / LSPP.",
+      "evidence": [
+        {
+          "document_id": "05",
+          "quote": "Diferenciálně diagnosticky choledocholitiáza, stenóza žlučových cest, tumor pankreatu."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-29",
+      "place": "Poliklinika Jižní – RDG pracoviště",
+      "type": "UZ břicha",
+      "result_full_text": "POPIS\nJátra normální velikosti, homogenní echostruktury, bez ložiskových změn. Intrahepatální žlučovody lehce dilatovány, ductus hepatocholedochus 10 mm. Žlučník mírně distendovaný, stěna 3 mm, bez konkrementů. V hlavě pankreatu hypoechogenní, nehomogenní, neostře ohraničené ložisko 34 × 30 mm. Ductus Wirsungi 4 mm. Vztah ložiska k portomezenterickému soutoku nelze ultrazvukem spolehlivě posoudit. Tělo a kauda pankreatu přehledné jen částečně. Slezina 10 cm, homogenní. Ledviny normální velikosti, bez městnání a konkrementů. Bez volné tekutiny.\nZÁVĚR\nLožisková léze hlavy pankreatu suspektní z malignity s mírnou dilatací žlučových cest. Doporučeno CT břicha dle pankreatického protokolu, případně EUS.",
+      "evidence": [
+        {
+          "document_id": "06",
+          "quote": "Ložisková léze hlavy pankreatu suspektní z malignity s mírnou dilatací žlučových cest."
+        }
+      ]
+    },
+    {
+      "date": "2026-10-02",
+      "place": "Ordinace praktického lékaře, Dolní Břežany",
+      "type": "Kontrola u praktického lékaře, epikríza a žádost o převzetí do KOC",
+      "result_full_text": "EPIKRÍZA\n63letá pacientka sledovaná v naší ordinaci. Od poloviny srpna 2026 bolesti břicha v epigastriu a pravém podžebří, na přelomu srpna a září intermitentní teploty se zimnicí a tmavší moč. Při vyšetření 1. 9. 2026 febrilní (38,1 °C), se subikterem sklér. Provedeny laboratorní odběry včetně vyšetření moči a kultivace a RTG plic. Pro suspektní infekci močových cest vs. biliární infekci léčena ciprofloxacinem 7 dní, poté afebrilní.\nPro přetrvávající cholestázu vyšetřena 15. 9. 2026 gastroenterologem, který doporučil UZ břicha. UZ provedené 29. 9. 2026 prokázalo ložisko hlavy pankreatu suspektní z malignity. Gastroenterolog doporučil doplnit CT břicha dle pankreatického protokolu, případně EUS.\nTermín CT se nám v dostupných pracovištích nepodařilo zajistit.\nPři kontrole dnes bolesti v epigastriu s propagací do zad přetrvávají, zhoršují se po jídle a v noci, na paracetamolu jen částečná úleva. Nechutenství, pokračující úbytek hmotnosti, moč nadále tmavší. Teploty od září neměla. Soběstačná, v práci t. č. v pracovní neschopnosti. Psychicky pacientka velmi úzkostná, špatně spí.\nANAMNÉZA\nRA: matka diabetes mellitus 2. typu, otec infarkt myokardu v 70 letech\nOA: paroxysmální fibrilace síní od r. 2021 na antikoagulaci (kardiolog MUDr. Petr Malý, Jesenice), arteriální hypertenze, hypercholesterolémie, st. p. hysterektomii pro myomy (2010), v r. 2019 po úmrtí manžela přechodně depresivní ladění, neléčena\nFA: apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1, paracetamol 500 mg při bolesti max. 4× denně\nAA: neguje\nAbusus: nekuřačka, alkohol abstinentka\nSA: vdova, žije sama, dcera bydlí v téže obci\nPA: účetní, t. č. v pracovní neschopnosti",
+      "evidence": [
+        {
+          "document_id": "07",
+          "quote": "Psychicky pacientka velmi úzkostná, špatně spí."
+        }
+      ]
+    },
+    {
+      "date": "2026-10-08",
+      "place": "KOC Nemocnice Severní – Radiologická klinika",
+      "type": "CT břicha a hrudníku s k. l., pankreatický protokol",
+      "result_full_text": "POPIS\nV hlavě pankreatu hypodenzní, neostře ohraničené ložisko 35 × 31 mm. Ložisko obkružuje v. mesenterica superior v rozsahu cca 200° obvodu s nepravidelností kontury a zúžením lumen v délce 18 mm; proximální i distální segment VMS je vhodný k případné rekonstrukci. V. portae nad konfluencí průchodná. Kontakt tumoru s a. mesenterica superior do 150° obvodu, bez zúžení lumen. Truncus coeliacus a a. hepatica communis bez kontaktu s tumorem. A. gastroduodenalis v kontaktu s tumorem.\nDuctus hepatocholedochus 11 mm, intrahepatální žlučovody lehce dilatovány. Ductus Wirsungi 4 mm, parenchym těla a kaudy atrofický. Peripankreaticky uzlina 12 × 9 mm, suspektní. Paraaortální uzliny nezvětšené. Játra bez ložiskových změn. Bez ascitu, peritoneum bez nodulací.\nHrudník: plíce bez ložiskových změn, bez fluidothoraxu. Mediastinální a hilové uzliny nezvětšeny. Skelet bez osteolytických či osteoplastických ložisek.\nZÁVĚR\nTumor hlavy pankreatu 35 mm s venózním postižením VMS se zúžením lumen a s kontaktem s AMS. Suspektní peripankreatická uzlina. Bez známek vzdálených metastáz.",
+      "evidence": [
+        {
+          "document_id": "08",
+          "quote": "Tumor hlavy pankreatu 35 mm s venózním postižením VMS se zúžením lumen a s kontaktem s AMS."
+        }
+      ]
+    },
+    {
+      "date": "2026-10-12",
+      "place": "KOC Nemocnice Lipová – endoskopické pracoviště",
+      "type": "EUS-FNB ložiska hlavy pankreatu",
+      "result_full_text": "PŘÍPRAVA\nNalačno od půlnoci. Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer). Informovaný souhlas podepsán.\nANESTEZIE A MONITORACE\nAnalgosedace propofol 180 mg i.v. frakcionovaně za asistence anesteziologa. Monitorace SpO₂, TK a EKG, oxygenoterapie nosními brýlemi 2 l/min.\nPOPIS VÝKONU\nLineární echoendoskop zaveden bez obtíží přes jícen a žaludek do bulbu a sestupného raménka duodena. Z transduodenální polohy zobrazeno hypoechogenní nehomogenní ložisko v hlavě pankreatu 33 × 29 mm. Barevným dopplerem ověřena dráha vpichu bez interponovaných cév. Provedeny 3 průchody jehlou FNB 22G technikou slow-pull, 12–15 pohybů na průchod. Makroskopicky získány dostatečné válečky tkáně, fixovány ve formolu a odeslány k histologickému vyšetření. Po výkonu v místě vpichu minimální krvácení, spontánně zastavené. Endoskop vytažen, bez komplikací.\nDOPORUČENÍ\n2 hodiny klid na lůžku, poté tekutiny per os. Při nekomplikovaném průběhu apixaban znovu od 21. 10. 2026 ráno. Výsledek histologie do 3 pracovních dnů.",
+      "evidence": [
+        {
+          "document_id": "09",
+          "quote": "Z transduodenální polohy zobrazeno hypoechogenní nehomogenní ložisko v hlavě pankreatu 33 × 29 mm."
+        }
+      ]
+    }
+  ],
+  "labs": [
+    {
+      "date": "2026-09-01",
+      "place": "Laboratoř LabJih s.r.o.",
+      "values": [
+        {
+          "name": "Leukocyty",
+          "value": "12,8",
+          "unit": "10⁹/l",
+          "reference_range": "4,0–10,0",
+          "flag": "H"
+        },
+        {
+          "name": "Erytrocyty",
+          "value": "4,21",
+          "unit": "10¹²/l",
+          "reference_range": "3,80–5,20"
+        },
+        {
+          "name": "Hemoglobin",
+          "value": "124",
+          "unit": "g/l",
+          "reference_range": "120–160"
+        },
+        {
+          "name": "Hematokrit",
+          "value": "0,37",
+          "unit": "1",
+          "reference_range": "0,35–0,47"
+        },
+        {
+          "name": "Trombocyty",
+          "value": "298",
+          "unit": "10⁹/l",
+          "reference_range": "150–400"
+        },
+        {
+          "name": "Neutrofily",
+          "value": "82",
+          "unit": "%",
+          "reference_range": "45–70",
+          "flag": "H"
+        },
+        {
+          "name": "Lymfocyty",
+          "value": "12",
+          "unit": "%",
+          "reference_range": "20–45",
+          "flag": "L"
+        },
+        {
+          "name": "Sodík",
+          "value": "136",
+          "unit": "mmol/l",
+          "reference_range": "136–145"
+        },
+        {
+          "name": "Draslík",
+          "value": "4,0",
+          "unit": "mmol/l",
+          "reference_range": "3,5–5,1"
+        },
+        {
+          "name": "Chloridy",
+          "value": "99",
+          "unit": "mmol/l",
+          "reference_range": "98–107"
+        },
+        {
+          "name": "Urea",
+          "value": "5,1",
+          "unit": "mmol/l",
+          "reference_range": "2,8–8,1"
+        },
+        {
+          "name": "Kreatinin",
+          "value": "78",
+          "unit": "µmol/l",
+          "reference_range": "45–84"
+        },
+        {
+          "name": "Glukóza",
+          "value": "6,4",
+          "unit": "mmol/l",
+          "reference_range": "3,9–5,6",
+          "flag": "H"
+        },
+        {
+          "name": "Bilirubin celkový",
+          "value": "38",
+          "unit": "µmol/l",
+          "reference_range": "2–17",
+          "flag": "H"
+        },
+        {
+          "name": "ALT",
+          "value": "1,92",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,60",
+          "flag": "H"
+        },
+        {
+          "name": "AST",
+          "value": "1,45",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,60",
+          "flag": "H"
+        },
+        {
+          "name": "GGT",
+          "value": "4,20",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,70",
+          "flag": "H"
+        },
+        {
+          "name": "ALP",
+          "value": "3,10",
+          "unit": "µkat/l",
+          "reference_range": "0,58–1,75",
+          "flag": "H"
+        },
+        {
+          "name": "Amyláza",
+          "value": "1,10",
+          "unit": "µkat/l",
+          "reference_range": "0,47–1,67"
+        },
+        {
+          "name": "Lipáza",
+          "value": "0,85",
+          "unit": "µkat/l",
+          "reference_range": "0,22–1,00"
+        },
+        {
+          "name": "CRP",
+          "value": "86",
+          "unit": "mg/l",
+          "reference_range": "0–5",
+          "flag": "H"
+        },
+        {
+          "name": "Moč chemicky",
+          "value": "bílkovina +, bilirubin ++, krev +, leukocyty ++, nitrity neg."
+        },
+        {
+          "name": "Moč sediment",
+          "value": "erytrocyty 8/µl, leukocyty 65/µl (H), bakterie +"
+        },
+        {
+          "name": "Kultivace moči",
+          "value": "Escherichia coli 10⁴ CFU/ml; R: ampicilin; C: amoxicilin/klavulanát, cefuroxim, ciprofloxacin, kotrimoxazol, nitrofurantoin; signifikance hraniční"
+        }
+      ],
+      "evidence": [
+        {
+          "document_id": "02",
+          "quote": "Odběr: 1. 9. 2026 8:10"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-15",
+      "place": "KOC Nemocnice Lipová – OKB a hematologie",
+      "values": [
+        {
+          "name": "Leukocyty",
+          "value": "8,9",
+          "unit": "10⁹/l",
+          "reference_range": "4,0–10,0"
+        },
+        {
+          "name": "Erytrocyty",
+          "value": "3,98",
+          "unit": "10¹²/l",
+          "reference_range": "3,80–5,20"
+        },
+        {
+          "name": "Hemoglobin",
+          "value": "118",
+          "unit": "g/l",
+          "reference_range": "120–160",
+          "flag": "L"
+        },
+        {
+          "name": "Hematokrit",
+          "value": "0,35",
+          "unit": "1",
+          "reference_range": "0,35–0,47"
+        },
+        {
+          "name": "MCV",
+          "value": "88",
+          "unit": "fl",
+          "reference_range": "82–98"
+        },
+        {
+          "name": "Trombocyty",
+          "value": "312",
+          "unit": "10⁹/l",
+          "reference_range": "150–400"
+        },
+        {
+          "name": "Neutrofily",
+          "value": "68",
+          "unit": "%",
+          "reference_range": "45–70"
+        },
+        {
+          "name": "Lymfocyty",
+          "value": "22",
+          "unit": "%",
+          "reference_range": "20–45"
+        },
+        {
+          "name": "Sodík",
+          "value": "137",
+          "unit": "mmol/l",
+          "reference_range": "136–145"
+        },
+        {
+          "name": "Draslík",
+          "value": "4,1",
+          "unit": "mmol/l",
+          "reference_range": "3,5–5,1"
+        },
+        {
+          "name": "Vápník",
+          "value": "2,31",
+          "unit": "mmol/l",
+          "reference_range": "2,15–2,55"
+        },
+        {
+          "name": "Urea",
+          "value": "4,6",
+          "unit": "mmol/l",
+          "reference_range": "2,8–8,1"
+        },
+        {
+          "name": "Kreatinin",
+          "value": "74",
+          "unit": "µmol/l",
+          "reference_range": "45–84"
+        },
+        {
+          "name": "eGFR (CKD-EPI)",
+          "value": "1,25",
+          "unit": "ml/s/1,73 m²",
+          "reference_range": "> 1,0"
+        },
+        {
+          "name": "Glukóza",
+          "value": "6,2",
+          "unit": "mmol/l",
+          "reference_range": "3,9–5,6",
+          "flag": "H"
+        },
+        {
+          "name": "Bilirubin celkový",
+          "value": "23",
+          "unit": "µmol/l",
+          "reference_range": "2–17",
+          "flag": "H"
+        },
+        {
+          "name": "Bilirubin konjugovaný",
+          "value": "6",
+          "unit": "µmol/l",
+          "reference_range": "0–5",
+          "flag": "H"
+        },
+        {
+          "name": "ALT",
+          "value": "1,62",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,60",
+          "flag": "H"
+        },
+        {
+          "name": "AST",
+          "value": "1,20",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,60",
+          "flag": "H"
+        },
+        {
+          "name": "GGT",
+          "value": "5,00",
+          "unit": "µkat/l",
+          "reference_range": "0,10–0,70",
+          "flag": "H"
+        },
+        {
+          "name": "ALP",
+          "value": "3,40",
+          "unit": "µkat/l",
+          "reference_range": "0,58–1,75",
+          "flag": "H"
+        },
+        {
+          "name": "Celková bílkovina",
+          "value": "66",
+          "unit": "g/l",
+          "reference_range": "64–83"
+        },
+        {
+          "name": "Albumin",
+          "value": "36",
+          "unit": "g/l",
+          "reference_range": "35–52"
+        },
+        {
+          "name": "CRP",
+          "value": "18",
+          "unit": "mg/l",
+          "reference_range": "0–5",
+          "flag": "H"
+        },
+        {
+          "name": "CA 19-9",
+          "value": "312",
+          "unit": "kU/l",
+          "reference_range": "< 37",
+          "flag": "H"
+        },
+        {
+          "name": "CEA",
+          "value": "4,1",
+          "unit": "µg/l",
+          "reference_range": "< 5,0"
+        },
+        {
+          "name": "CA 125",
+          "value": "48",
+          "unit": "kU/l",
+          "reference_range": "< 35",
+          "flag": "H"
+        }
+      ],
+      "evidence": [
+        {
+          "document_id": "10",
+          "quote": "Odběr: 15. 10. 2026 7:45"
+        }
+      ]
+    }
+  ],
+  "histology": {
+    "value": "Duktální adenokarcinom pankreatu, středně až málo diferencovaný (G2–G3), s perineurální invazí. MKN-O 8500/3. Imunohistochemicky: CK7 pozitivní, CK19 pozitivní, CK20 negativní, CDX2 negativní, SMAD4 exprese zachována. (B-2026/15921, vydáno 19. 10. 2026)",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "11",
+        "quote": "Duktální adenokarcinom pankreatu, středně až málo diferencovaný (G2–G3), s perineurální invazí. MKN-O 8500/3."
+      },
+      {
+        "document_id": "11",
+        "quote": "Imunohistochemicky: CK7 pozitivní, CK19 pozitivní, CK20 negativní, CDX2 negativní, SMAD4 exprese zachována."
+      }
+    ]
+  },
+  "other": {
+    "value": "Pacientka je o podezření na nádorové onemocnění informována a souhlasí se sdílením informací s dcerou. Výrazná úzkost – PL žádá o zvážení psychologické podpory. Antikoagulace apixabanem: před invazivním výkonem s vysokým rizikem krvácení vysadit 48 h předem, bez překlenovací léčby. Žije sama, dcera v téže obci; t. č. v pracovní neschopnosti.",
+    "status": "found",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "Pacientka je o podezření na nádorové onemocnění informována. Souhlasí se sdílením informací s dcerou."
+      },
+      {
+        "document_id": "07",
+        "quote": "Vzhledem k výrazné úzkosti pacientky prosím o zvážení psychologické podpory."
+      },
+      {
+        "document_id": "01",
+        "quote": "Před plánovaným invazivním výkonem s vysokým rizikem krvácení vysadit apixaban 48 hodin předem, bez nutnosti překlenovací léčby."
+      }
+    ]
+  },
+  "validated_by_referrer": null,
+  "confirmed_by_coordinator": null
+}

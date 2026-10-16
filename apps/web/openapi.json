@@ -1,0 +1,1500 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Onko-koordinace API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object",
+                  "title": "Response Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases": {
+      "get": {
+        "summary": "List Cases",
+        "operationId": "list_cases",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Case"
+                  },
+                  "type": "array",
+                  "title": "Response List Cases"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}": {
+      "get": {
+        "summary": "Get Case",
+        "operationId": "get_case",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/handover": {
+      "get": {
+        "summary": "Get Handover",
+        "operationId": "get_handover",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "snapshot",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Snapshot"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/findings": {
+      "get": {
+        "summary": "List Findings",
+        "operationId": "list_findings",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Finding"
+                  },
+                  "title": "Response List Findings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/tasks": {
+      "get": {
+        "summary": "List Tasks",
+        "operationId": "list_tasks",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  },
+                  "title": "Response List Tasks"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/documents": {
+      "get": {
+        "summary": "List Documents",
+        "operationId": "list_documents",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentMeta"
+                  },
+                  "title": "Response List Documents"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/text": {
+      "get": {
+        "summary": "Document Text",
+        "operationId": "document_text",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Document Text"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Case": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "patient_name": {
+            "type": "string",
+            "title": "Patient Name"
+          },
+          "diagnosis_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Label"
+          },
+          "koc": {
+            "type": "string",
+            "title": "Koc"
+          },
+          "referring_doctor_id": {
+            "type": "string",
+            "title": "Referring Doctor Id"
+          },
+          "coordinator_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinator Id"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CaseState",
+            "default": "odeslano"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/QueueColumn",
+            "default": "novy"
+          },
+          "on_move": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Move",
+            "description": "Actor id responsible for the next step"
+          },
+          "next_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Step"
+          },
+          "next_due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Due"
+          },
+          "mdt_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mdt Date"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "on_hold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OnHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manual 'odloženo' flag (Q-F9)"
+          },
+          "milestones": {
+            "$ref": "#/components/schemas/Milestones"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "patient_name",
+          "koc",
+          "referring_doctor_id",
+          "created_at"
+        ],
+        "title": "Case"
+      },
+      "CaseState": {
+        "type": "string",
+        "enum": [
+          "odeslano",
+          "v_triage",
+          "ceka_na_podklady",
+          "kompletni",
+          "pripraveno_k_mdt",
+          "zaver_mdt",
+          "zpetna_vazba_odeslana",
+          "uzavreno"
+        ],
+        "title": "CaseState",
+        "description": "The 8 case states from the VZP brief (slide 10)."
+      },
+      "Contacts": {
+        "properties": {
+          "patient_phone": {
+            "$ref": "#/components/schemas/Sourced_str_"
+          },
+          "patient_email": {
+            "$ref": "#/components/schemas/Sourced_str_"
+          },
+          "contact_person": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "Name + relation"
+          },
+          "contact_person_phone": {
+            "$ref": "#/components/schemas/Sourced_str_"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Contacts"
+      },
+      "DocumentMeta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "doc_type": {
+            "$ref": "#/components/schemas/DocumentType"
+          },
+          "document_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Document Date",
+            "description": "Date of the examination / issue"
+          },
+          "facility": {
+            "type": "string",
+            "title": "Facility"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "ordered_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordered By",
+            "description": "Indikující / odesílající lékař"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At",
+            "description": "When the document entered the case; drives the MDT snapshot"
+          },
+          "mime_type": {
+            "type": "string",
+            "title": "Mime Type",
+            "default": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "title",
+          "doc_type",
+          "document_date",
+          "facility"
+        ],
+        "title": "DocumentMeta"
+      },
+      "DocumentType": {
+        "type": "string",
+        "enum": [
+          "referral",
+          "epicrisis",
+          "outpatient_report",
+          "lab",
+          "imaging",
+          "procedure",
+          "histology",
+          "mdt_record",
+          "mdt_conclusion",
+          "other"
+        ],
+        "title": "DocumentType"
+      },
+      "Evidence": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote",
+            "description": "Verbatim text from the source document"
+          },
+          "document_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Date"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document_id",
+          "quote"
+        ],
+        "title": "Evidence",
+        "description": "Where a value came from. Every AI-extracted value carries at least one."
+      },
+      "Examination": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "place": {
+            "type": "string",
+            "title": "Place"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "result_full_text": {
+            "type": "string",
+            "title": "Result Full Text"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "place",
+          "type",
+          "result_full_text"
+        ],
+        "title": "Examination",
+        "description": "Provedené vyšetření: date, place, type, full result text.\n\n`result_full_text` = all clinical sections verbatim (findings, ZÁVĚR, DOPORUČENÍ), without the\nadministrative header and signature (Q-C8). GP examinations are included too (Q-C7)."
+      },
+      "FieldStatus": {
+        "type": "string",
+        "enum": [
+          "found",
+          "missing",
+          "conflict"
+        ],
+        "title": "FieldStatus",
+        "description": "Extraction state of one handover value."
+      },
+      "Finding": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/FindingKind"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "Handover paths, e.g. 'performance_status'"
+          },
+          "message_cs": {
+            "type": "string",
+            "title": "Message Cs"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "suggested_action": {
+            "$ref": "#/components/schemas/SuggestedAction",
+            "default": "review"
+          },
+          "advisory": {
+            "type": "boolean",
+            "title": "Advisory",
+            "description": "Clinical-judgement hint from the LLM review, not a data gap (Q-C3)",
+            "default": false
+          },
+          "overridable": {
+            "type": "boolean",
+            "title": "Overridable",
+            "description": "A blocker the coordinator may override with a note (Q-C2)",
+            "default": true
+          },
+          "resolved": {
+            "type": "boolean",
+            "title": "Resolved",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "severity",
+          "message_cs"
+        ],
+        "title": "Finding"
+      },
+      "FindingKind": {
+        "type": "string",
+        "enum": [
+          "missing",
+          "conflict",
+          "temporal",
+          "identity",
+          "unattached_reference",
+          "trend"
+        ],
+        "title": "FindingKind"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Handover": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version",
+            "default": "1"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of",
+            "description": "Snapshot date; only documents received by then are used"
+          },
+          "patient": {
+            "$ref": "#/components/schemas/PatientDetails"
+          },
+          "contacts": {
+            "$ref": "#/components/schemas/Contacts"
+          },
+          "diagnosis": {
+            "$ref": "#/components/schemas/Sourced_str_"
+          },
+          "diagnosis_code": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "MKN-10 / ICD-10"
+          },
+          "epicrisis_source": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "Referring doctor's epikríza, verbatim (Q-F15)"
+          },
+          "epicrisis": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "Final epikríza: AI summary proposal shown side by side, written/confirmed by the coordinator"
+          },
+          "mdt_question": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "Požadavek / otázka na MDT; written by the coordinator, optional AI prefill (Q-F14)"
+          },
+          "comorbidities": {
+            "$ref": "#/components/schemas/Sourced_list_str__",
+            "description": "OA"
+          },
+          "medications": {
+            "$ref": "#/components/schemas/Sourced_list_str__",
+            "description": "FA"
+          },
+          "allergies": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "AA"
+          },
+          "performance_status": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "ECOG / Karnofsky"
+          },
+          "weight_kg": {
+            "$ref": "#/components/schemas/Sourced_float_"
+          },
+          "height_cm": {
+            "$ref": "#/components/schemas/Sourced_float_"
+          },
+          "symptoms": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "Symptoms and their onset"
+          },
+          "examinations": {
+            "items": {
+              "$ref": "#/components/schemas/Examination"
+            },
+            "type": "array",
+            "title": "Examinations"
+          },
+          "labs": {
+            "items": {
+              "$ref": "#/components/schemas/LabPanel"
+            },
+            "type": "array",
+            "title": "Labs",
+            "description": "Including tumour markers"
+          },
+          "histology": {
+            "$ref": "#/components/schemas/Sourced_str_"
+          },
+          "other": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "Jiná sdělení incl. patient wishes"
+          },
+          "validated_by_referrer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Referring doctor validated the AI proposal before sending (Q-F5)"
+          },
+          "confirmed_by_coordinator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Coordinator confirmed the MDT snapshot (Q-F5, Q-F21)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "case_id",
+          "as_of"
+        ],
+        "title": "Handover"
+      },
+      "LabPanel": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "place": {
+            "type": "string",
+            "title": "Place"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/LabValue"
+            },
+            "type": "array",
+            "title": "Values"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "place",
+          "values"
+        ],
+        "title": "LabPanel"
+      },
+      "LabValue": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "reference_range": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Range"
+          },
+          "flag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flag",
+            "description": "H / L as printed by the lab"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "LabValue"
+      },
+      "Milestones": {
+        "properties": {
+          "symptom_onset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symptom Onset",
+            "description": "First symptoms (from documents)"
+          },
+          "referred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referred At",
+            "description": "Referral sent to the KOC"
+          },
+          "mdt_held": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mdt Held"
+          },
+          "treatment_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Treatment Start"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Milestones",
+        "description": "Dates behind time to treatment = T1 + T2 + T3 (slide 4)."
+      },
+      "OnHold": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          },
+          "set_by": {
+            "type": "string",
+            "title": "Set By"
+          },
+          "set_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Set At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason",
+          "set_by",
+          "set_at"
+        ],
+        "title": "OnHold",
+        "description": "Set by the coordinator; puts the case in the 'Odložený' column."
+      },
+      "PatientDetails": {
+        "properties": {
+          "first_name": {
+            "$ref": "#/components/schemas/Sourced_str_"
+          },
+          "last_name": {
+            "$ref": "#/components/schemas/Sourced_str_"
+          },
+          "birth_number": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "Rodné číslo"
+          },
+          "birth_date": {
+            "$ref": "#/components/schemas/Sourced_date_"
+          },
+          "age": {
+            "$ref": "#/components/schemas/Sourced_int_"
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sourced_str_"
+          },
+          "insurance_code": {
+            "$ref": "#/components/schemas/Sourced_str_",
+            "description": "Kód zdravotní pojišťovny, e.g. 111 = VZP, 211 = ZPMV"
+          },
+          "address": {
+            "$ref": "#/components/schemas/Sourced_str_"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PatientDetails",
+        "description": "Nacionále pacienta."
+      },
+      "QueueColumn": {
+        "type": "string",
+        "enum": [
+          "novy",
+          "aktivni",
+          "odlozeny"
+        ],
+        "title": "QueueColumn",
+        "description": "Coordinator dashboard columns (slide 9)."
+      },
+      "Severity": {
+        "type": "string",
+        "enum": [
+          "info",
+          "warning",
+          "blocker"
+        ],
+        "title": "Severity"
+      },
+      "Sourced_date_": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus",
+            "default": "found"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Why missing / what conflicts, in Czech"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Sourced[date]"
+      },
+      "Sourced_float_": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus",
+            "default": "found"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Why missing / what conflicts, in Czech"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Sourced[float]"
+      },
+      "Sourced_int_": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus",
+            "default": "found"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Why missing / what conflicts, in Czech"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Sourced[int]"
+      },
+      "Sourced_list_str__": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus",
+            "default": "found"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Why missing / what conflicts, in Czech"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Sourced[list[str]]"
+      },
+      "Sourced_str_": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus",
+            "default": "found"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Why missing / what conflicts, in Czech"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Sourced[str]"
+      },
+      "Stamp": {
+        "properties": {
+          "by": {
+            "type": "string",
+            "title": "By"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "by",
+          "at"
+        ],
+        "title": "Stamp"
+      },
+      "SuggestedAction": {
+        "type": "string",
+        "enum": [
+          "request",
+          "fill_in",
+          "review"
+        ],
+        "title": "SuggestedAction"
+      },
+      "Task": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "e.g. imaging, biopsy, lab, consult, request_documents, mdt"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner",
+            "description": "Actor id of whoever is 'na tahu' (on the move)"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "planned"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Depends On",
+            "description": "Task ids that must be done first"
+          },
+          "external": {
+            "type": "boolean",
+            "title": "External",
+            "description": "Waiting on someone outside the KOC",
+            "default": false
+          },
+          "result_document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Document Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "case_id",
+          "title",
+          "kind",
+          "owner"
+        ],
+        "title": "Task"
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "planned",
+          "booked",
+          "done",
+          "cancelled"
+        ],
+        "title": "TaskStatus"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

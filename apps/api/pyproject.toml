@@ -1,0 +1,25 @@
+[project]
+name = "onko-api"
+version = "0.1.0"
+description = "FastAPI backend over the modules; talks to the shared Azure IRIS."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.143.2",
+  "uvicorn>=0.54.0",
+  "onko-contracts",
+  "onko-cases",
+  "onko-repository",
+  "onko-documents",
+  "onko-ai",
+  "onko-messaging",
+]
+
+[dependency-groups]
+dev = ["httpx>=0.28.1"]
+
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/onko_api"]

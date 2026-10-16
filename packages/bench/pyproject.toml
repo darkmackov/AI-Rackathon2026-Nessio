@@ -1,0 +1,16 @@
+[project]
+name = "onko-bench"
+version = "0.1.0"
+description = "Benchmark extraction/checks across models against reference cases."
+requires-python = ">=3.11"
+dependencies = ["onko-contracts", "onko-ai", "onko-llm-gateway"]
+
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/onko_bench"]
+
+[project.scripts]
+onko-bench = "onko_bench:main"

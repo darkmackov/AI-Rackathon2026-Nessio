@@ -1,0 +1,13 @@
+[project]
+name = "onko-cases"
+version = "0.1.0"
+description = "Case state machine, tasks, task sets, owner/due dates, audit."
+requires-python = ">=3.11"
+dependencies = ["onko-contracts"]
+
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/onko_cases"]

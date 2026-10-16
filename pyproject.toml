@@ -1,0 +1,30 @@
+[project]
+name = "onko-koordinace"
+version = "0.1.0"
+description = "KOC coordinator tool: referral -> AI handover -> journey -> MDT -> feedback (Rakathon 2026, VZP + InterSystems)"
+requires-python = ">=3.11"
+dependencies = ["onko-api", "onko-bench"]
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/api"]
+
+[tool.uv.sources]
+onko-contracts = { workspace = true }
+onko-documents = { workspace = true }
+onko-ai = { workspace = true }
+onko-llm-gateway = { workspace = true }
+onko-cases = { workspace = true }
+onko-messaging = { workspace = true }
+onko-repository = { workspace = true }
+onko-bench = { workspace = true }
+onko-api = { workspace = true }
+
+[dependency-groups]
+dev = ["pytest>=9.1.1", "ruff>=0.17.1", "httpx>=0.28.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages", "apps/api"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

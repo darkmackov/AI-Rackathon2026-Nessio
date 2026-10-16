@@ -1,0 +1,234 @@
+[
+  {
+    "id": "F01",
+    "kind": "missing",
+    "severity": "blocker",
+    "fields": [
+      "performance_status"
+    ],
+    "message_cs": "Stav výkonnosti (ECOG / Karnofsky) není v podkladech výslovně stanoven, uvedeno pouze 'soběstačná'. Koordinátor(ka) může případ s poznámkou přesto předat k MDT.",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "Soběstačná, v práci t. č. v pracovní neschopnosti."
+      }
+    ],
+    "suggested_action": "request",
+    "resolved": false,
+    "overridable": true
+  },
+  {
+    "id": "F02",
+    "kind": "missing",
+    "severity": "warning",
+    "fields": [
+      "contacts.patient_email"
+    ],
+    "message_cs": "E-mail pacientky chybí.",
+    "evidence": [],
+    "suggested_action": "fill_in",
+    "resolved": false
+  },
+  {
+    "id": "F03",
+    "kind": "missing",
+    "severity": "warning",
+    "fields": [
+      "referring_doctor.email"
+    ],
+    "message_cs": "E-mail referujícího lékaře chybí (k dispozici jen telefon +420 311 000 287), potřebný pro zápis z MDT.",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "IČP: 72045318   Tel.: +420 311 000 287"
+      }
+    ],
+    "suggested_action": "request",
+    "resolved": false
+  },
+  {
+    "id": "F04",
+    "kind": "missing",
+    "severity": "warning",
+    "fields": [
+      "mdt_record.members"
+    ],
+    "message_cs": "Členové MDT nejsou v podkladech, doplní koordinátor(ka) před jednáním.",
+    "evidence": [],
+    "suggested_action": "fill_in",
+    "resolved": false
+  },
+  {
+    "id": "F05",
+    "kind": "missing",
+    "severity": "warning",
+    "fields": [
+      "diagnosis_code"
+    ],
+    "message_cs": "Kód MKN-10 C25.0 uvedl PL jako suspektní, histologie uvádí jen MKN-O 8500/3. Definitivní kód musí potvrdit lékař.",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "Suspektní diagnóza: C25.0 – suspektní tumor hlavy pankreatu, cholestatický syndrom"
+      },
+      {
+        "document_id": "11",
+        "quote": "MKN-O 8500/3"
+      }
+    ],
+    "suggested_action": "review",
+    "resolved": false
+  },
+  {
+    "id": "F06",
+    "kind": "missing",
+    "severity": "info",
+    "fields": [
+      "examinations"
+    ],
+    "message_cs": "Přetrvávající cholestáza (bilirubin 23 µmol/l, GGT 5,00, ALP 3,40 µkat/l), biliární drenáž v podkladech doložena není.",
+    "evidence": [
+      {
+        "document_id": "10",
+        "quote": "Bilirubin celkový"
+      },
+      {
+        "document_id": "08",
+        "quote": "Ductus hepatocholedochus 11 mm, intrahepatální žlučovody lehce dilatovány."
+      }
+    ],
+    "suggested_action": "review",
+    "resolved": false,
+    "advisory": true
+  },
+  {
+    "id": "F07",
+    "kind": "temporal",
+    "severity": "warning",
+    "fields": [
+      "examinations",
+      "medications"
+    ],
+    "message_cs": "Protokol EUS-FNB z 12. 10. 2026 uvádí poslední dávku apixabanu '18. 10. 2026 večer', tedy po datu výkonu. Datum je pravděpodobně chybné, ověřit u endoskopie.",
+    "evidence": [
+      {
+        "document_id": "09",
+        "quote": "Datum výkonu: 12. 10. 2026"
+      },
+      {
+        "document_id": "09",
+        "quote": "Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer)."
+      }
+    ],
+    "suggested_action": "request",
+    "resolved": false
+  },
+  {
+    "id": "F08",
+    "kind": "temporal",
+    "severity": "warning",
+    "fields": [
+      "histology"
+    ],
+    "message_cs": "Bioptický nález uvádí odběr materiálu 20. 10. 2026, ale vydán byl 19. 10. 2026 a výkon EUS-FNB proběhl 12. 10. 2026. Ověřit u patologie.",
+    "evidence": [
+      {
+        "document_id": "11",
+        "quote": "Materiál: ložisko hlavy pankreatu, EUS-FNB 22G (odběr 20. 10. 2026)"
+      },
+      {
+        "document_id": "11",
+        "quote": "Datum vydání: 19. 10. 2026"
+      },
+      {
+        "document_id": "09",
+        "quote": "Datum výkonu: 12. 10. 2026"
+      }
+    ],
+    "suggested_action": "request",
+    "resolved": false
+  },
+  {
+    "id": "F09",
+    "kind": "unattached_reference",
+    "severity": "blocker",
+    "fields": [
+      "examinations",
+      "labs"
+    ],
+    "message_cs": "Žádost (07) uvádí 5 provedených vyšetření (laboratoř 1. 9., RTG 3. 9., gastroenterologie 15. 9., UZ 29. 9., kardiologie 20. 7.) bez přiložených výsledků. Koordinátor(ka) je vyžádá od toho, kdo je má: zde u referujícího lékaře (02–04 indikoval, 01 a 05 má v kopii, výsledek UZ zná), jinak od pracoviště.",
+    "evidence": [
+      {
+        "document_id": "07",
+        "quote": "PROVEDENÁ VYŠETŘENÍ (VÝSLEDKY K DISPOZICI NA JEDNOTLIVÝCH PRACOVIŠTÍCH)"
+      }
+    ],
+    "suggested_action": "request",
+    "resolved": true
+  },
+  {
+    "id": "F10",
+    "kind": "trend",
+    "severity": "info",
+    "fields": [
+      "weight_kg"
+    ],
+    "message_cs": "Úbytek hmotnosti 69 → 65 kg (20. 7. → 15. 9. 2026).",
+    "evidence": [
+      {
+        "document_id": "01",
+        "quote": "Výška 165 cm, hmotnost 69 kg."
+      },
+      {
+        "document_id": "05",
+        "quote": "Hmotnost 65 kg."
+      }
+    ],
+    "suggested_action": "review",
+    "resolved": false
+  },
+  {
+    "id": "F11",
+    "kind": "trend",
+    "severity": "info",
+    "fields": [
+      "labs"
+    ],
+    "message_cs": "Laboratorní vývoj 1. 9. → 15. 10. 2026: bilirubin 38 → 23 µmol/l, CRP 86 → 18 mg/l, Hb 124 → 118 g/l (pod normou).",
+    "evidence": [
+      {
+        "document_id": "02",
+        "quote": "Bilirubin celkový"
+      },
+      {
+        "document_id": "10",
+        "quote": "Bilirubin celkový"
+      }
+    ],
+    "suggested_action": "review",
+    "resolved": false
+  },
+  {
+    "id": "F12",
+    "kind": "trend",
+    "severity": "info",
+    "fields": [
+      "weight_kg"
+    ],
+    "message_cs": "Poslední hmotnost (65 kg) je z 15. 9. 2026, k MDT 21. 10. tedy 5 týdnů stará, při probíhajícím úbytku hmotnosti.",
+    "evidence": [
+      {
+        "document_id": "05",
+        "quote": "Hmotnost 65 kg."
+      },
+      {
+        "document_id": "07",
+        "quote": "pokračující úbytek hmotnosti"
+      }
+    ],
+    "suggested_action": "request",
+    "advisory": false,
+    "overridable": true,
+    "resolved": false
+  }
+]
