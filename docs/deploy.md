@@ -56,17 +56,20 @@ It prints the public URL; the API answers at `/api/health`. Re-run it to change 
 
 ## Continuous deployment (Q-K10)
 
-`.github/workflows/cd.yml` runs after *CI* passes on a push to `main`, or by hand (Actions → CD → Run workflow). It:
-- builds the `Dockerfile` on the runner and pushes `<registry>/<app>:<commit sha>` to the registry the Container App already uses (the ACR `deploy_azure.sh` created);
-- rolls out a new revision with that image. Settings and secrets stay on the Container App, so change them with `deploy_azure.sh`;
-- fails unless `/api/health` answers within 5 minutes.
+CD is **partial**: GitHub builds and pushes the image, a dev rolls it out. Full CD would need a role assignment on `rg-team82` for GitHub's identity, and team accounts can't make one (Owner or User Access Administrator only).
 
-The IRIS instance isn't touched: it already runs in Azure.
+`.github/workflows/cd.yml` runs after *CI* passes on a push to `main`, or by hand (Actions → CD → Run workflow). It builds the `Dockerfile` on the runner and pushes `<registry>/onko-koordinace:main-<commit sha>` with the registry's admin login. The run summary shows the rollout command.
 
-One-time setup:
+To ship it (after `az login`):
+
+```bash
+./scripts/rollout_azure.sh
+```
+
+It rolls out the newest `main-*` image (or the tag you pass) as a new revision and waits for `/api/health`. Settings and secrets stay on the Container App; change them with `deploy_azure.sh`. The IRIS instance isn't touched.
+
+One-time setup (done 16. 10.):
 1. Deploy once with `deploy_azure.sh`, so the app and its registry exist.
-2. Create a user-assigned managed identity for GitHub (`onko-github-cd` in `rg-team82`) and add a federated credential: issuer `https://token.actions.githubusercontent.com`, subject `repo:hackathon-green-snail-77/fits:environment:azure-demo`, audience `api://AzureADTokenExchange`. Contributor on the group is enough for this.
-3. Give the identity **Contributor** on `rg-team82` (that covers pushing to the registry in the same group). Assigning roles needs Owner or User Access Administrator, which team accounts don't have: the subscription owner runs this step. The identity can then also change the IRIS container, which shares the group.
-4. In GitHub → Settings → Environments, create `azure-demo` with the secrets `AZURE_CLIENT_ID` (the identity's client ID), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and the variable `ONKO_AZ_RESOURCE_GROUP` (and `ONKO_AZ_APP` if it isn't `onko-koordinace`). Add required reviewers there if a deploy should wait for approval.
+2. In GitHub → Settings → Environments, create `azure-demo` with the variable `ONKO_ACR_SERVER` (the registry's login server) and the secrets `ONKO_ACR_USERNAME` and `ONKO_ACR_PASSWORD` (`az acr credential show --name <registry>`). Set `ONKO_AZ_APP` too if the app isn't `onko-koordinace`.
 
-Until step 3 is done, re-run `deploy_azure.sh` to ship a new version.
+Ready for full CD once the subscription owner gives the managed identity `onko-github-cd` (federated with `repo:hackathon-green-snail-77/fits:environment:azure-demo`) **Contributor** on `rg-team82`: `azure-demo` already holds `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `ONKO_AZ_RESOURCE_GROUP` for an `azure/login` + `az containerapp update` step. That identity could then also change the IRIS container, which shares the group.

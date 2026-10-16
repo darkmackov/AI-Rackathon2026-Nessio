@@ -40,7 +40,7 @@ uv run pytest apps/api
 
 | ID | Rule |
 |---|---|
-| TEST-10 | `ci.yml` runs on every pull request and every push to `main` (Q-K10): `ruff check`, the **full** `pytest` suite (IRIS tests skip), and for the web app `npm ci`, a check that the generated client matches `openapi.json`, `build` and `lint`. `iris.yml` runs the IRIS tests (TEST-5) and only starts by hand (Q-K11): GitHub → Actions → *IRIS tests* → *Run workflow*. Neither deploys. `cd.yml` deploys to Azure after `ci.yml` passes on a push to `main`, or by hand (docs/deploy.md › Continuous deployment). |
+| TEST-10 | `ci.yml` runs on every pull request and every push to `main` (Q-K10): `ruff check`, the **full** `pytest` suite (IRIS tests skip), and for the web app `npm ci`, a check that the generated client matches `openapi.json`, `build` and `lint`. `iris.yml` runs the IRIS tests (TEST-5) and only starts by hand (Q-K11): GitHub → Actions → *IRIS tests* → *Run workflow*. Neither deploys. `cd.yml` builds the image and pushes it to the Azure registry after `ci.yml` passes on a push to `main`, or by hand; a dev rolls it out (docs/deploy.md › Continuous deployment). |
 | TEST-11 | CI uses the same versions as the image: Python 3.13 and the `uv` version from the `Dockerfile`, Node 24, `uv sync --frozen` and `npm ci` from the committed lock files. When you bump one, bump both. |
 | TEST-12 | The IRIS workflow reads its connection from repository secrets (`ONKO_IRIS_CONNECTION_STRING`, `ONKO_FHIR_BASE_URL`, `ONKO_FHIR_USERNAME`, `ONKO_FHIR_PASSWORD`), never from a committed file (GIT-6). |
 

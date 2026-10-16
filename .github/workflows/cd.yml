@@ -1,5 +1,6 @@
-# Ships a new image to the Azure Container App after CI passes on main, or by hand (Q-K10, docs/deploy.md).
-# Only the image changes: the ONKO_* settings and secrets stay on the Container App (scripts/deploy_azure.sh).
+# Builds the image after CI passes on main, or by hand, and pushes it to the app's registry (Q-K10).
+# Rolling it out is a dev's step (scripts/rollout_azure.sh): team accounts can't grant GitHub a role
+# on the resource group, so GitHub only holds the registry's push login. Details: docs/deploy.md.
 name: CD
 
 on:
@@ -11,14 +12,13 @@ on:
 
 concurrency:
   group: cd-azure
-  cancel-in-progress: false  # never stop a deploy halfway
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  id-token: write  # OIDC login to Azure
 
 jobs:
-  deploy:
+  image:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
@@ -26,41 +26,29 @@ jobs:
     timeout-minutes: 15
     environment: azure-demo
     env:
-      RG: ${{ vars.ONKO_AZ_RESOURCE_GROUP }}
+      REGISTRY: ${{ vars.ONKO_ACR_SERVER }}
       APP: ${{ vars.ONKO_AZ_APP || 'onko-koordinace' }}
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.SHA }}
-      - name: Fail if the deploy settings are missing
-        run: test -n "$RG" || { echo "::error::set the ONKO_AZ_RESOURCE_GROUP variable on the azure-demo environment"; exit 1; }
-      - uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Find the app's registry
+      - name: Fail if the registry settings are missing
         run: |
-          server="$(az containerapp show --name "$APP" --resource-group "$RG" \
-            --query 'properties.configuration.registries[0].server' --output tsv)"
-          test -n "$server" || { echo "::error::$APP has no registry; deploy it once with scripts/deploy_azure.sh"; exit 1; }
-          echo "REGISTRY=$server" >> "$GITHUB_ENV"
+          test -n "$REGISTRY" || { echo "::error::set the ONKO_ACR_SERVER variable on the azure-demo environment"; exit 1; }
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.ONKO_ACR_SERVER }}
+          username: ${{ secrets.ONKO_ACR_USERNAME }}
+          password: ${{ secrets.ONKO_ACR_PASSWORD }}
       - name: Build and push the image
         run: |
-          az acr login --name "${REGISTRY%%.*}"
-          image="$REGISTRY/$APP:$SHA"
+          image="$REGISTRY/$APP:main-$SHA"
           docker build --tag "$image" .
           docker push "$image"
-          echo "IMAGE=$image" >> "$GITHUB_ENV"
-      - name: Roll out the new revision
-        run: az containerapp update --name "$APP" --resource-group "$RG" --image "$IMAGE" --output none
-      - name: Smoke test /api/health
-        run: |
-          fqdn="$(az containerapp show --name "$APP" --resource-group "$RG" \
-            --query properties.configuration.ingress.fqdn --output tsv)"
-          for _ in $(seq 30); do
-            curl --fail --silent --show-error "https://$fqdn/api/health" && exit 0
-            sleep 10
-          done
-          echo "::error::https://$fqdn/api/health did not answer after 5 minutes"; exit 1
+          {
+            echo "Pushed \`$image\`. Roll it out:"
+            echo '```bash'
+            echo "./scripts/rollout_azure.sh main-$SHA"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
