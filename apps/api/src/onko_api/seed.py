@@ -1,19 +1,24 @@
-"""Load the reference case into a repository so the UI has realistic data before the AI exists."""
+"""Demo data: the directory, the reference case and the reset scenarios, so the UI has realistic
+data before the AI exists."""
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import date, datetime
 from pathlib import Path
 
 from onko_cases import next_step, queue_column, start_task_set
 from onko_contracts import (
+    Actor,
     Case,
     CaseState,
     DocumentMeta,
     Finding,
     Handover,
+    MdtBoard,
     Milestones,
+    Organization,
     Priority,
     TaskSet,
     TaskStatus,
@@ -22,10 +27,21 @@ from onko_contracts import (
 from onko_repository import CaseRepository
 from pydantic import TypeAdapter
 
+from .clock import AppClock
+from .schemas import DemoScenario
+
 DATA = Path(os.environ.get("ONKO_DATA_DIR", Path(__file__).resolve().parents[4] / "data"))
+DIRECTORY = DATA / "demo" / "directory.json"
 REF = DATA / "vzp-structured" / "reference"
 REPORTS = DATA / "vzp-structured" / "reports"
 CASE_ID = "vzp-prochazkova"
+
+# Where each scenario puts the app clock (D-10): the start of the story (referral, 2. 10.) or the
+# morning of the MDT (21. 10.).
+SCENARIO_CLOCK = {
+    DemoScenario.EMPTY: datetime(2026, 10, 2, 8, 0),
+    DemoScenario.REFERENCE_AT_MDT: datetime(2026, 10, 21, 8, 0),
+}
 
 # Starter task set as a coordinator would create it in the UI; stored as user data.
 PANCREAS_TASK_SET = TaskSet(
@@ -54,6 +70,26 @@ PANCREAS_TASK_SET = TaskSet(
 # Reports 01–07 come with the referral (the GP supplies everything for the initial handover, Q-F6);
 # the KOC arranges the rest.
 DONE_BY_MDT = {"ct", "eus", "lab", "histo"}
+
+
+def load_directory(repo: CaseRepository) -> None:
+    """Organisations, actors and MDT boards from the demo directory (Q-A5, D-12)."""
+    raw = json.loads(DIRECTORY.read_text(encoding="utf-8"))
+    for organization in TypeAdapter(list[Organization]).validate_python(raw["organizations"]):
+        repo.save_organization(organization)
+    for actor in TypeAdapter(list[Actor]).validate_python(raw["actors"]):
+        repo.save_actor(actor)
+    for board in TypeAdapter(list[MdtBoard]).validate_python(raw["mdt_boards"]):
+        repo.save_mdt_board(board)
+
+
+def apply_scenario(repo: CaseRepository, clock: AppClock, scenario: DemoScenario) -> None:
+    """Reset all data to `scenario` and move the app clock to where it starts."""
+    repo.clear()
+    load_directory(repo)
+    if scenario is DemoScenario.REFERENCE_AT_MDT:
+        seed_reference_case(repo)
+    clock.set(SCENARIO_CLOCK[scenario])
 
 
 def seed_reference_case(repo: CaseRepository) -> None:

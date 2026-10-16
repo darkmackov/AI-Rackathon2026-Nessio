@@ -13,12 +13,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from onko_contracts import Case, CaseState, DocumentMeta, Finding, Handover, QueueColumn, Task
-from onko_repository import CaseRepository, InMemoryRepository, IrisSettings
+from onko_repository import InMemoryRepository, IrisSettings
 
+from .clock import AppClock
+from .deps import Repo
 from .routes import router
-from .seed import seed_reference_case
-
-repo: CaseRepository = InMemoryRepository()
+from .seed import load_directory, seed_reference_case
 
 
 def _iris_configured() -> bool:
@@ -26,9 +26,13 @@ def _iris_configured() -> bool:
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
+    repo = InMemoryRepository()
+    load_directory(repo)
     if os.environ.get("ONKO_SEED_REFERENCE", "1") == "1":
         seed_reference_case(repo)
+    app.state.repo = repo
+    app.state.clock = AppClock()  # wall clock until /demo/clock or /demo/reset moves it
     yield
 
 
@@ -54,6 +58,7 @@ def health() -> dict[str, bool]:
 
 @app.get("/cases", tags=["cases"])
 def list_cases(
+    repo: Repo,
     referring_doctor_id: str | None = None,
     koc_id: str | None = None,
     state: CaseState | None = None,
@@ -75,7 +80,7 @@ def list_cases(
 
 
 @app.get("/cases/{case_id}", tags=["cases"])
-def get_case(case_id: str) -> Case:
+def get_case(case_id: str, repo: Repo) -> Case:
     try:
         return repo.get_case(case_id)
     except KeyError:
@@ -83,7 +88,7 @@ def get_case(case_id: str) -> Case:
 
 
 @app.get("/cases/{case_id}/handover", tags=["handover"])
-def get_handover(case_id: str, snapshot: bool = False) -> Handover:
+def get_handover(case_id: str, repo: Repo, snapshot: bool = False) -> Handover:
     handover = repo.get_handover(case_id, snapshot=snapshot)
     if handover is None:
         raise HTTPException(404, "no handover yet")
@@ -91,22 +96,22 @@ def get_handover(case_id: str, snapshot: bool = False) -> Handover:
 
 
 @app.get("/cases/{case_id}/findings", tags=["findings"])
-def list_findings(case_id: str) -> list[Finding]:
+def list_findings(case_id: str, repo: Repo) -> list[Finding]:
     return repo.list_findings(case_id)
 
 
 @app.get("/cases/{case_id}/tasks", tags=["tasks"])
-def list_tasks(case_id: str) -> list[Task]:
+def list_tasks(case_id: str, repo: Repo) -> list[Task]:
     return repo.list_tasks(case_id)
 
 
 @app.get("/cases/{case_id}/documents", tags=["documents"])
-def list_documents(case_id: str) -> list[DocumentMeta]:
+def list_documents(case_id: str, repo: Repo) -> list[DocumentMeta]:
     return repo.list_documents(case_id)
 
 
 @app.get("/documents/{document_id}/text", tags=["documents"])
-def document_text(document_id: str) -> dict[str, str]:
+def document_text(document_id: str, repo: Repo) -> dict[str, str]:
     try:
         return {"id": document_id, "text": repo.document_text(document_id)}
     except KeyError:
