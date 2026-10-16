@@ -9,10 +9,11 @@ Owner: stream B. A reference case is a folder with `manifest.json`, `expected_ha
 - latency and tokens (from the gateway log)
 
 Run: `uv run onko-bench` -> leaderboard CSV in bench-results/. TODO stream B.
+Public API: only what `__all__` lists. Layout: docs/conventions/implementation.md.
 """
 
 from __future__ import annotations
 
+from .service import main
 
-def main() -> None:
-    raise SystemExit("onko-bench: not implemented yet (stream B)")
+__all__ = ["main"]

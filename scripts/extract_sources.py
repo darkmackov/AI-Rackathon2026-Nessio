@@ -12,7 +12,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from onko_documents.office import CONVERTERS
+from onko_documents import CONVERTERS
 
 
 def main(argv: list[str]) -> int:

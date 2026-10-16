@@ -31,7 +31,7 @@ Module owners review changes to their module across slices:
 | D | repository, IRIS, Azure deploy |
 | E | api, web |
 
-Integration rules:
+Integration rules (full list in [conventions](conventions/)):
 - Change `contracts` first, in its own PR, then regenerate the spec and client.
 - Every module ships with tests against the in-memory fake.
 - `main` always runs the demo.

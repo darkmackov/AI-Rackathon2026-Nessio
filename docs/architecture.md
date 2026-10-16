@@ -6,7 +6,7 @@ Goals:
 - **Meaningful use of InterSystems IRIS**: FHIR in the MVP; Vector Search, agent tools and Embedded Python in Phase 2 (see below). The InterSystems challenge judges this, see [the intro deck](../data/vzp-structured/brief/InterSystems_challenge_intro.md).
 
 ## Principles
-1. **Contracts first.** Modules talk only through the Pydantic models in [`packages/contracts`](../packages/contracts/src/onko_contracts). Changing a contract is a PR that everyone reviews; everything else is owned by the module's owner.
+1. **Contracts first.** Modules talk only through the Pydantic models in [`packages/contracts`](../packages/contracts/src/onko_contracts), each through its package's public API (`__init__.py`). Changing a contract is a PR that everyone reviews; everything else is owned by the module's owner. Rules: [conventions](conventions/).
 2. **The product schema lives in code, user content lives in the database.**
    - The handover structure (from `Handover_obsah`) and the 8 case states are fixed and versioned in `contracts`.
    - Task sets, tasks, messages and documents are created by users in the UI and stored in IRIS.
@@ -49,7 +49,7 @@ flowchart TD
 | messaging | `packages/messaging` | MDT result delivery to the GP's in-app inbox, receipts, in-app notifications, simulated patient notices. Phase 2: request/reply flows (Q-F23), reviewing-doctor feed (Q-F10), email/SMS adapters | `send(message, adapters, now) -> Message`, `confirm(message, recipient_id, now) -> Receipt` |
 | repository | `packages/repository` | Domain ↔ FHIR R4 mapping ([data-model.md](data-model.md)), IRIS FHIR client, IRIS SQL (vector tables in Phase 2), in-memory fake, connection settings | `CaseRepository` protocol, `IrisSettings` |
 | api | `apps/api` | FastAPI routes, auth stub (role switcher for the demo), OpenAPI | All 62 endpoints defined in [api.md](api.md) (`routes.py` stubs return 501 until their slice lands); 8 read endpoints already serve the seeded case. Current user via `X-Actor-Id` |
-| web | `apps/web` | All screens from [product.md](product.md) | client generated from OpenAPI |
+| web | `apps/web` | All screens from [product.md](product.md) | client + TanStack Query options generated from OpenAPI |
 | bench | `packages/bench` | Runs `ai.extract` + `ai.check` for every model over reference cases and scores against the expected JSONs → leaderboard | CLI `uv run onko-bench` |
 
 ## AI pipeline

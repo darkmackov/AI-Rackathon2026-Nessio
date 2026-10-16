@@ -9,6 +9,11 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | ID | Question | Interim assumption | Ask |
 |---|---|---|---|
 | Q-F8 | **Repeated MDT:** slide 4's example has two MDTs, and the sample conclusion plans another one after neoadjuvant therapy. Can a case go back from *Závěr MDT*? | Not supported. `ALLOWED_TRANSITIONS` has no way back from `zaver_mdt` | VZP |
+| Q-W1 | **UI component library** (WEB-9 requires one for everything it offers) | None yet: semantic HTML only, no library added | Team |
+| Q-W2 | **Router** for the web app | None yet: `App.tsx` renders the dashboard directly | Team |
+| Q-W3 | **i18n library** for Czech + English (Q-F20) | None yet: UI text in Czech | Team |
+| Q-K8 | **Time zones:** contracts use naive `datetime`s and api.md says ISO 8601. Store UTC, local time, or aware datetimes? | Unchanged (naive) | Team |
+| Q-K9 | **Id scheme** for new cases, tasks, findings, messages (api.md: string ids; today slugs and composite ids from seed and `start_task_set`) | Unchanged | Team |
 
 ## F: Product and flow
 
@@ -91,6 +96,29 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-M3 | Rate limits / cost? | No limits | gateway |
 | Q-M4 | Second test case? | **Now, in Phase 1** (synthetic, another diagnosis) | delivery.md |
 
+## K: Code conventions
+
+Asked and decided on 16. 10. 2026. The rules are in [docs/conventions](conventions).
+
+| ID | Question | Decision | Lands in |
+|---|---|---|---|
+| Q-K1 | What do the data conventions cover? | Domain models, API models, persistence. The `data/` folder is out of scope | data.md |
+| Q-K2 | Which shapes does the web app talk to the API with? | **Main's API contract** (Q-A1 to Q-A8, api.md): responses are the contract models, request bodies live in `apps/api/schemas.py`. A separate DTO layer (`XxxDto` in `onko_contracts.dto` + mappers) was proposed the same day and **dropped in favour of main** | data.md APIM-1, APIM-2 |
+| Q-K3 | JSON casing? | `snake_case`, no aliases | APIM-5 |
+| Q-K4 | Module layout? | **Layered files** (`models.py`, `ports.py`, `service.py`, `adapters/`); `__init__.py` is the only public API. Existing modules restructured | MOD-2 … MOD-11 |
+| Q-K5 | How are conventions enforced on AI? | `AGENTS.md` (root + per module) with `CLAUDE.md` importing it. No architecture tests or hooks | AGENTS.md |
+| Q-K6 | Branch naming? | `<type>/<short-topic>`; commits stay Conventional Commits | GIT-1, GIT-2 |
+| Q-K7 | Error model? | None: `{"detail": …}` with the codes in api.md | APIM-6 |
+
+## W: Web
+
+| ID | Question | Decision | Lands in |
+|---|---|---|---|
+| Q-W4 | How does the web app load data without `useEffect`? | **TanStack Query** through hey-api's generated `xxxOptions()` / `xxxMutation()` helpers. `useEffect` is banned | web.md WEB-1, WEB-10 |
+| Q-W5 | Accessibility bar? | **WCAG 2.2 AA** | ui-ux.md A11Y-* |
+
+Q-W1 to Q-W3 (UI library, router, i18n) are still open, see the top of this page.
+
 ## T: Tooling decisions (taken without asking; review if you disagree)
 
 | ID | Decision | Why |
@@ -104,6 +132,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | T-7 | FastAPI operation ids = route function names | Readable generated client |
 | T-8 | Generated client + `openapi.json` committed; a test fails when stale | Frontend works without a running API |
 | T-9 | In-memory repository seeded with the reference case | Unblocks UI work until `IrisRepository` lands |
+| T-10 | `@tanstack/react-query` pinned to 5.104.1, the newest release at least two weeks old on 16. 10. 2026 | Supply-chain caution; bump deliberately |
 
 ## D: Design decisions (taken without asking; review if you disagree)
 
