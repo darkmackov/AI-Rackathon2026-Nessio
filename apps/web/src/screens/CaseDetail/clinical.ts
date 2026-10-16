@@ -4,6 +4,10 @@ export type SourcedValue = SourcedDate | SourcedFloat | SourcedInt | SourcedList
 // UI selection addresses Query data; it never copies a clinical response into local state.
 export type SourceSelection = { documentId: string } | { kind: 'field'; path: string; index: number } | { kind: 'examination'; row: number; index: number } | { kind: 'lab'; row: number; index: number } | { kind: 'finding'; id: string; index: number }
 
+export function sameSelection(a: SourceSelection | null, b: SourceSelection) {
+  return !!a && JSON.stringify(a) === JSON.stringify(b)
+}
+
 export const patientFields = { first_name: 'firstName', last_name: 'lastName', birth_number: 'birthNumber', birth_date: 'birthDate', age: 'age', sex: 'sex', insurance_code: 'insurer', address: 'address' } satisfies Record<keyof NonNullable<Handover['patient']>, string>
 export const contactFields = { patient_phone: 'patientPhone', patient_email: 'patientEmail', contact_person: 'contactPerson', contact_person_phone: 'contactPhone' } satisfies Record<keyof NonNullable<Handover['contacts']>, string>
 export const historyFields = { comorbidities: 'comorbidities', medications: 'medications', allergies: 'allergies', performance_status: 'performance', weight_kg: 'weight', height_cm: 'height', symptoms: 'symptoms' }

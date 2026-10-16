@@ -1,7 +1,7 @@
 import { Anchor, Badge, Button, Group, Paper, Stack, Text, VisuallyHidden } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { Link } from '@tanstack/react-router'
-import { IconArrowBackUp, IconArrowLeft, IconArrowsDiff, IconCircleCheck, IconCircleDashed, IconPlayerPause, IconUserCheck, type Icon } from '@tabler/icons-react'
+import { IconArrowBackUp, IconArrowLeft, IconCircleCheck, IconPlayerPause, IconUserCheck, type Icon } from '@tabler/icons-react'
 import { useCallback, useId, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DetailTab } from '../../case-route'
@@ -11,6 +11,7 @@ import PageHeading from '../../components/PageHeading'
 import PersonChip from '../../components/PersonChip'
 import { severityMeta } from '../../components/severity-meta'
 import { fieldStatusCounts } from './clinical'
+import { statusMeta } from './status-meta'
 
 const priorityColor = { normal: 'gray', high: 'orange', urgent: 'red' } as const
 
@@ -34,8 +35,8 @@ function AttentionStrip({ caseId, findings, handover }: { caseId: string; findin
   const all: { key: string; count: number; tab: DetailTab; color: string; icon: Icon }[] = [
     { key: 'blockers', count: open.filter((finding) => finding.severity === 'blocker').length, tab: 'findings', ...severityMeta.blocker },
     { key: 'warnings', count: open.filter((finding) => finding.severity === 'warning').length, tab: 'findings', ...severityMeta.warning },
-    { key: 'missingFields', count: fields.missing, tab: 'handover', color: 'orange', icon: IconCircleDashed },
-    { key: 'conflictFields', count: fields.conflict, tab: 'handover', color: 'red', icon: IconArrowsDiff },
+    { key: 'missingFields', count: fields.missing, tab: 'handover', ...statusMeta.missing },
+    { key: 'conflictFields', count: fields.conflict, tab: 'handover', ...statusMeta.conflict },
   ]
   const items = all.filter((item) => item.count > 0)
   return <Group gap="xs" wrap="wrap" role="group" aria-labelledby={label}>

@@ -312,7 +312,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
       weight_kg: { status: 'found', origin: 'manual', value: 0, entered },
     }
     expectApiResponse('get_handover', 200, handover)
-    renderDocuments(<HandoverTab handover={handover} names={{ [actorId]: 'Bc. Lucie Dvořáková' }} documentNames={{}} openSource={() => {}} open={['history']} setOpen={() => {}} />)
+    renderDocuments(<HandoverTab handover={handover} names={{ [actorId]: 'Bc. Lucie Dvořáková' }} sources={{ documentNames: {}, openSource: () => {}, selection: null }} findings={[]} showFinding={() => {}} open={['history']} setOpen={() => {}} />)
     expect(screen.getAllByText('Prázdná hodnota.')).toHaveLength(2)
     expect(screen.getByText('0', { selector: 'p' })).toBeVisible()
     expect(screen.getAllByText('Ruční zadání')).toHaveLength(3)

@@ -30,6 +30,10 @@ function DetailContent({ caseId }: { caseId: string }) {
   const wide = useMediaQuery('(min-width: 75em)')
   const [selection, setSelection] = useState<SourceSelection | null>(null)
   const [chosenSections, setChosenSections] = useState<string[] | null>(null)
+  // A tab renders on its first visit and then stays mounted, so its state survives switching without rendering unseen tabs up front.
+  const [visited, setVisited] = useState<DetailTab[]>([tab])
+  if (!visited.includes(tab)) setVisited([...visited, tab])
+  const seen = (value: DetailTab) => visited.includes(value)
   const trigger = useRef<HTMLButtonElement | null>(null)
   const item = useQuery(getCaseOptions({ path: { case_id: caseId }, headers: actorHeaders(actorId ?? '') }))
   const allowed = !!item.data && item.data.koc_id === actor?.organization_id
@@ -63,12 +67,15 @@ function DetailContent({ caseId }: { caseId: string }) {
     if (section && !openSections.includes(section)) setChosenSections([...openSections, section])
     void navigate({ search: { tab: 'handover' }, hash: `field-${path}` })
   }
+  const showFinding = (id: string) => { void navigate({ search: { tab: 'findings' }, hash: `finding-${id}` }) }
+  const sources = { openSource, documentNames, selection }
   if (item.isPending) return <Stack><BackLink /><LoadingState rows={4} /></Stack>
   if (item.isError) return <Stack><BackLink /><PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><QueryError error={item.error} pending={item.isFetching} retry={() => { void item.refetch() }} /></Stack>
   if (!allowed || !item.data) return <Stack><BackLink /><PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><EmptyState title={t('caseDetail.unavailableCase')} /></Stack>
   const current = item.data
   const referrer = actors.data?.find((person) => person.id === current.referring_doctor_id)
-  const unresolved = findings.data?.filter((finding) => !finding.resolved).length ?? 0
+  const openFindings = findings.data?.filter((finding) => !finding.resolved) ?? []
+  const unresolved = openFindings.length
   // On wide screens every tab except the overview keeps a fixed source column, so opening a source never reflows the page.
   const split = !!wide && tab !== 'overview'
   const source = selection && <SourcePanel key={JSON.stringify(selection)} document={selectedDocument || undefined} evidence={evidence} close={closeSource}
@@ -92,19 +99,19 @@ function DetailContent({ caseId }: { caseId: string }) {
       <Grid mt="md">
         <Grid.Col span={split ? 7 : 12} miw={0}>
           <Tabs.Panel value="overview">
-            <OverviewTab item={current} names={names} referrer={referrer} handover={handover.data} handoverState={handover.isPending ? <LoadingState rows={2} /> : handoverError} directoryState={directoryState} />
+            {seen('overview') && <OverviewTab item={current} names={names} referrer={referrer} handover={handover.data} handoverState={handover.isPending ? <LoadingState rows={2} /> : handoverError} directoryState={directoryState} />}
           </Tabs.Panel>
-          <Tabs.Panel value="handover"><Stack gap="sm">
+          <Tabs.Panel value="handover">{seen('handover') && <Stack gap="sm">
             {handover.isPending && <LoadingState rows={6} />}
             {handoverError}
             {documents.isError && <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} />}
-            {handover.data && <HandoverTab handover={handover.data} names={names} documentNames={documentNames} openSource={openSource} open={openSections} setOpen={setChosenSections} />}
-          </Stack></Tabs.Panel>
+            {handover.data && <HandoverTab handover={handover.data} names={names} sources={sources} findings={openFindings} showFinding={showFinding} open={openSections} setOpen={setChosenSections} />}
+          </Stack>}</Tabs.Panel>
           <Tabs.Panel value="findings">
-            <FindingsPanel caseId={caseId} handover={handover.data} names={names} documentNames={documentNames} openSource={openSource} showField={showField} />
+            {seen('findings') && <FindingsPanel caseId={caseId} handover={handover.data} names={names} sources={sources} showField={showField} />}
           </Tabs.Panel>
-          <Tabs.Panel value="tasks"><TasksTab caseId={caseId} openSource={openSource} showFinding={(id) => { void navigate({ search: { tab: 'findings' }, hash: `finding-${id}` }) }} /></Tabs.Panel>
-          <Tabs.Panel value="documents"><DocumentsTab item={current} names={names} openSource={openSource} /></Tabs.Panel>
+          <Tabs.Panel value="tasks">{seen('tasks') && <TasksTab caseId={caseId} openSource={openSource} showFinding={showFinding} />}</Tabs.Panel>
+          <Tabs.Panel value="documents">{seen('documents') && <DocumentsTab item={current} names={names} openSource={openSource} />}</Tabs.Panel>
         </Grid.Col>
         {split && <Grid.Col span={5}>{source || <SourcePlaceholder />}</Grid.Col>}
       </Grid>
