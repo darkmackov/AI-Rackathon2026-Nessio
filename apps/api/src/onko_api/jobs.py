@@ -14,6 +14,7 @@ from concurrent.futures import Executor, Future
 from typing import Any
 
 from onko_ai import analyse_case, apply_metadata, extract_metadata
+from onko_cases import sync_case_from_handover
 from onko_contracts import Job, JobKind, JobStatus, ParsedDocument
 from onko_llm_gateway import Gateway
 from onko_repository import CaseRepository
@@ -101,5 +102,6 @@ def _ingest(job: Job, repo: CaseRepository, clock: AppClock, gateway: Gateway) -
         previous_findings=repo.list_findings(case_id),
     )
     repo.save_handover(handover)
+    repo.save_case(sync_case_from_handover(repo.get_case(case_id), handover))
     repo.save_findings(case_id, findings)
     return {"documents": len(documents), "open_findings": sum(not f.resolved for f in findings)}

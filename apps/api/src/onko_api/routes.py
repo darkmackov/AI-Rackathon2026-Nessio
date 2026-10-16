@@ -12,6 +12,21 @@ from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
+from onko_cases import (
+    HandoverEditError,
+    HandoverLockedError,
+    NotValidatedError,
+    TransitionError,
+    new_referral,
+    require_editable,
+    set_handover_field,
+    sync_case_from_handover,
+)
+from onko_cases import add_examination as add_manual_examination
+from onko_cases import (
+    send_referral as send_case,
+)
+from onko_cases import validate_handover as validate_case_handover
 from onko_contracts import (
     Actor,
     AuditEvent,
@@ -25,6 +40,7 @@ from onko_contracts import (
     MdtConclusion,
     MdtRecord,
     Message,
+    MessageKind,
     Organization,
     OrganizationKind,
     Receipt,
@@ -36,6 +52,7 @@ from onko_documents import DOCX as DOCX_MIME
 from onko_documents import PARSERS, parse
 from onko_documents import PDF as PDF_MIME
 from onko_documents import PPTX as PPTX_MIME
+from pydantic import ValidationError
 
 from .deps import ActorId, Clock, CurrentUser, Jobs, Llm, Repo
 from .jobs import new_id, queue_ingest, run_ingest
@@ -129,13 +146,20 @@ def update_mdt_board_members(board_id: str, body: MdtBoardMembersUpdate, actor_i
     _todo()
 
 
-# --- Flow 1: initial GP handover (slices S1, S2) -----------------------------------------------
+# --- Flow 1: initial GP handover (slices S2, S3) -----------------------------------------------
 
 
 @router.post("/referrals", status_code=201, tags=["referral"])
-def create_referral(body: ReferralCreate, actor_id: ActorId) -> Case:
+def create_referral(body: ReferralCreate, user: CurrentUser, repo: Repo, clock: Clock) -> Case:
     """GP starts a referral draft (state `koncept`), addressed to a KOC."""
-    _todo()
+    if user.role != "referring_doctor":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "only a referring doctor can refer")
+    if not any(o.id == body.koc_id and o.kind is OrganizationKind.KOC for o in repo.list_organizations()):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "unknown KOC")
+    case, handover = new_referral(new_id("case"), body.koc_id, user.id, clock.now())
+    repo.save_case(case)
+    repo.save_handover(handover)
+    return case
 
 
 @router.post("/cases/{case_id}/documents", status_code=201, tags=["documents"])
@@ -181,6 +205,34 @@ def _case_or_404(repo: Repo, case_id: str) -> Case:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "case not found") from None
 
 
+def _handover_or_404(repo: Repo, case_id: str) -> Handover:
+    handover = repo.get_handover(case_id)
+    if handover is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no handover yet")
+    return handover
+
+
+def _require_referrer(user: Actor, case: Case) -> None:
+    if user.role != "referring_doctor" or user.id != case.referring_doctor_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "only the referring doctor of this case")
+
+
+def _require_editor(user: Actor, case: Case) -> None:
+    """The case's GP or a coordinator, each only in their own states (409 otherwise)."""
+    if user.role == "referring_doctor":
+        _require_referrer(user, case)
+    try:
+        require_editable(case, user.role)
+    except HandoverLockedError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+
+
+def _save_handover(repo: Repo, case: Case, handover: Handover) -> Handover:
+    repo.save_handover(handover)
+    repo.save_case(sync_case_from_handover(case, handover))
+    return handover
+
+
 _EXTENSIONS = {".docx": DOCX_MIME, ".pptx": PPTX_MIME, ".pdf": PDF_MIME}
 
 
@@ -214,30 +266,74 @@ def get_document_file(document_id: str) -> Response:
 
 
 @router.patch("/cases/{case_id}/handover", tags=["handover"])
-def update_handover_field(case_id: str, body: HandoverFieldUpdate, actor_id: ActorId) -> Handover:
+def update_handover_field(
+    case_id: str, body: HandoverFieldUpdate, user: CurrentUser, repo: Repo, clock: Clock
+) -> Handover:
     """'Doplnit' / 'Není k dispozici' on one field (origin=manual). Used by the GP's soft
     'fill in if you know' prompts (case `koncept` or `vraceno_lekari`) and by the coordinator
     (final epikríza, MDT question, …)."""
-    _todo()
+    case = _case_or_404(repo, case_id)
+    _require_editor(user, case)
+    try:
+        handover = set_handover_field(
+            _handover_or_404(repo, case_id),
+            body.path,
+            body.value,
+            not_available=body.not_available,
+            note=body.note,
+            by=user.id,
+            now=clock.now(),
+        )
+    except HandoverEditError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
+    except ValidationError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
+    return _save_handover(repo, case, handover)
 
 
 @router.post("/cases/{case_id}/handover/examinations", status_code=201, tags=["handover"])
-def add_examination(case_id: str, body: ExaminationCreate, actor_id: ActorId) -> Handover:
+def add_examination(
+    case_id: str, body: ExaminationCreate, user: CurrentUser, repo: Repo, clock: Clock
+) -> Handover:
     """Manually add an examination (origin=manual)."""
-    _todo()
+    case = _case_or_404(repo, case_id)
+    _require_editor(user, case)
+    handover = add_manual_examination(
+        _handover_or_404(repo, case_id), **body.model_dump(), by=user.id, now=clock.now()
+    )
+    return _save_handover(repo, case, handover)
 
 
 @router.post("/cases/{case_id}/handover/validate", tags=["handover"])
-def validate_handover(case_id: str, actor_id: ActorId) -> Handover:
+def validate_handover(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> Handover:
     """Referring doctor validates the AI proposal (sets `validated_by_referrer`)."""
-    _todo()
+    case = _case_or_404(repo, case_id)
+    _require_referrer(user, case)
+    try:
+        handover = validate_case_handover(case, _handover_or_404(repo, case_id), user.id, clock.now())
+    except HandoverLockedError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    repo.save_handover(handover)
+    return handover
 
 
 @router.post("/cases/{case_id}/send", tags=["referral"])
-def send_referral(case_id: str, actor_id: ActorId) -> Case:
+def send_referral(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> Case:
     """'Validovat a odeslat': koncept → odeslano, or vraceno_lekari → v_triage after a return
     (D-15). Requires a validated handover."""
-    _todo()
+    case = _case_or_404(repo, case_id)
+    _require_referrer(user, case)
+    returns = [
+        m.sent_at
+        for m in repo.list_messages(case_id)
+        if m.kind is MessageKind.CASE_RETURNED and m.sent_at is not None
+    ]
+    try:
+        case = send_case(case, _handover_or_404(repo, case_id), max(returns, default=None), clock.now())
+    except (NotValidatedError, TransitionError) as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    repo.save_case(case)
+    return case
 
 
 # --- Jobs (AI work, slice S2) ------------------------------------------------------------------
