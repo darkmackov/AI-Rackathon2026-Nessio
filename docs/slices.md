@@ -156,7 +156,7 @@ flowchart LR
 
 ## S8: Vector search + MKN-10 code suggestions
 - **Goal:** InterSystems criterion GenAI + vector search, used inside the evidence model (Q-I19), not as a side feature.
-- **Endpoints:** new ones for "ask the case" and code candidates, added to api.md by a contract PR first (new models: document chunk, answer with quotes, code candidate).
+- **Endpoints:** `askCase` (a `Job` of kind `ask_case`, the `CaseAnswer` in `job.answer`), `listCodeCandidates`, `pickDiagnosisCode` ([api.md](api.md)); models `DocChunk`, `CaseAnswer`, `CodeCandidate` and the finding kind `unverified_quote` (contract PR).
 - **Modules:**
   - `repository`: the `doc_chunk` table with a `VECTOR` column, filtered by `case_id` with an exact scan, no approximate index ([data-model.md](data-model.md) › Non-FHIR storage); the MKN-10 code table with embeddings (Q-C12).
   - `ai`: chunk every parsed document along its sections (document id + character offsets) and embed it; a quote not found verbatim is flagged and shown with the nearest chunk (D-2 unchanged); "ask the case" retrieves the top chunks, answers only with quotes and checks each verbatim, else "not found" (no similarity cut-off); MKN-10 candidates.
@@ -188,7 +188,7 @@ flowchart LR
   - one case at a glance: `case_overview` → `CaseOverview` (the case, time to treatment, unresolved findings, open tasks earliest due first), so "what's missing in the overdue cases" takes one call per case
   - findings of a case: `list_findings` → `list[Finding]`
   - handover with sources (values with their quotes): `get_handover` → `Handover`
-  - "ask the case" (from S8): **not built yet**, added when S8 lands
+  - "ask the case" (from S8): `ask_case(case_id, question)` → `CaseAnswer` (verbatim quotes as `Evidence`, or `found=false`). A tool can't poll a job, so it runs `onko_ai.ask_case` synchronously over the documents received by the app clock's now, unlike the REST job (`askCase`); its only write is the chunk indexing it needs. No model or no embedding model: a tool error with the same Czech reason as the failed job
 - **Role check:** every tool needs a valid user in `X-Actor-Id` (as `me`); reads are not scoped by role, like the REST read endpoints.
 - **Not included:** write tools (AI proposes, a human confirms), FHIR tools (agents read the IRIS FHIR server directly).
 - **Done when:** demo step 16: Claude Desktop connected to the deployed `/mcp` answers "which cases at KOC 2 are overdue and what's missing?" with quotes; tests call every tool against the in-memory fake.

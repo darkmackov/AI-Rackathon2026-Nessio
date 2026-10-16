@@ -17,6 +17,9 @@ class FindingKind(StrEnum):
     IDENTITY = "identity"  # RČ vs birth date / sex / age, insurer code
     UNATTACHED_REFERENCE = "unattached_reference"  # a report is cited but not attached
     TREND = "trend"  # notable change across documents (informational)
+    # The model quoted text that is not in the document verbatim; the value was dropped (D-2) and
+    # the evidence is the nearest chunk of that document (Q-I19)
+    UNVERIFIED_QUOTE = "unverified_quote"
 
 
 class Severity(StrEnum):

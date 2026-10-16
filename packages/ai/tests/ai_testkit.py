@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
+import unicodedata
+import zlib
 from collections.abc import Callable
 
 from onko_ai import DocExtraction
@@ -31,12 +34,30 @@ def make_doc(
     return ParsedDocument(meta=meta, text=text)
 
 
+def bag_of_words(text: str, dim: int = 64) -> list[float]:
+    """A deterministic stand-in for an embedding: hashed word counts (diacritics and case ignored),
+    so texts sharing words are close."""
+    folded = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().casefold()
+    vector = [0.0] * dim
+    for word in re.findall(r"\w{3,}", folded):
+        vector[zlib.crc32(word.encode()) % dim] += 1.0
+    return vector
+
+
 class FakeGateway:
-    """Answers `complete` by schema: `answers[Schema]` is a value or a function of the messages."""
+    """Answers `complete` by schema: `answers[Schema]` is a value or a function of the messages.
+    `embed` is `bag_of_words`."""
+
+    can_embed = True
 
     def __init__(self, answers: dict[type[BaseModel], object]):
         self.answers = answers
         self.seen: list[tuple[type[BaseModel] | None, list[dict]]] = []
+        self.embedded: list[str] = []
+
+    def embed(self, texts):
+        self.embedded.extend(texts)
+        return [bag_of_words(t) for t in texts]
 
     def complete(self, messages, schema=None, *, slot=None):
         self.seen.append((schema, messages))

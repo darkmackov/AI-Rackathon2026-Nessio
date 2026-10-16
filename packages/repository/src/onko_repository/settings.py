@@ -22,6 +22,9 @@ class IrisSettings(BaseSettings):
     fhir_base_url: str | None = None
     fhir_username: str | None = None
     fhir_password: SecretStr | None = None
+    # Dimension of the embedding model (Q-M7): sets `VECTOR(DOUBLE, n)` of the vector tables (S8).
+    # Unset: no vector tables, and vector search is unavailable.
+    embed_dim: int | None = None
 
     @field_validator("*", mode="before")
     @classmethod

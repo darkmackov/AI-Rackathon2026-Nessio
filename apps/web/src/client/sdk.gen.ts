@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddExaminationData, AddExaminationErrors, AddExaminationResponses, ClearHoldData, ClearHoldErrors, ClearHoldResponses, ConfirmMdtConclusionData, ConfirmMdtConclusionErrors, ConfirmMdtConclusionResponses, ConfirmReceiptData, ConfirmReceiptErrors, ConfirmReceiptResponses, CreateDraftData, CreateDraftErrors, CreateDraftResponses, CreateMdtSnapshotData, CreateMdtSnapshotErrors, CreateMdtSnapshotResponses, CreatePatientNoticeData, CreatePatientNoticeErrors, CreatePatientNoticeResponses, CreateReferralData, CreateReferralErrors, CreateReferralFromBundleData, CreateReferralFromBundleErrors, CreateReferralFromBundleResponses, CreateReferralResponses, CreateTaskData, CreateTaskErrors, CreateTaskResponses, CreateTaskSetData, CreateTaskSetErrors, CreateTaskSetResponses, DocumentTextData, DocumentTextErrors, DocumentTextResponses, GetCaseData, GetCaseErrors, GetCaseResponses, GetDemoClockData, GetDemoClockResponses, GetDocumentFileData, GetDocumentFileErrors, GetDocumentFileResponses, GetHandoverData, GetHandoverErrors, GetHandoverResponses, GetJobData, GetJobErrors, GetJobResponses, GetMdtBoardData, GetMdtBoardErrors, GetMdtBoardResponses, GetMdtConclusionData, GetMdtConclusionErrors, GetMdtConclusionPdfData, GetMdtConclusionPdfErrors, GetMdtConclusionPdfResponses, GetMdtConclusionResponses, GetMdtRecordData, GetMdtRecordErrors, GetMdtRecordPdfData, GetMdtRecordPdfErrors, GetMdtRecordPdfResponses, GetMdtRecordResponses, GetTimeToTreatmentData, GetTimeToTreatmentErrors, GetTimeToTreatmentResponses, HealthData, HealthResponses, ListActorsData, ListActorsErrors, ListActorsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListCaseJobsData, ListCaseJobsErrors, ListCaseJobsResponses, ListCaseMessagesData, ListCaseMessagesErrors, ListCaseMessagesResponses, ListCaseReceiptsData, ListCaseReceiptsErrors, ListCaseReceiptsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListDocumentsData, ListDocumentsErrors, ListDocumentsResponses, ListFindingsData, ListFindingsErrors, ListFindingsResponses, ListInboxData, ListInboxErrors, ListInboxResponses, ListMdtBoardsData, ListMdtBoardsResponses, ListNotificationsData, ListNotificationsErrors, ListNotificationsResponses, ListOrganizationsData, ListOrganizationsErrors, ListOrganizationsResponses, ListTasksData, ListTasksErrors, ListTaskSetsData, ListTaskSetsErrors, ListTaskSetsResponses, ListTasksResponses, MeData, MeErrors, MeResponses, ReextractCaseData, ReextractCaseErrors, ReextractCaseResponses, RequestFromFindingData, RequestFromFindingErrors, RequestFromFindingResponses, ResetDemoData, ResetDemoErrors, ResetDemoResponses, ResolveFindingData, ResolveFindingErrors, ResolveFindingResponses, ReturnCaseData, ReturnCaseErrors, ReturnCaseResponses, SendFeedbackData, SendFeedbackErrors, SendFeedbackResponses, SendReferralData, SendReferralErrors, SendReferralResponses, SetDemoClockData, SetDemoClockErrors, SetDemoClockResponses, SetHoldData, SetHoldErrors, SetHoldResponses, StartTaskSetData, StartTaskSetErrors, StartTaskSetResponses, SuggestTasksData, SuggestTasksErrors, SuggestTasksResponses, TakeOverCaseData, TakeOverCaseErrors, TakeOverCaseResponses, TransitionCaseData, TransitionCaseErrors, TransitionCaseResponses, UpdateCaseData, UpdateCaseErrors, UpdateCaseResponses, UpdateDocumentData, UpdateDocumentErrors, UpdateDocumentResponses, UpdateHandoverFieldData, UpdateHandoverFieldErrors, UpdateHandoverFieldResponses, UpdateMdtBoardMembersData, UpdateMdtBoardMembersErrors, UpdateMdtBoardMembersResponses, UpdateMdtRecordData, UpdateMdtRecordErrors, UpdateMdtRecordResponses, UpdateMilestonesData, UpdateMilestonesErrors, UpdateMilestonesResponses, UpdateTaskData, UpdateTaskErrors, UpdateTaskResponses, UpdateTaskSetData, UpdateTaskSetErrors, UpdateTaskSetResponses, UploadDocumentData, UploadDocumentErrors, UploadDocumentResponses, UploadMdtConclusionData, UploadMdtConclusionErrors, UploadMdtConclusionResponses, UpsertMdtConclusionData, UpsertMdtConclusionErrors, UpsertMdtConclusionResponses, ValidateHandoverData, ValidateHandoverErrors, ValidateHandoverResponses } from './types.gen';
+import type { AddExaminationData, AddExaminationErrors, AddExaminationResponses, AskCaseData, AskCaseErrors, AskCaseResponses, ClearHoldData, ClearHoldErrors, ClearHoldResponses, ConfirmMdtConclusionData, ConfirmMdtConclusionErrors, ConfirmMdtConclusionResponses, ConfirmReceiptData, ConfirmReceiptErrors, ConfirmReceiptResponses, CreateDraftData, CreateDraftErrors, CreateDraftResponses, CreateMdtSnapshotData, CreateMdtSnapshotErrors, CreateMdtSnapshotResponses, CreatePatientNoticeData, CreatePatientNoticeErrors, CreatePatientNoticeResponses, CreateReferralData, CreateReferralErrors, CreateReferralFromBundleData, CreateReferralFromBundleErrors, CreateReferralFromBundleResponses, CreateReferralResponses, CreateTaskData, CreateTaskErrors, CreateTaskResponses, CreateTaskSetData, CreateTaskSetErrors, CreateTaskSetResponses, DocumentTextData, DocumentTextErrors, DocumentTextResponses, GetCaseData, GetCaseErrors, GetCaseResponses, GetDemoClockData, GetDemoClockResponses, GetDocumentFileData, GetDocumentFileErrors, GetDocumentFileResponses, GetHandoverData, GetHandoverErrors, GetHandoverResponses, GetJobData, GetJobErrors, GetJobResponses, GetMdtBoardData, GetMdtBoardErrors, GetMdtBoardResponses, GetMdtConclusionData, GetMdtConclusionErrors, GetMdtConclusionPdfData, GetMdtConclusionPdfErrors, GetMdtConclusionPdfResponses, GetMdtConclusionResponses, GetMdtRecordData, GetMdtRecordErrors, GetMdtRecordPdfData, GetMdtRecordPdfErrors, GetMdtRecordPdfResponses, GetMdtRecordResponses, GetTimeToTreatmentData, GetTimeToTreatmentErrors, GetTimeToTreatmentResponses, HealthData, HealthResponses, ListActorsData, ListActorsErrors, ListActorsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListCaseJobsData, ListCaseJobsErrors, ListCaseJobsResponses, ListCaseMessagesData, ListCaseMessagesErrors, ListCaseMessagesResponses, ListCaseReceiptsData, ListCaseReceiptsErrors, ListCaseReceiptsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListCodeCandidatesData, ListCodeCandidatesErrors, ListCodeCandidatesResponses, ListDocumentsData, ListDocumentsErrors, ListDocumentsResponses, ListFindingsData, ListFindingsErrors, ListFindingsResponses, ListInboxData, ListInboxErrors, ListInboxResponses, ListMdtBoardsData, ListMdtBoardsResponses, ListNotificationsData, ListNotificationsErrors, ListNotificationsResponses, ListOrganizationsData, ListOrganizationsErrors, ListOrganizationsResponses, ListTasksData, ListTasksErrors, ListTaskSetsData, ListTaskSetsErrors, ListTaskSetsResponses, ListTasksResponses, MeData, MeErrors, MeResponses, PickDiagnosisCodeData, PickDiagnosisCodeErrors, PickDiagnosisCodeResponses, ReextractCaseData, ReextractCaseErrors, ReextractCaseResponses, RequestFromFindingData, RequestFromFindingErrors, RequestFromFindingResponses, ResetDemoData, ResetDemoErrors, ResetDemoResponses, ResolveFindingData, ResolveFindingErrors, ResolveFindingResponses, ReturnCaseData, ReturnCaseErrors, ReturnCaseResponses, SendFeedbackData, SendFeedbackErrors, SendFeedbackResponses, SendReferralData, SendReferralErrors, SendReferralResponses, SetDemoClockData, SetDemoClockErrors, SetDemoClockResponses, SetHoldData, SetHoldErrors, SetHoldResponses, StartTaskSetData, StartTaskSetErrors, StartTaskSetResponses, SuggestTasksData, SuggestTasksErrors, SuggestTasksResponses, TakeOverCaseData, TakeOverCaseErrors, TakeOverCaseResponses, TransitionCaseData, TransitionCaseErrors, TransitionCaseResponses, UpdateCaseData, UpdateCaseErrors, UpdateCaseResponses, UpdateDocumentData, UpdateDocumentErrors, UpdateDocumentResponses, UpdateHandoverFieldData, UpdateHandoverFieldErrors, UpdateHandoverFieldResponses, UpdateMdtBoardMembersData, UpdateMdtBoardMembersErrors, UpdateMdtBoardMembersResponses, UpdateMdtRecordData, UpdateMdtRecordErrors, UpdateMdtRecordResponses, UpdateMilestonesData, UpdateMilestonesErrors, UpdateMilestonesResponses, UpdateTaskData, UpdateTaskErrors, UpdateTaskResponses, UpdateTaskSetData, UpdateTaskSetErrors, UpdateTaskSetResponses, UploadDocumentData, UploadDocumentErrors, UploadDocumentResponses, UploadMdtConclusionData, UploadMdtConclusionErrors, UploadMdtConclusionResponses, UpsertMdtConclusionData, UpsertMdtConclusionErrors, UpsertMdtConclusionResponses, ValidateHandoverData, ValidateHandoverErrors, ValidateHandoverResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -175,6 +175,31 @@ export const addExamination = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
+ * List Code Candidates
+ *
+ * MKN-10 candidates for a diagnosis without a code (S8, Q-C11), best first, from vector search
+ * over the code list. AI proposals only: nothing is filled in. 409 if the handover has no
+ * diagnosis or its code is already set, or no embedding model or code list is set up.
+ */
+export const listCodeCandidates = <ThrowOnError extends boolean = false>(options: Options<ListCodeCandidatesData, ThrowOnError>): RequestResult<ListCodeCandidatesResponses, ListCodeCandidatesErrors, ThrowOnError> => (options.client ?? client).get<ListCodeCandidatesResponses, ListCodeCandidatesErrors, ThrowOnError>({ url: '/cases/{case_id}/handover/code-candidates', ...options });
+
+/**
+ * Pick Diagnosis Code
+ *
+ * Store the picked candidate as `diagnosis_code` (origin=manual) and keep the AI suggestion in
+ * the audit log (Q-C11, until Q-I21 adds it to the contract). 400 if the code is not a current
+ * candidate.
+ */
+export const pickDiagnosisCode = <ThrowOnError extends boolean = false>(options: Options<PickDiagnosisCodeData, ThrowOnError>): RequestResult<PickDiagnosisCodeResponses, PickDiagnosisCodeErrors, ThrowOnError> => (options.client ?? client).post<PickDiagnosisCodeResponses, PickDiagnosisCodeErrors, ThrowOnError>({
+    url: '/cases/{case_id}/handover/diagnosis-code',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Validate Handover
  *
  * Referring doctor validates the AI proposal (sets `validated_by_referrer`).
@@ -230,6 +255,22 @@ export const createDraft = <ThrowOnError extends boolean = false>(options: Optio
  * Bonus (Q-F3): high-precision, quote-backed task proposals in `job.result.tasks`.
  */
 export const suggestTasks = <ThrowOnError extends boolean = false>(options: Options<SuggestTasksData, ThrowOnError>): RequestResult<SuggestTasksResponses, SuggestTasksErrors, ThrowOnError> => (options.client ?? client).post<SuggestTasksResponses, SuggestTasksErrors, ThrowOnError>({ url: '/cases/{case_id}/suggestions/tasks', ...options });
+
+/**
+ * Ask Case
+ *
+ * 'Ask the case' (S8, Q-I19): the nearest document chunks go to the model, which may answer
+ * only with quotes; each is checked verbatim. The `CaseAnswer` arrives in `job.answer`
+ * (`found=false`, 'nenalezeno', when no quote passes).
+ */
+export const askCase = <ThrowOnError extends boolean = false>(options: Options<AskCaseData, ThrowOnError>): RequestResult<AskCaseResponses, AskCaseErrors, ThrowOnError> => (options.client ?? client).post<AskCaseResponses, AskCaseErrors, ThrowOnError>({
+    url: '/cases/{case_id}/ask',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Take Over Case

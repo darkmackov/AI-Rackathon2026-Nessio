@@ -186,6 +186,41 @@ export type Case = {
 };
 
 /**
+ * CaseAnswer
+ *
+ * 'Ask the case' (Q-I19): the answer is only verbatim quotes from the case's documents, each
+ * checked like extracted evidence. No quote passed: `found` is false ('nenalezeno').
+ */
+export type CaseAnswer = {
+    /**
+     * Question
+     */
+    question: string;
+    /**
+     * Found
+     */
+    found: boolean;
+    /**
+     * Quotes
+     */
+    quotes?: Array<Evidence>;
+};
+
+/**
+ * CaseAsk
+ *
+ * 'Ask the case' (Q-I19): a question in Czech, answered only with verbatim quotes.
+ */
+export type CaseAsk = {
+    /**
+     * Question
+     *
+     * e.g. 'Jaké je ECOG pacienta?'
+     */
+    question: string;
+};
+
+/**
  * CaseReturn
  *
  * 'Vrátit lékaři': send the referral back to the GP with what is missing (D-15).
@@ -255,6 +290,28 @@ export type CaseUpdate = {
 export type Channel = 'in_app' | 'email' | 'sms';
 
 /**
+ * CodeCandidate
+ *
+ * An MKN-10 code proposed by vector search for a diagnosis without a code (Q-C11). Only a
+ * proposal: a person picks one. Candidates are listed best first; similarity scores are not shown,
+ * they are not calibrated (Q-I19).
+ */
+export type CodeCandidate = {
+    /**
+     * Code
+     *
+     * MKN-10 code, e.g. 'C25.0'
+     */
+    code: string;
+    /**
+     * Title Cs
+     *
+     * Name of the code in the MKN-10 list
+     */
+    title_cs: string;
+};
+
+/**
  * ConclusionSource
  */
 export type ConclusionSource = 'written' | 'uploaded';
@@ -314,6 +371,20 @@ export type DemoReset = {
  * DemoScenario
  */
 export type DemoScenario = 'empty' | 'reference_at_mdt';
+
+/**
+ * DiagnosisCodePick
+ *
+ * The MKN-10 code a person picked from the AI candidates (Q-C11).
+ */
+export type DiagnosisCodePick = {
+    /**
+     * Code
+     *
+     * One of the codes from listCodeCandidates
+     */
+    code: string;
+};
 
 /**
  * DocumentMeta
@@ -620,7 +691,7 @@ export type Finding = {
 /**
  * FindingKind
  */
-export type FindingKind = 'missing' | 'conflict' | 'temporal' | 'identity' | 'unattached_reference' | 'trend';
+export type FindingKind = 'missing' | 'conflict' | 'temporal' | 'identity' | 'unattached_reference' | 'trend' | 'unverified_quote';
 
 /**
  * FindingResolve
@@ -822,12 +893,16 @@ export type Job = {
     result?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Kind ask_case, once done; the question is in `params`
+     */
+    answer?: CaseAnswer | null;
 };
 
 /**
  * JobKind
  */
-export type JobKind = 'ingest_document' | 'draft' | 'suggest_tasks';
+export type JobKind = 'ingest_document' | 'draft' | 'suggest_tasks' | 'ask_case';
 
 /**
  * JobStatus
@@ -2500,6 +2575,76 @@ export type AddExaminationResponses = {
 
 export type AddExaminationResponse = AddExaminationResponses[keyof AddExaminationResponses];
 
+export type ListCodeCandidatesData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/handover/code-candidates';
+};
+
+export type ListCodeCandidatesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListCodeCandidatesError = ListCodeCandidatesErrors[keyof ListCodeCandidatesErrors];
+
+export type ListCodeCandidatesResponses = {
+    /**
+     * Response List Code Candidates
+     *
+     * Successful Response
+     */
+    200: Array<CodeCandidate>;
+};
+
+export type ListCodeCandidatesResponse = ListCodeCandidatesResponses[keyof ListCodeCandidatesResponses];
+
+export type PickDiagnosisCodeData = {
+    body: DiagnosisCodePick;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/handover/diagnosis-code';
+};
+
+export type PickDiagnosisCodeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PickDiagnosisCodeError = PickDiagnosisCodeErrors[keyof PickDiagnosisCodeErrors];
+
+export type PickDiagnosisCodeResponses = {
+    /**
+     * Successful Response
+     */
+    200: Handover;
+};
+
+export type PickDiagnosisCodeResponse = PickDiagnosisCodeResponses[keyof PickDiagnosisCodeResponses];
+
 export type ValidateHandoverData = {
     body?: never;
     headers: {
@@ -2751,6 +2896,44 @@ export type SuggestTasksResponses = {
 };
 
 export type SuggestTasksResponse = SuggestTasksResponses[keyof SuggestTasksResponses];
+
+export type AskCaseData = {
+    body: CaseAsk;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/ask';
+};
+
+export type AskCaseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AskCaseError = AskCaseErrors[keyof AskCaseErrors];
+
+export type AskCaseResponses = {
+    /**
+     * Successful Response
+     */
+    202: Job;
+};
+
+export type AskCaseResponse = AskCaseResponses[keyof AskCaseResponses];
 
 export type TakeOverCaseData = {
     body?: never;

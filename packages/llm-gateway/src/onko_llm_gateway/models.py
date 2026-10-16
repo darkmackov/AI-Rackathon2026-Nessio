@@ -23,8 +23,17 @@ class ChatResult:
 
 
 @dataclass(frozen=True)
+class EmbedResult:
+    """Raw embeddings from an endpoint, one vector per input text, in input order."""
+
+    vectors: list[list[float]]
+    prompt_tokens: int = 0
+
+
+@dataclass(frozen=True)
 class CallRecord:
-    """One `Gateway.complete` call, for the bench (tokens, latency) and debugging. No content."""
+    """One `Gateway.complete` or `Gateway.embed` call, for the bench (tokens, latency) and
+    debugging. No content."""
 
     slot: str
     model: str

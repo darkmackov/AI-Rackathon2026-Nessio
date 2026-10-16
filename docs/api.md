@@ -11,7 +11,7 @@ Every endpoint already has its request and response shape in the OpenAPI spec ([
 - **Status `works (seeded)`:** the endpoint already serves the reference case from the in-memory repository.
 - **Status `works`:** implemented by its slice.
 
-64 operations in total. Things users need that no operation covers yet, not even as a 501 stub, are listed in [Not in the API yet](#not-in-the-api-yet).
+67 operations in total. Things users need that no operation covers yet, not even as a 501 stub, are listed in [Not in the API yet](#not-in-the-api-yet).
 
 **S0 web demo (Q-W6):** the standalone web simulates the eight S0 directory/identity and demo clock/reset operations, plus `/cases` for the existing provisional S1 queue, using MSW and these existing models. Contract tests check the implemented success responses and `HTTPValidationError` response shapes against the committed OpenAPI. This does not implement or change backend endpoints; the statuses below still describe the actual API. The simulation does not cover the full API or every undocumented backend coercion. `VITE_API_MODE=real` disables it without falling back on errors. See [web README](../apps/web/README.md).
 
@@ -38,11 +38,12 @@ Live docs while the API runs: `http://localhost:8000/docs`.
   | 422 | Validation (FastAPI default), or an uploaded file that cannot be read |
   | 501 | Not implemented yet |
 
+- **Vector search (S8, Q-I19):** "ask the case" (`askCase`) is a `Job` of kind `ask_case`; its `CaseAnswer` (verbatim quotes as `Evidence`, or `found=false`) arrives in `job.answer`. MKN-10 candidates (`listCodeCandidates`) are AI proposals for a diagnosis without a code; the pick (`pickDiagnosisCode`) is stored as `origin=manual` and the suggestion is written to the audit log (Q-C11, Q-I21). An extraction quote not found verbatim becomes a `Finding` of kind `unverified_quote` whose evidence is the nearest chunk of that document.
 - **Manual entries** (`PATCH /cases/{id}/handover`) produce `Sourced` values with `origin=manual` and `entered={by, at}`. AI values carry `origin=ai` and verbatim `evidence`. The contracts enforce both.
 - **Audit:** every write that changes a case appends an `AuditEvent` (`listAudit`, append-only, PER-13): `referral_created`, `document_uploaded`, `document_updated`, `handover_field_updated`, `examination_added`, `handover_validated`, `referral_sent`, `reextraction_started`, `case_taken_over`, `case_updated`, `case_transitioned`, `case_returned`, `hold_set`, `hold_cleared`, `milestones_updated`, `finding_resolved`, `finding_requested`, `task_created`, `task_updated`, `task_set_started`. `detail` is Czech text; notes without a home on the models (`CaseTransition.note`, `RequestTaskCreate.note`) go there. Task sets belong to no case and are not audited.
 - **Who is on the move** (`Case.on_move`, `next_step`, `next_due`) is recomputed after every task change, take-over, return and resend: the earliest ready task (owner, title, due); without one the coordinator, with no step; while the case is `vraceno_lekari` the referring doctor.
 - **Storage:** app state is kept in IRIS, projected to FHIR only where needed (decision 16. 10.). Nothing in the API exposes FHIR directly; the one FHIR input is `createReferralFromBundle`, a referral Bundle uploaded as a file (S9, Q-I20).
-- **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23; `/api/mcp` in production). It is not part of the 64 REST operations or the OpenAPI spec. Its tools (`search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`) call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check; errors come back as MCP tool errors with the same `detail` text. "Ask the case" joins with S8.
+- **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23; `/api/mcp` in production). It is not part of the 67 REST operations or the OpenAPI spec. Its tools (`search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`, `ask_case`) call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check; errors come back as MCP tool errors with the same `detail` text. `ask_case(case_id, question)` returns a `CaseAnswer` like `askCase`'s `job.answer`, but synchronously (a tool can't poll a job); without a model or an embedding model it is a tool error with the job's Czech reason.
 
 ## The flows through the API
 
@@ -142,8 +143,7 @@ Needs with **no operation at all**, not even a 501 stub. Each one gets its opera
 | 3 | **Remove a document** (wrong upload, duplicate) | No operation. The duplicate check on upload only warns (Q-I22) | S11 (Phase 2) |
 | 4 | **Undo a manual entry** back to the AI value and its evidence | A manual value can be overwritten or marked "Není k dispozici", never reverted; `Sourced` keeps no history | S11 (Phase 2) |
 | 5 | **Remove a task set** | `createTaskSet` / `updateTaskSet` only | S11 (Phase 2) |
-| 6 | **"Ask the case"** and **MKN-10 code candidates** | New operations and models still to be defined | S8 |
-| 7 | **Normalised lab values and performance status** (Q-C13) | `LabValue.value` and `performance_status` are plain strings | S2 |
+| 6 | **Normalised lab values and performance status** (Q-C13) | `LabValue.value` and `performance_status` are plain strings | S2 |
 
 Open design questions for S11: Q-F24–Q-F27 in [open-questions.md](open-questions.md).
 
@@ -201,6 +201,8 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 | `PATCH` | `/cases/{case_id}/handover` | `HandoverFieldUpdate` | `Handover` 200 | ✓ | `updateHandoverField` | **works** (S3) |
 | `GET` | `/cases/{case_id}/handover` | — · query `snapshot` | `Handover` 200 |  | `getHandover` | **works** (seeded) |
 | `POST` | `/cases/{case_id}/handover/examinations` | `ExaminationCreate` | `Handover` 201 | ✓ | `addExamination` | **works** (S3) |
+| `GET` | `/cases/{case_id}/handover/code-candidates` | — | `list[CodeCandidate]` 200 |  | `listCodeCandidates` | **works** (S8) |
+| `POST` | `/cases/{case_id}/handover/diagnosis-code` | `DiagnosisCodePick` | `Handover` 200 | ✓ | `pickDiagnosisCode` | **works** (S8) |
 | `POST` | `/cases/{case_id}/handover/validate` | — | `Handover` 200 | ✓ | `validateHandover` | **works** (S3) |
 
 ### jobs
@@ -212,6 +214,7 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 | `POST` | `/cases/{case_id}/extract` | — | `Job` 202 | ✓ | `reextractCase` | **works** (S2) |
 | `POST` | `/cases/{case_id}/drafts` | `DraftCreate` | `Job` 202 | ✓ | `createDraft` | defined (501) |
 | `POST` | `/cases/{case_id}/suggestions/tasks` | — | `Job` 202 | ✓ | `suggestTasks` | defined (501) |
+| `POST` | `/cases/{case_id}/ask` | `CaseAsk` | `Job` 202 | ✓ | `askCase` | **works** (S8) |
 
 ### cases
 

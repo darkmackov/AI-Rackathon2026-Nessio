@@ -30,6 +30,7 @@ from .coordination import (
 )
 from .models import (
     CaseStateError,
+    CodeNotNeededError,
     HandoverEditError,
     HandoverLockedError,
     NotValidatedError,
@@ -40,7 +41,9 @@ from .models import (
 from .referral import (
     EDITABLE_STATES,
     add_examination,
+    diagnosis_for_code,
     new_referral,
+    pick_diagnosis_code,
     receive_referral,
     require_editable,
     send_referral,
@@ -68,6 +71,7 @@ __all__ = [
     "MANUAL_TRANSITIONS",
     "TASK_LOCKED_STATES",
     "CaseStateError",
+    "CodeNotNeededError",
     "HandoverEditError",
     "HandoverLockedError",
     "NotValidatedError",
@@ -78,6 +82,7 @@ __all__ = [
     "audit_event",
     "check_dependencies",
     "check_task_set",
+    "diagnosis_for_code",
     "due_notices",
     "is_external",
     "manual_transition",
@@ -86,6 +91,7 @@ __all__ = [
     "next_step",
     "open_tasks",
     "owner_organization",
+    "pick_diagnosis_code",
     "put_on_hold",
     "queue_column",
     "ready_tasks",

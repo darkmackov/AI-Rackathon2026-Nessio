@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 from openai import OpenAI
 
-from ..models import ChatResult, ModelSlot
+from ..models import ChatResult, EmbedResult, ModelSlot
 
 
 class OpenAICompatClient:
@@ -52,4 +52,13 @@ class OpenAICompatClient:
             text=response.choices[0].message.content or "",
             prompt_tokens=usage.prompt_tokens if usage else 0,
             completion_tokens=usage.completion_tokens if usage else 0,
+        )
+
+    def embed(self, slot: ModelSlot, texts: list[str]) -> EmbedResult:
+        response = self._client(slot).embeddings.create(model=slot.model, input=texts)
+        data = sorted(response.data, key=lambda d: d.index)
+        usage = response.usage
+        return EmbedResult(
+            vectors=[list(d.embedding) for d in data],
+            prompt_tokens=usage.prompt_tokens if usage else 0,
         )
