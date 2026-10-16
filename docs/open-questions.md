@@ -9,9 +9,6 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | ID | Question | Interim assumption | Ask |
 |---|---|---|---|
 | Q-F8 | **Repeated MDT:** slide 4's example has two MDTs, and the sample conclusion plans another one after neoadjuvant therapy. Can a case go back from *Závěr MDT*? | Not supported. `ALLOWED_TRANSITIONS` has no way back from `zaver_mdt` | VZP |
-| Q-W1 | **UI component library** (WEB-9 requires one for everything it offers) | None yet: semantic HTML only, no library added | Team |
-| Q-W2 | **Router** for the web app | None yet: `App.tsx` renders the dashboard directly | Team |
-| Q-W3 | **i18n library** for Czech + English (Q-F20) | None yet: UI text in Czech | Team |
 | Q-K8 | **Time zones:** contracts use naive `datetime`s and api.md says ISO 8601. Store UTC, local time, or aware datetimes? | Unchanged (naive) | Team |
 | Q-K9 | **Id scheme** for new cases, tasks, findings, messages (api.md: string ids; today slugs and composite ids from seed and `start_task_set`) | Unchanged | Team |
 | Q-I27 | **Bitmap indexes** (Q-I26): IRIS allows them only on tables with an integer row ID. Do our generated tables (string `id` as primary key) keep IRIS's default integer row ID? | Plan bitmap indexes, check on the instance before creating them; fall back to normal indexes | Team / ISC |
@@ -31,7 +28,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-F4 | How do requested documents arrive? | Outside the app; the coordinator uploads them (Q-F23) | product.md, demo-script.md |
 | Q-F5 | Who validates the handover? | **The referring doctor owns the handover** (Q-F22): they validate it when sending (re-confirming after additional documents is Phase 2, Q-F23). The **coordinator** confirms the MDT snapshot (see Q-F21) | `Handover.validated_by_referrer`, `Handover.confirmed_by_coordinator` |
 | Q-F6 | How does the referral start, and who gets the requests for 01–06? | **The GP sends 07; the KOC then requests 01–06 from whoever holds each report** (corrected 16. 10.). In the reference case that's the GP, who ordered 02–04, was copied on 01 and 05, and knows the UZ result. Otherwise the request goes to the producing facility. The brief doesn't say who the coordinator asked ("vyžádal si … zprávy (01-06)"); its capability text says "z jiných pracovišť" (from other facilities). "Whoever holds it" covers both readings. Everything from 08 on is arranged by the KOC. The request/reply flow itself is Phase 2 (Q-F23) | product.md, demo-script.md, reference-case.md, manifest `received_at` |
-| Q-F7 | Triage, rejection? | The coordinator accepts; no rejection or redirect | state machine unchanged |
+| Q-F7 | Triage, rejection? | The coordinator accepts, or **returns the referral to the GP with a note** on what is missing (slide 8; `vraceno_lekari`, D-15). The GP fixes and resends it. No redirect to another KOC (revised 16. 10.) | `CaseState.RETURNED_TO_REFERRER`, `returnCase`, `MessageKind.CASE_RETURNED` |
 | Q-F9 | What is "Odložený pacient"? | **A manual flag** set by the coordinator, with a reason and an optional resume date | `Case.on_hold`, `onko_cases.put_on_hold/resume` |
 | Q-F10 | Which reviewing doctor? | The patient's insurer's revizní lékař (code 211 = ZPMV here), but **not in the MVP** | `MessageKind.REVIEW_FEED`, delivery.md Phase 2 |
 | Q-F11 | Proof of delivery? | The GP clicks *Potvrzuji převzetí* | `Receipt` |
@@ -44,7 +41,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-F18 | Time to treatment? | **In the MVP**: T1 symptom → referral, T2 referral → MDT, T3 MDT → treatment | `Case.milestones`, `onko_cases.time_to_treatment` |
 | Q-F19 | KOC list? | Fictional, from the data (KOC 1 Severní, KOC 2 Lipová) | seed |
 | Q-F20 | UI language? | **Czech + English UI**; data stays Czech (Q-A6) | delivery.md stream E |
-| Q-F23 | Which handover flows are in the MVP? | **Two flows:** (1) **initial GP handover**: referral, AI extraction, the GP validates with soft prompts, sends. **In the MVP.** (2) **Additional document handovers** from the GP or others: request → reply in an inbox → upload → re-confirm. **Not in the MVP (Phase 2).** In the MVP the coordinator logs a request task and **uploads** the reports that arrive by other channels (01–06, 08–11) | product.md, demo-script.md, delivery.md |
+| Q-F23 | Which handover flows are in the MVP? | **Two flows:** (1) **initial GP handover**: referral, AI extraction, the GP validates with soft prompts, sends. **In the MVP.** (2) **Additional document handovers** from the GP or others: request → reply in an inbox → upload → re-confirm. **Not in the MVP (Phase 2).** The exception is returning the GP's own referral with a note (Q-F7, D-15), which is in the MVP. In the MVP the coordinator logs a request task and **uploads** the reports that arrive by other channels (01–06, 08–11) | product.md, demo-script.md, delivery.md |
 | Q-F22 | Does the GP gap-fill before sending? | **The referring doctor completes and validates the handover.** Remaining gaps (ECOG, emails, …) are **soft "fill in if you know" prompts**, never blocking the GP. Referenced reports are not demanded at sending; the KOC requests them afterwards | product.md screen 1, demo-script.md |
 | Q-F21 | Is the coordinator the only KOC-side user? | **Yes: the users are the GP and the coordinator.** MDT doctors appear as roster/signatory information only | product.md roles |
 
@@ -140,10 +137,20 @@ Asked and decided on 16. 10. 2026 (Q-K8 to Q-K11 later the same day). The rules 
 
 | ID | Question | Decision | Lands in |
 |---|---|---|---|
+| Q-W1 | UI component library? | **Mantine**, including its forms; use its components and theme | apps/web |
+| Q-W2 | Router? | **TanStack Router**, code-based routes | apps/web |
+| Q-W3 | Czech / English translations? | **i18next + react-i18next**, both dictionaries bundled; UI only | apps/web |
 | Q-W4 | How does the web app load data without `useEffect`? | **TanStack Query** through hey-api's generated `xxxOptions()` / `xxxMutation()` helpers. `useEffect` is banned | web.md WEB-1, WEB-10 |
 | Q-W5 | Accessibility bar? | **WCAG 2.2 AA** | ui-ux.md A11Y-* |
+| Q-W6 | Does S0 implement backend endpoints? | **Frontend only, with explicit permission for contract-shaped dummy HTTP data through MSW.** Mock is the default in development and built demos; `VITE_API_MODE=real` selects the real API with no silent fallback. This is a narrow exception to WEB-4 / WEB-6 for the mock HTTP boundary, never for components. Backend stubs remain 501; no contract change | web.md, slices.md, apps/web/README.md |
+| Q-W7 | Which identities can be selected? | Role plus any of the five referring doctors or five coordinators from the directory, verified by `/me`. Specialists are directory information only. Send `X-Actor-Id` explicitly; identity-dependent query keys include it. Switch to the new role's home and remove the previous identity's queries; switching is disabled during writes | apps/web |
+| Q-W8 | Persist identity, language or demo changes? | **Memory only, per tab.** A reload requires choosing a person, starts in Czech and restores the reference scenario. React context holds UI identity selection only; server data stays in Query | apps/web |
+| Q-W9 | Which pages belong in S0? | `/` identity picker and `/referrer` identity, workplace and contacts; shared routing sends each role to its home. **Scope clarification: the coordinator dashboard belongs to S1**, including the already existing provisional kanban retained at `/coordinator`. It is partial S1 work, not an S0 acceptance criterion. No links to future screens. Referral submission is S3, inbox S6 | product.md, slices.md |
+| Q-W10 | Demo clock and resets? | Both roles can open a **Demo** panel. Start at `reference_at_mdt`, **2026-10-21 09:00**. Simulated time continues at real speed, interpreted in the **computer's local zone**, with no UTC conversion of naive datetimes. `empty` resets to **2026-10-02 14:00**, reference resets to **2026-10-21 09:00**. Reset needs confirmation, preserves identity/language, refreshes affected queries and returns to the role home. Real time is selectable. Backend timezone policy Q-K8 remains open | apps/web/README.md |
+| Q-W11 | Web verification? | Vitest + React Testing Library + MSW for targeted behavior tests; manual built-browser check, keyboard and narrow layout | apps/web |
+| Q-W12 | Visual baseline? | Light, compact clinical interface, blue accent, neutral surfaces and system font. No dark mode in S0 | apps/web |
 
-Q-W1 to Q-W3 (UI library, router, i18n) are still open, see the top of this page.
+These S0 choices were agreed with the user before implementation. No backend implementation or real authentication is implied by the role switcher.
 
 ## T: Tooling decisions (taken without asking; review if you disagree)
 
@@ -177,4 +184,5 @@ Q-W1 to Q-W3 (UI library, router, i18n) are still open, see the top of this page
 | D-12 | The demo directory is fictional apart from the reference-case people and facilities; insurer codes are the real public ones |
 | D-13 | Naive datetimes (Q-K8) are treated as Europe/Prague local time when projected to FHIR, whose instants need a zone |
 | D-14 | FHIR projection is written on every repository save **through an outbox** (revised 16. 10.): the pending FHIR write is stored in an IRIS SQL table in the same transaction as the app-state save, then sent and retried until it succeeds. A failure never loses the app-state save and is never silent: pending writes are visible (e.g. in `/health`). Needed because FHIR is now how results reach the GP (Q-I20) |
+| D-15 | Extra state `vraceno_lekari` (returned to the GP) and `returnCase` (slide 8: the coordinator contacts the doctor). Reachable from *V triage*, *Čeká na podklady* and *Kompletní*, i.e. before the MDT snapshot. The note is a `case_returned` message in the GP's inbox. The GP's resend goes straight back to *V triage* with the same coordinator |
 | D-7 | Seeded task set "Karcinom pankreatu – diagnostika do MDT": CT → EUS-FNB → histology, labs, MDT, then pain clinic and psychologist; due offsets are ours |

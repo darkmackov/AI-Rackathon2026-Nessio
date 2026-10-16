@@ -49,10 +49,12 @@ flowchart LR
 | S10 | Read-only MCP server | S1 (read endpoints); "ask the case" needs S8 | after S1 |
 
 ## S0: Directory + role switcher
+**Agreed delivery for S0 (Q-W1–Q-W12): frontend foundation with MSW dummy HTTP responses; no backend implementation in this slice.** Mantine, TanStack Router and i18next provide the shared UI. All screens still consume the existing generated API helpers. Real directory persistence and clock/reset endpoints below remain backend work; S0 does not mark those stubs implemented.
+
 - **Goal:** the app knows who is using it and which KOCs, people and MDT boards exist.
 - **Endpoints:** `me`, `listOrganizations`, `listActors`, `listMdtBoards`, `getMdtBoard`, plus demo support `getDemoClock`, `setDemoClock`, `resetDemo`.
 - **UI:**
-  - Header role switcher (GP `pl-reznicek` / coordinator `koordinator`) that sets `X-Actor-Id`.
+  - Header role/person switcher from the directory that sets `X-Actor-Id` (reference pair: GP `pl-reznicek` / coordinator `koordinator`).
   - Czech/English UI switch (Q-F20).
   - App shell and routing.
 - **Modules:**
@@ -60,19 +62,21 @@ flowchart LR
   - Repository methods for the directory.
   - App clock used for every "now".
   - Reset scenarios `empty` and `reference_at_mdt`.
-- **Done when:** switching the role changes `/me` and what the shell shows; `resetDemo` and `setDemoClock` work.
+- **Frontend done when:** all ten user identities can be selected and verified through simulated `/me`; the shell, role-based routing, Czech/English switching, continuously running demo clock and both confirmed reset scenarios work without a backend, including from the built web. Reloading returns to a Czech identity picker and the reference scenario. Behavior and implemented-response contract checks, build and lint pass. The dashboard is not an S0 acceptance criterion. See [apps/web/README.md](../apps/web/README.md).
+- **Backend follow-up:** implement the directory, repository methods, app clock and reset endpoints listed above; retain their existing contracts. Until then real API mode shows actual API errors, including 501.
 
 ## S1: Coordinator dashboard + case detail (read-only)
+- **Current status:** a provisional KOC-filtered read-only kanban already exists. Its appearance, directory name resolution and language support were updated while preparing the shared shell. This is partial S1 work, not part of the S0 completion criteria; case detail, evidence navigation and time-to-treatment remain unfinished.
 - **Goal:** slide 9. Every case shows its state, due date and who is on the move.
-- **Endpoints (already working on the seed):** `listCases`, `getCase`, `getHandover`, `listFindings`, `listTasks`, `listDocuments`, `documentText`, plus `getTimeToTreatment`.
+- **Endpoints (already working on the seed):** `listCases`, `getCase`, `getHandover`, `listFindings`, `listTasks`, `listDocuments`, `documentText`, plus `getTimeToTreatment`. New here: `getDocumentFile`, so the coordinator opens the original of every document (slide 9: "strukturovaná zpráva + originál"). The seed stores the original `.docx` bytes from `data/cesta-pacienta-data/Pacient/`.
 - **UI:**
   - Kanban Nový / Aktivní / Odložený with cards showing patient, diagnosis, state, next step, owner, due date and time to treatment.
-  - Case detail tabs: Handover with click-through to the highlighted quote in the source document, Dokumenty, Findings panel, Úkoly.
-- **Done when:** demo steps 3 and 5 can be shown read-only on the seeded case.
+  - Case detail tabs: Handover with click-through to the highlighted quote in the source document, Dokumenty (every document in one place, each opening as the original file and as text, the GP's ones marked), Findings panel, Úkoly.
+- **Done when:** demo steps 3 and 5 can be shown read-only on the seeded case, and every seeded document opens as its original.
 
 ## S2: Document ingest + AI extraction
 - **Goal:** pillar 02. Uploaded reports turn into a handover with verbatim evidence, plus findings.
-- **Endpoints:** `uploadDocument` (with `received_at`), `getJob`, `listCaseJobs`, `getDocumentFile`, `updateDocument` (correct AI metadata), `reextractCase`.
+- **Endpoints:** `uploadDocument` (with `received_at`), `getJob`, `listCaseJobs`, `updateDocument` (correct AI metadata), `reextractCase`.
 - **Modules:**
   - `documents`: parse; duplicate check on upload, a warning only: SHA-256 for exact copies, word-shingle overlap for near copies (Q-I22).
   - `ai`: extraction (map per document, then merge), quote verification, AI document metadata, generic checks.
@@ -93,16 +97,18 @@ flowchart LR
   - Handover review with sources.
   - Soft "fill in if you know" prompts, with *Doplnit* / *Není k dispozici*.
   - *Validovat a odeslat*.
-- **Done when:** demo steps 1–2; the case appears in the coordinator's **Nový** column.
+  - **Returned referrals** (D-15): the coordinator's note (from `listInbox`), editing and uploading while the case is `vraceno_lekari`, then resending (`sendReferral`: `vraceno_lekari → v_triage`).
+- **Done when:** demo steps 1–2; the case appears in the coordinator's **Nový** column. A returned case can be fixed and resent, and it comes back in *V triage*.
 
 ## S4: Coordinator workflow
 - **Goal:** pillar 03. Coordinate everything after the referral.
 - **Endpoints:**
-  - case: `takeOverCase`, `updateCase` (priority, coordinator, planned MDT), `transitionCase`, `setHold`, `clearHold`, `updateMilestones`, `listAudit`
+  - case: `takeOverCase`, `updateCase` (priority, coordinator, planned MDT), `transitionCase`, `returnCase`, `setHold`, `clearHold`, `updateMilestones`, `listAudit`
   - findings: `resolveFinding`, `requestFromFinding`
   - tasks: `createTask`, `updateTask`, `startTaskSet`, `listTaskSets`, `createTaskSet`, `updateTaskSet`, `listNotifications`
 - **UI:**
   - *Převzít* (take over, V triage), case and task priorities.
+  - *Vrátit lékaři* (D-15): return the referral to the GP with a note, optionally linked to a finding.
   - *Vyžádat* (request task) and *Doplnit* on findings; override with a note (e.g. ECOG).
   - Task list and task-set editor, *Spustit sadu úkolů*, *Odložit*.
   - Coordinator upload of arriving reports (reuses S2).
@@ -184,5 +190,5 @@ flowchart LR
 Bonus AI task suggestions (`suggestTasks`), then the Phase 2 list in [delivery.md](delivery.md): additional document handovers (flow 2), repeated MDT, and the rest.
 
 ## Notes for slice owners
-- The seed puts the reference case at *Připraveno k MDT*. S3–S6 start from `resetDemo {scenario: empty}`, which S0 implements.
+- The seed puts the reference case at *Připraveno k MDT*. S3–S6 start from `resetDemo {scenario: empty}`. Frontend S0 simulates this operation; its actual backend implementation remains a follow-up (Q-W6).
 - Every slice turns its stubs into real endpoints and keeps the response models unchanged. If a response model must change, change the contract first, then run `uv run python scripts/export_openapi.py` and `npm --prefix apps/web run gen:api`.

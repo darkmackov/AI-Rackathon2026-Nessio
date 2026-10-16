@@ -120,6 +120,13 @@ def test_state_machine_reaches_closed():
     assert set(ALLOWED_TRANSITIONS) == set(CaseState)
 
 
+def test_coordinator_can_return_the_referral_until_the_mdt_snapshot():
+    returnable = {CaseState.TRIAGE, CaseState.WAITING_FOR_DOCUMENTS, CaseState.COMPLETE}
+    for state in CaseState:
+        assert (CaseState.RETURNED_TO_REFERRER in ALLOWED_TRANSITIONS[state]) is (state in returnable)
+    assert ALLOWED_TRANSITIONS[CaseState.RETURNED_TO_REFERRER] == {CaseState.TRIAGE}
+
+
 def test_handover_json_schema_exports():
     schema = Handover.model_json_schema()
     assert "performance_status" in schema["properties"]

@@ -8,7 +8,7 @@
 - [ ] Every dev has an Azure IRIS connection string + FHIR endpoint in `.env`; `/metadata` → fhirVersion 4.0.1
 - [ ] CZ/EU IG packages loaded into the FHIR server (dependency gaps first, see data-model.md)
 - [x] FastAPI app serving the seeded reference case (local uvicorn)
-- [x] Full MVP API defined: 62 endpoints with request/response models, 501 stubs, coverage checked against the brief ([api.md](api.md))
+- [x] Full MVP API defined: 63 endpoints with request/response models, 501 stubs, coverage checked against the brief ([api.md](api.md))
 - [x] Demo directory: 5 KOCs, 5 referring doctors, coordinators, MDT boards ([`data/demo/directory.json`](../data/demo/directory.json))
 - [ ] `IrisRepository` connects to Azure IRIS (`GET /health` → `"iris_configured": true` plus a real query)
 - [x] Typed web client generated from the API's OpenAPI spec (`@hey-api/openapi-ts`), drift guarded by a test

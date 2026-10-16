@@ -11,7 +11,9 @@ Every endpoint already has its request and response shape in the OpenAPI spec ([
 - **Status `works (seeded)`:** the endpoint already serves the reference case from the in-memory repository.
 - **Status `works`:** implemented by its slice.
 
-62 operations in total.
+63 operations in total.
+
+**S0 web demo (Q-W6):** the standalone web simulates the eight S0 directory/identity and demo clock/reset operations, plus `/cases` for the existing provisional S1 queue, using MSW and these existing models. Contract tests check the implemented success responses and `HTTPValidationError` response shapes against the committed OpenAPI. This does not implement or change backend endpoints; the statuses below still describe the actual API. The simulation does not cover the full API or every undocumented backend coercion. `VITE_API_MODE=real` disables it without falling back on errors. See [web README](../apps/web/README.md).
 
 Live docs while the API runs: `http://localhost:8000/docs`.
 
@@ -35,7 +37,7 @@ Live docs while the API runs: `http://localhost:8000/docs`.
 
 - **Manual entries** (`PATCH /cases/{id}/handover`) produce `Sourced` values with `origin=manual` and `entered={by, at}`. AI values carry `origin=ai` and verbatim `evidence`. The contracts enforce both.
 - **Storage:** app state is kept in IRIS, projected to FHIR only where needed (decision 16. 10.). Nothing in the API exposes FHIR directly.
-- **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23). It is not part of the 62 REST operations or the OpenAPI spec. Its tools call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check.
+- **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23). It is not part of the 63 REST operations or the OpenAPI spec. Its tools call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check.
 
 ## The flows through the API
 
@@ -75,8 +77,8 @@ Checked against [Zadani_ulohy](../data/vzp-structured/brief/Zadani_ulohy.md), th
 
 | Requirement | Endpoints | Slice |
 |---|---|---|
-| **Převzít** (take over): accept the GP's request and the documents they hand over | `createReferral`, `uploadDocument`, `updateHandoverField`, `validateHandover`, `sendReferral`, then `takeOverCase` | S3, S4 |
-| **Vyžádat a shromáždit** (request and collect): request missing reports from other facilities; all documents in one place | `requestFromFinding`, `createTask` (`kind=request_documents`), `uploadDocument` (+ `received_at`), `updateTask` (`result_document_id`), `listDocuments`, `getDocumentFile`, `documentText`, `updateDocument` | S2, S4 |
+| **Převzít** (take over): accept the GP's request and the documents they hand over | `createReferral`, `uploadDocument`, `updateHandoverField`, `validateHandover`, `sendReferral`, then `takeOverCase`; the GP's documents stay available as originals (`listDocuments`, `getDocumentFile`) | S1, S3, S4 |
+| **Vyžádat a shromáždit** (request and collect): request missing reports from other facilities; all documents in one place | `requestFromFinding`, `createTask` (`kind=request_documents`), `uploadDocument` (+ `received_at`), `updateTask` (`result_document_id`), `listDocuments`, `getDocumentFile`, `documentText`, `updateDocument` | S1, S2, S4 |
 | **Vytěžit** (extract): AI fills `Handover_obsah`, flags missing and conflicting values | `uploadDocument` → `Job` (`ingest_document`), `getJob`, `reextractCase`, `getHandover`, `listFindings`, `updateHandoverField`, `resolveFinding` | S2 |
 | **Koordinovat** (coordinate): plan and track journey steps with date, place and status | `startTaskSet`, `createTask`, `updateTask`, `listTasks`, `listTaskSets` / `createTaskSet` / `updateTaskSet`, `setHold` / `clearHold`, `transitionCase`, `listNotifications` | S4 |
 | **Připravit podklad pro MDT** (MDT input): add the KOC's examinations; only data available on 21. 10. | `uploadDocument` (08–11), `createDraft` (`epicrisis_summary`, `mdt_question`, `mdt_results`), `createMdtSnapshot` (frozen `as_of`), `updateMdtRecord`, `getMdtRecord`, `getMdtRecordPdf` | S5 |
@@ -97,7 +99,7 @@ Checked against [Zadani_ulohy](../data/vzp-structured/brief/Zadani_ulohy.md), th
 | 7 | Coordinator gets everything in one step | `sendReferral` → `listCases` / `getCase` / `getHandover` | S3, S1 |
 | 8 | Predefined structure, copy-ready parts, doctor validates | `Handover` schema, `validateHandover` | S2, S3 |
 | 8 | Coordinator sees the validated handover + list of missing items | `getHandover` (`validated_by_referrer`), `listFindings` | S1 |
-| 8 | Coordinator contacts the doctor through the app | **Deferred to Phase 2** (Q-F23); in the MVP a request task | — |
+| 8 | Coordinator contacts the doctor through the app | `returnCase` (return the referral with a note → `case_returned` message in the GP's `listInbox`), then `sendReferral` (D-15). A general request/reply inbox is **Phase 2** (Q-F23); in the MVP other requests are request tasks | S3, S4 |
 | 9 | Queue new / active / on hold | `listCases?queue=…&koc_id=…`, `Case.queue`, `setHold` | S1, S4 |
 | 9 | Detail: context from the referral (structured + original) | `getHandover`, `getDocumentFile`, `documentText`, `Evidence.start/end` | S1 |
 | 9 | Tasks with deadlines and **priority** | `Task.due`, `Task.priority`, `Case.priority`, `updateCase` | S4 |
@@ -106,7 +108,7 @@ Checked against [Zadani_ulohy](../data/vzp-structured/brief/Zadani_ulohy.md), th
 | 10 | Ordering (what must come first) | `Task.depends_on`, `TaskUpdate.depends_on` | S4 |
 | 10 | Notifications on deadlines | `listNotifications` (in-app, Q-F17) | S4 |
 | 10 | Communication e-mail / SMS / chat | In the MVP only the simulated patient notice (`createPatientNotice`); **the rest is Phase 2** | S6 |
-| 10 | The 8 case states | `CaseState`, `transitionCase`, `takeOverCase`, the state changes inside the snapshot / confirm / feedback / receipt endpoints | S4–S6 |
+| 10 | The 8 case states (plus `koncept`, D-8, and `vraceno_lekari`, D-15) | `CaseState`, `transitionCase`, `takeOverCase`, `returnCase`, the state changes inside the snapshot / confirm / feedback / receipt endpoints | S4–S6 |
 | 11 | Coordinator picks the case and uploads the MDT report | `uploadMdtConclusion` (or `upsertMdtConclusion`) | S5 |
 | 11 | GP receives the report with the original context | `sendFeedback` (`Message.attachment_document_ids`), `listInbox` | S6 |
 | 11 | Reviewing doctor informed automatically | **Deferred to Phase 2** (Q-F10) | — |
@@ -121,7 +123,7 @@ Checked against [Zadani_ulohy](../data/vzp-structured/brief/Zadani_ulohy.md), th
 | Run the demo again from step 1 | `resetDemo` (`empty` / `reference_at_mdt`) |
 | Several KOCs and doctors | directory seed [`data/demo/directory.json`](../data/demo/directory.json): 5 KOCs with a coordinator each, 5 referring doctors, report specialists, 5 MDT boards, all insurers |
 
-**Consciously deferred** (team decisions): in-app communication with the doctor and email/SMS (Q-F23), the reviewing-doctor feed (Q-F10), repeated MDT rounds (Q-F8, still open), bonus AI task suggestions (`suggestTasks` is defined but optional).
+**Consciously deferred** (team decisions): in-app communication with the doctor beyond returning the referral (D-15) and email/SMS (Q-F23), the reviewing-doctor feed (Q-F10), repeated MDT rounds (Q-F8, still open), bonus AI task suggestions (`suggestTasks` is defined but optional).
 
 ## Endpoints
 
@@ -196,6 +198,7 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 | `PATCH` | `/cases/{case_id}` | `CaseUpdate` | `Case` 200 | ✓ | `updateCase` | defined (501) |
 | `GET` | `/cases/{case_id}` | — | `Case` 200 |  | `getCase` | **works** (seeded) |
 | `POST` | `/cases/{case_id}/transition` | `CaseTransition` | `Case` 200 | ✓ | `transitionCase` | defined (501) |
+| `POST` | `/cases/{case_id}/return` | `CaseReturn` | `Case` 200 | ✓ | `returnCase` | defined (501) |
 | `PUT` | `/cases/{case_id}/hold` | `HoldSet` | `Case` 200 | ✓ | `setHold` | defined (501) |
 | `DELETE` | `/cases/{case_id}/hold` | — | `Case` 200 | ✓ | `clearHold` | defined (501) |
 | `PATCH` | `/cases/{case_id}/milestones` | `MilestonesUpdate` | `Case` 200 | ✓ | `updateMilestones` | defined (501) |
