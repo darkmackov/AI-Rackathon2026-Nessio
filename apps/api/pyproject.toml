@@ -14,6 +14,7 @@ dependencies = [
   "onko-ai",
   "onko-llm-gateway",
   "onko-messaging",
+  "fastmcp>=4.1.0",
 ]
 
 [dependency-groups]

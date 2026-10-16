@@ -176,13 +176,15 @@ flowchart LR
 
 ## S10: Read-only MCP server
 - **Goal:** InterSystems criterion agents. Any agent can read KOC data through MCP (Q-I23).
-- **Where:** inside `apps/api`, mounted under `/mcp` (streamable HTTP), no new module. Library: Q-I24.
+- **Where:** inside `apps/api` (`mcp.py`), mounted under `/mcp` (streamable HTTP, stateless, JSON responses; `/api/mcp` in production), no new module. Library: FastMCP (Q-I24). How to connect an agent: [apps/api/README.md](../apps/api/README.md).
 - **Tools** (read-only, the same services and contract models as the REST endpoints, same `X-Actor-Id` role check):
-  - case search (by KOC, state, queue, overdue)
-  - case summary: state, who is on the move, next step, due date, time to treatment
-  - findings of a case
-  - handover with sources (values with their quotes)
-  - "ask the case" (from S8)
+  - case search (by KOC, state, queue, overdue): `search_cases` → `list[Case]`; overdue means `next_due` before the app clock
+  - case summary: state, who is on the move, next step, due date (`get_case` → `Case`), time to treatment (`get_time_to_treatment` → `TimeToTreatment`)
+  - one case at a glance: `case_overview` → `CaseOverview` (the case, time to treatment, unresolved findings, open tasks earliest due first), so "what's missing in the overdue cases" takes one call per case
+  - findings of a case: `list_findings` → `list[Finding]`
+  - handover with sources (values with their quotes): `get_handover` → `Handover`
+  - "ask the case" (from S8): **not built yet**, added when S8 lands
+- **Role check:** every tool needs a valid user in `X-Actor-Id` (as `me`); reads are not scoped by role, like the REST read endpoints.
 - **Not included:** write tools (AI proposes, a human confirms), FHIR tools (agents read the IRIS FHIR server directly).
 - **Done when:** demo step 16: Claude Desktop connected to the deployed `/mcp` answers "which cases at KOC 2 are overdue and what's missing?" with quotes; tests call every tool against the in-memory fake.
 
