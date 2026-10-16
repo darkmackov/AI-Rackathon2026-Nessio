@@ -1,4 +1,6 @@
-"""Documents module: turn uploaded files into text the AI pipeline can read, and render outputs.
+"""Documents module: turn uploaded files into text the AI pipeline can read, and render outputs:
+the MDT record (`MDT_zapis`) and the MDT conclusion (`MDT_zaver`) as PDF, with bundled DejaVu
+fonts for Czech text (S5).
 
 Owner: stream A. Contract: `onko_contracts.ParsedDocument`.
 Public API: only what `__all__` lists. Layout: docs/conventions/implementation.md.
@@ -7,7 +9,19 @@ Public API: only what `__all__` lists. Layout: docs/conventions/implementation.m
 from __future__ import annotations
 
 from .adapters.office import CONVERTERS, docx_to_md, pptx_to_md
-from .service import DOCX, PARSERS, PDF, PPTX, parse, render_pdf
+from .service import (
+    DOCX,
+    PARSERS,
+    PDF,
+    PPTX,
+    RENDER_KINDS,
+    mdt_conclusion_html,
+    mdt_record_html,
+    parse,
+    render_mdt_conclusion,
+    render_mdt_record,
+    render_pdf,
+)
 
 __all__ = [
     "CONVERTERS",
@@ -15,8 +29,13 @@ __all__ = [
     "PARSERS",
     "PDF",
     "PPTX",
+    "RENDER_KINDS",
     "docx_to_md",
+    "mdt_conclusion_html",
+    "mdt_record_html",
     "parse",
     "pptx_to_md",
+    "render_mdt_conclusion",
+    "render_mdt_record",
     "render_pdf",
 ]

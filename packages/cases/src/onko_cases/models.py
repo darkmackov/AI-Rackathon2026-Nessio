@@ -36,3 +36,16 @@ class TaskError(ValueError):
 
 class OverrideNotAllowedError(ValueError):
     """An override of a finding that isn't overridable (Q-C2)."""
+
+
+class SnapshotBlockedError(ValueError):
+    """'Připravit podklad pro MDT' can't freeze the handover yet: open blockers, or the handover
+    uses a document received after the MDT date (D-3)."""
+
+
+class MdtBoardError(ValueError):
+    """An MDT board that doesn't belong to the case's KOC."""
+
+
+class ConclusionIncompleteError(ValueError):
+    """An MDT conclusion confirmed without its text (written) or its report (uploaded)."""

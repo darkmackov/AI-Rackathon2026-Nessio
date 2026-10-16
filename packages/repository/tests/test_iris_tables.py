@@ -9,11 +9,15 @@ from onko_contracts import (
     Evidence,
     Finding,
     FindingKind,
+    MdtMember,
+    MdtRecord,
+    MdtResultRow,
     Milestones,
     OnHold,
     Resolution,
     ResolutionKind,
     Severity,
+    Stamp,
     Task,
 )
 from onko_repository.adapters.iris_tables import ID, TEXT, ModelTable, _timestamp
@@ -63,6 +67,20 @@ def test_lists_and_optional_nested_models():
     task = Task(id="t1", case_id="c1", title="CT", kind="imaging", owner="koc", depends_on=["t0"],
                 external=True)
     assert _round_trip(tasks, task) == task
+
+
+def test_mdt_record_round_trip():
+    records = ModelTable("app_mdt_record", MdtRecord, key=("case_id",))
+    record = MdtRecord(
+        case_id="c1", mdt_date=date(2026, 10, 21), board_id="mdt-git",
+        members=[MdtMember(name="MUDr. Hrubý", specialty="chirurgie")],
+        patient_name="Jana Nováková", weight_kg=65.0, comorbidities=["hypertenze"],
+        results=[MdtResultRow(date=date(2026, 10, 8), examination="CT", result="tumor 35 mm")],
+        created=Stamp(by="k", at=NOW),
+    )
+    assert _round_trip(records, record) == record
+    assert records.column_types()["mdt_date"] == "DATE"
+    assert records.column_types()["members"] == TEXT
 
 
 def test_column_added_later_falls_back_to_the_default():

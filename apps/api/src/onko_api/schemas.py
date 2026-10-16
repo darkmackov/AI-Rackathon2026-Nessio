@@ -168,10 +168,10 @@ class TaskSetStart(Body):
 
 
 class DraftKind(StrEnum):
-    EPICRISIS_SUMMARY = "epicrisis_summary"  # Q-F15
-    MDT_QUESTION = "mdt_question"  # Q-F14
-    MDT_RESULTS = "mdt_results"  # one-line result rows for the MDT record
-    MDT_CONCLUSION = "mdt_conclusion"  # Q-F12
+    EPICRISIS_SUMMARY = "epicrisis_summary"  # Q-F15, AI
+    MDT_QUESTION = "mdt_question"  # Q-F14, AI
+    MDT_RESULTS = "mdt_results"  # one-line result rows for the MDT record, AI
+    MDT_CONCLUSION = "mdt_conclusion"  # Q-F37: no AI, the MDT_zaver parts that restate the record
 
 
 class DraftCreate(Body):
@@ -269,7 +269,7 @@ class DemoClockSet(Body):
 
 class DemoScenario(StrEnum):
     EMPTY = "empty"  # directory only, no cases: for running the demo from step 1
-    REFERENCE_AT_MDT = "reference_at_mdt"  # reference case ready for MDT (current seed)
+    REFERENCE_AT_MDT = "reference_at_mdt"  # MDT morning: reference case complete, before the snapshot
 
 
 class DemoReset(Body):

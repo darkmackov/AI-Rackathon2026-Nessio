@@ -697,10 +697,12 @@ def mdt_conclusion_resources(
     case: Case | None,
     *,
     patient_on_server: bool,
+    pdf: bytes | None = None,
 ) -> list[Resource]:
     """The sent MDT conclusion: a FHIR document `Bundle` (`Composition` first, then only the
     resources it references) and the `DocumentReference` indexing it, with the Bundle and the PDF
-    as attachments. Never changed once assembled: its id follows the confirmation (Q-I20)."""
+    as attachments: the uploaded report's `Binary`, else the rendered `pdf` inline. Never changed
+    once assembled: its id follows the confirmation (Q-I20)."""
     confirmed = conclusion.confirmed
     bundle_id = mdt_conclusion_id(conclusion)
     assert confirmed is not None  # checked by mdt_conclusion_id
@@ -788,6 +790,12 @@ def mdt_conclusion_resources(
         attachments.append({"attachment": {
             "contentType": "application/pdf",
             "url": f"Binary/{document_reference_id(conclusion.document_id)}",
+            "title": "Závěr MDT (PDF)",
+        }})
+    elif pdf is not None:  # the conclusion written in the app, rendered (S5)
+        attachments.append({"attachment": {
+            "contentType": "application/pdf",
+            "data": base64.b64encode(pdf).decode("ascii"),
             "title": "Závěr MDT (PDF)",
         }})
     reference: Resource = {

@@ -138,7 +138,8 @@ export const getMdtBoardOptions = (options: Options<GetMdtBoardData>) => queryOp
 /**
  * Update Mdt Board Members
  *
- * Edit the roster (Q-F13).
+ * Edit the roster (Q-F13): a coordinator of the board's KOC. MDT records already prepared
+ * keep the members they were prepared with.
  */
 export const updateMdtBoardMembersMutation = (options?: Partial<Options<UpdateMdtBoardMembersData>>): UseMutationOptions<UpdateMdtBoardMembersResponse, UpdateMdtBoardMembersError, Options<UpdateMdtBoardMembersData>> => {
     const mutationOptions: UseMutationOptions<UpdateMdtBoardMembersResponse, UpdateMdtBoardMembersError, Options<UpdateMdtBoardMembersData>> = {
@@ -475,8 +476,17 @@ export const reextractCaseMutation = (options?: Partial<Options<ReextractCaseDat
 /**
  * Create Draft
  *
- * AI draft for the coordinator to edit: epikríza summary, MDT question, MDT result rows,
- * MDT conclusion. Text arrives in `job.result.text` (`job.result.rows` for mdt_results).
+ * A draft of what the MDT receives, for a coordinator of the case's KOC to edit and apply
+ * (Q-F37). Nothing on the case changes; the result arrives in the job:
+ * - `epicrisis_summary`, `mdt_question`: AI text from the live handover in `job.result.text`;
+ * apply it with `updateHandoverField` (`epicrisis`, `mdt_question`).
+ * - `mdt_results`: AI one-liners for the MDT record's results in `job.result.rows`; apply with
+ * `updateMdtRecord`.
+ * - `mdt_conclusion`: no AI, only the parts of `MDT_zaver` that restate the record (diagnosis,
+ * date, place, copy to the referring doctor) in `job.result.fields`; apply with
+ * `upsertMdtConclusion`. The MDT's decision is never drafted.
+ *
+ * The last two need the MDT record (409 before *Připravit podklad pro MDT*).
  */
 export const createDraftMutation = (options?: Partial<Options<CreateDraftData>>): UseMutationOptions<CreateDraftResponse, CreateDraftError, Options<CreateDraftData>> => {
     const mutationOptions: UseMutationOptions<CreateDraftResponse, CreateDraftError, Options<CreateDraftData>> = {
@@ -934,8 +944,12 @@ export const listNotificationsOptions = (options: Options<ListNotificationsData>
 /**
  * Create Mdt Snapshot
  *
- * Freeze the handover (as_of = mdt_date), coordinator confirms it, build the MDT record,
- * kompletni → pripraveno_k_mdt. 409 while non-overridden blockers remain.
+ * 'Připravit podklad pro MDT', a coordinator of the case's KOC: kompletni → pripraveno_k_mdt.
+ * Freezes a copy of the live handover (`as_of` = `mdt_date`, confirmed by the coordinator; read it
+ * with `getHandover?snapshot=true`) and builds the MDT record from it, with the board's members
+ * and the referring doctor from the directory. 409 in another state, while blockers are
+ * unresolved (resolve or override them first), or when the handover uses a document received
+ * after `mdt_date`; 400 for a board that isn't the KOC's.
  */
 export const createMdtSnapshotMutation = (options?: Partial<Options<CreateMdtSnapshotData>>): UseMutationOptions<CreateMdtSnapshotResponse, CreateMdtSnapshotError, Options<CreateMdtSnapshotData>> => {
     const mutationOptions: UseMutationOptions<CreateMdtSnapshotResponse, CreateMdtSnapshotError, Options<CreateMdtSnapshotData>> = {
@@ -955,6 +969,8 @@ export const getMdtRecordQueryKey = (options: Options<GetMdtRecordData>) => crea
 
 /**
  * Get Mdt Record
+ *
+ * The MDT record (`MDT_zapis` sections 1–5); 404 before the snapshot.
  */
 export const getMdtRecordOptions = (options: Options<GetMdtRecordData>) => queryOptions<GetMdtRecordResponse, GetMdtRecordError, GetMdtRecordResponse, ReturnType<typeof getMdtRecordQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -972,7 +988,8 @@ export const getMdtRecordOptions = (options: Options<GetMdtRecordData>) => query
 /**
  * Update Mdt Record
  *
- * Edit the record before the meeting (e.g. apply an `mdt_results` draft).
+ * Edit the record before the meeting (e.g. apply an `mdt_results` draft), a coordinator of the
+ * case's KOC. Omitted fields stay unchanged. Only in pripraveno_k_mdt (409 otherwise).
  */
 export const updateMdtRecordMutation = (options?: Partial<Options<UpdateMdtRecordData>>): UseMutationOptions<UpdateMdtRecordResponse, UpdateMdtRecordError, Options<UpdateMdtRecordData>> => {
     const mutationOptions: UseMutationOptions<UpdateMdtRecordResponse, UpdateMdtRecordError, Options<UpdateMdtRecordData>> = {
@@ -992,6 +1009,9 @@ export const getMdtRecordPdfQueryKey = (options: Options<GetMdtRecordPdfData>) =
 
 /**
  * Get Mdt Record Pdf
+ *
+ * The MDT record as PDF in the `MDT_zapis` layout; sections 6–7 from a confirmed
+ * conclusion.
  */
 export const getMdtRecordPdfOptions = (options: Options<GetMdtRecordPdfData>) => queryOptions<GetMdtRecordPdfResponse, GetMdtRecordPdfError, GetMdtRecordPdfResponse, ReturnType<typeof getMdtRecordPdfQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1010,6 +1030,8 @@ export const getMdtConclusionQueryKey = (options: Options<GetMdtConclusionData>)
 
 /**
  * Get Mdt Conclusion
+ *
+ * The MDT conclusion (`MDT_zaver`); 404 until one is written or uploaded.
  */
 export const getMdtConclusionOptions = (options: Options<GetMdtConclusionData>) => queryOptions<GetMdtConclusionResponse, GetMdtConclusionError, GetMdtConclusionResponse, ReturnType<typeof getMdtConclusionQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1027,7 +1049,11 @@ export const getMdtConclusionOptions = (options: Options<GetMdtConclusionData>) 
 /**
  * Upsert Mdt Conclusion
  *
- * Write / edit the conclusion (optionally starting from a `mdt_conclusion` draft).
+ * Write / edit the conclusion (optionally starting from a `mdt_conclusion` draft), a
+ * coordinator of the case's KOC, in pripraveno_k_mdt or zaver_mdt (409 otherwise). Replaces
+ * every written field. After an upload the report stays the source and these are its structured
+ * fields (e.g. the definitive MKN-10). A confirmed conclusion loses its confirmation and needs a
+ * new one.
  */
 export const upsertMdtConclusionMutation = (options?: Partial<Options<UpsertMdtConclusionData>>): UseMutationOptions<UpsertMdtConclusionResponse, UpsertMdtConclusionError, Options<UpsertMdtConclusionData>> => {
     const mutationOptions: UseMutationOptions<UpsertMdtConclusionResponse, UpsertMdtConclusionError, Options<UpsertMdtConclusionData>> = {
@@ -1046,7 +1072,9 @@ export const upsertMdtConclusionMutation = (options?: Partial<Options<UpsertMdtC
 /**
  * Upload Mdt Conclusion
  *
- * Upload the MDT's own report instead of writing it (source=uploaded).
+ * Upload the MDT's own report instead of writing it (source=uploaded), a coordinator of the
+ * case's KOC, in pripraveno_k_mdt or zaver_mdt (409 otherwise). It becomes a case document and is
+ * ingested like any upload; fields typed in earlier stay and a confirmation is dropped.
  */
 export const uploadMdtConclusionMutation = (options?: Partial<Options<UploadMdtConclusionData>>): UseMutationOptions<UploadMdtConclusionResponse, UploadMdtConclusionError, Options<UploadMdtConclusionData>> => {
     const mutationOptions: UseMutationOptions<UploadMdtConclusionResponse, UploadMdtConclusionError, Options<UploadMdtConclusionData>> = {
@@ -1065,7 +1093,11 @@ export const uploadMdtConclusionMutation = (options?: Partial<Options<UploadMdtC
 /**
  * Confirm Mdt Conclusion
  *
- * Coordinator confirms; pripraveno_k_mdt → zaver_mdt. Required before sending.
+ * A coordinator of the case's KOC confirms; pripraveno_k_mdt → zaver_mdt, or a correction is
+ * confirmed again in zaver_mdt. Required before sending. The definitive diagnosis and MKN-10
+ * code go into the live handover as manual values, and the MDT counts as held on the
+ * conclusion's date (T2); findings such as a provisional code stay until resolved (Q-F36). 409
+ * in another state or without the text (written) or the report (uploaded).
  */
 export const confirmMdtConclusionMutation = (options?: Partial<Options<ConfirmMdtConclusionData>>): UseMutationOptions<ConfirmMdtConclusionResponse, ConfirmMdtConclusionError, Options<ConfirmMdtConclusionData>> => {
     const mutationOptions: UseMutationOptions<ConfirmMdtConclusionResponse, ConfirmMdtConclusionError, Options<ConfirmMdtConclusionData>> = {
@@ -1085,6 +1117,9 @@ export const getMdtConclusionPdfQueryKey = (options: Options<GetMdtConclusionPdf
 
 /**
  * Get Mdt Conclusion Pdf
+ *
+ * The conclusion as PDF: an uploaded PDF report as it is, otherwise rendered in the
+ * `MDT_zaver` layout from the conclusion and the MDT record.
  */
 export const getMdtConclusionPdfOptions = (options: Options<GetMdtConclusionPdfData>) => queryOptions<GetMdtConclusionPdfResponse, GetMdtConclusionPdfError, GetMdtConclusionPdfResponse, ReturnType<typeof getMdtConclusionPdfQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

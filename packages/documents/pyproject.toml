@@ -3,7 +3,11 @@ name = "onko-documents"
 version = "0.1.0"
 description = "Upload, parsing (docx/pdf) and PDF rendering of clinical documents."
 requires-python = ">=3.11"
-dependencies = ["onko-contracts", "pypdf>=6.21.0"]
+dependencies = [
+    "fpdf2>=2.8.9",
+    "onko-contracts",
+    "pypdf>=6.21.0",
+]
 
 [build-system]
 requires = ["hatchling>=1.32.4"]

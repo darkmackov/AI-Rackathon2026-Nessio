@@ -52,7 +52,8 @@ export const getMdtBoard = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Update Mdt Board Members
  *
- * Edit the roster (Q-F13).
+ * Edit the roster (Q-F13): a coordinator of the board's KOC. MDT records already prepared
+ * keep the members they were prepared with.
  */
 export const updateMdtBoardMembers = <ThrowOnError extends boolean = false>(options: Options<UpdateMdtBoardMembersData, ThrowOnError>): RequestResult<UpdateMdtBoardMembersResponses, UpdateMdtBoardMembersErrors, ThrowOnError> => (options.client ?? client).put<UpdateMdtBoardMembersResponses, UpdateMdtBoardMembersErrors, ThrowOnError>({
     url: '/mdt-boards/{board_id}/members',
@@ -237,8 +238,17 @@ export const reextractCase = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Create Draft
  *
- * AI draft for the coordinator to edit: epikríza summary, MDT question, MDT result rows,
- * MDT conclusion. Text arrives in `job.result.text` (`job.result.rows` for mdt_results).
+ * A draft of what the MDT receives, for a coordinator of the case's KOC to edit and apply
+ * (Q-F37). Nothing on the case changes; the result arrives in the job:
+ * - `epicrisis_summary`, `mdt_question`: AI text from the live handover in `job.result.text`;
+ * apply it with `updateHandoverField` (`epicrisis`, `mdt_question`).
+ * - `mdt_results`: AI one-liners for the MDT record's results in `job.result.rows`; apply with
+ * `updateMdtRecord`.
+ * - `mdt_conclusion`: no AI, only the parts of `MDT_zaver` that restate the record (diagnosis,
+ * date, place, copy to the referring doctor) in `job.result.fields`; apply with
+ * `upsertMdtConclusion`. The MDT's decision is never drafted.
+ *
+ * The last two need the MDT record (409 before *Připravit podklad pro MDT*).
  */
 export const createDraft = <ThrowOnError extends boolean = false>(options: Options<CreateDraftData, ThrowOnError>): RequestResult<CreateDraftResponses, CreateDraftErrors, ThrowOnError> => (options.client ?? client).post<CreateDraftResponses, CreateDraftErrors, ThrowOnError>({
     url: '/cases/{case_id}/drafts',
@@ -512,8 +522,12 @@ export const listNotifications = <ThrowOnError extends boolean = false>(options:
 /**
  * Create Mdt Snapshot
  *
- * Freeze the handover (as_of = mdt_date), coordinator confirms it, build the MDT record,
- * kompletni → pripraveno_k_mdt. 409 while non-overridden blockers remain.
+ * 'Připravit podklad pro MDT', a coordinator of the case's KOC: kompletni → pripraveno_k_mdt.
+ * Freezes a copy of the live handover (`as_of` = `mdt_date`, confirmed by the coordinator; read it
+ * with `getHandover?snapshot=true`) and builds the MDT record from it, with the board's members
+ * and the referring doctor from the directory. 409 in another state, while blockers are
+ * unresolved (resolve or override them first), or when the handover uses a document received
+ * after `mdt_date`; 400 for a board that isn't the KOC's.
  */
 export const createMdtSnapshot = <ThrowOnError extends boolean = false>(options: Options<CreateMdtSnapshotData, ThrowOnError>): RequestResult<CreateMdtSnapshotResponses, CreateMdtSnapshotErrors, ThrowOnError> => (options.client ?? client).post<CreateMdtSnapshotResponses, CreateMdtSnapshotErrors, ThrowOnError>({
     url: '/cases/{case_id}/mdt/snapshot',
@@ -526,13 +540,16 @@ export const createMdtSnapshot = <ThrowOnError extends boolean = false>(options:
 
 /**
  * Get Mdt Record
+ *
+ * The MDT record (`MDT_zapis` sections 1–5); 404 before the snapshot.
  */
 export const getMdtRecord = <ThrowOnError extends boolean = false>(options: Options<GetMdtRecordData, ThrowOnError>): RequestResult<GetMdtRecordResponses, GetMdtRecordErrors, ThrowOnError> => (options.client ?? client).get<GetMdtRecordResponses, GetMdtRecordErrors, ThrowOnError>({ url: '/cases/{case_id}/mdt/record', ...options });
 
 /**
  * Update Mdt Record
  *
- * Edit the record before the meeting (e.g. apply an `mdt_results` draft).
+ * Edit the record before the meeting (e.g. apply an `mdt_results` draft), a coordinator of the
+ * case's KOC. Omitted fields stay unchanged. Only in pripraveno_k_mdt (409 otherwise).
  */
 export const updateMdtRecord = <ThrowOnError extends boolean = false>(options: Options<UpdateMdtRecordData, ThrowOnError>): RequestResult<UpdateMdtRecordResponses, UpdateMdtRecordErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMdtRecordResponses, UpdateMdtRecordErrors, ThrowOnError>({
     url: '/cases/{case_id}/mdt/record',
@@ -545,18 +562,27 @@ export const updateMdtRecord = <ThrowOnError extends boolean = false>(options: O
 
 /**
  * Get Mdt Record Pdf
+ *
+ * The MDT record as PDF in the `MDT_zapis` layout; sections 6–7 from a confirmed
+ * conclusion.
  */
 export const getMdtRecordPdf = <ThrowOnError extends boolean = false>(options: Options<GetMdtRecordPdfData, ThrowOnError>): RequestResult<GetMdtRecordPdfResponses, GetMdtRecordPdfErrors, ThrowOnError> => (options.client ?? client).get<GetMdtRecordPdfResponses, GetMdtRecordPdfErrors, ThrowOnError>({ url: '/cases/{case_id}/mdt/record.pdf', ...options });
 
 /**
  * Get Mdt Conclusion
+ *
+ * The MDT conclusion (`MDT_zaver`); 404 until one is written or uploaded.
  */
 export const getMdtConclusion = <ThrowOnError extends boolean = false>(options: Options<GetMdtConclusionData, ThrowOnError>): RequestResult<GetMdtConclusionResponses, GetMdtConclusionErrors, ThrowOnError> => (options.client ?? client).get<GetMdtConclusionResponses, GetMdtConclusionErrors, ThrowOnError>({ url: '/cases/{case_id}/mdt/conclusion', ...options });
 
 /**
  * Upsert Mdt Conclusion
  *
- * Write / edit the conclusion (optionally starting from a `mdt_conclusion` draft).
+ * Write / edit the conclusion (optionally starting from a `mdt_conclusion` draft), a
+ * coordinator of the case's KOC, in pripraveno_k_mdt or zaver_mdt (409 otherwise). Replaces
+ * every written field. After an upload the report stays the source and these are its structured
+ * fields (e.g. the definitive MKN-10). A confirmed conclusion loses its confirmation and needs a
+ * new one.
  */
 export const upsertMdtConclusion = <ThrowOnError extends boolean = false>(options: Options<UpsertMdtConclusionData, ThrowOnError>): RequestResult<UpsertMdtConclusionResponses, UpsertMdtConclusionErrors, ThrowOnError> => (options.client ?? client).put<UpsertMdtConclusionResponses, UpsertMdtConclusionErrors, ThrowOnError>({
     url: '/cases/{case_id}/mdt/conclusion',
@@ -570,7 +596,9 @@ export const upsertMdtConclusion = <ThrowOnError extends boolean = false>(option
 /**
  * Upload Mdt Conclusion
  *
- * Upload the MDT's own report instead of writing it (source=uploaded).
+ * Upload the MDT's own report instead of writing it (source=uploaded), a coordinator of the
+ * case's KOC, in pripraveno_k_mdt or zaver_mdt (409 otherwise). It becomes a case document and is
+ * ingested like any upload; fields typed in earlier stay and a confirmation is dropped.
  */
 export const uploadMdtConclusion = <ThrowOnError extends boolean = false>(options: Options<UploadMdtConclusionData, ThrowOnError>): RequestResult<UploadMdtConclusionResponses, UploadMdtConclusionErrors, ThrowOnError> => (options.client ?? client).post<UploadMdtConclusionResponses, UploadMdtConclusionErrors, ThrowOnError>({
     ...formDataBodySerializer,
@@ -585,12 +613,19 @@ export const uploadMdtConclusion = <ThrowOnError extends boolean = false>(option
 /**
  * Confirm Mdt Conclusion
  *
- * Coordinator confirms; pripraveno_k_mdt → zaver_mdt. Required before sending.
+ * A coordinator of the case's KOC confirms; pripraveno_k_mdt → zaver_mdt, or a correction is
+ * confirmed again in zaver_mdt. Required before sending. The definitive diagnosis and MKN-10
+ * code go into the live handover as manual values, and the MDT counts as held on the
+ * conclusion's date (T2); findings such as a provisional code stay until resolved (Q-F36). 409
+ * in another state or without the text (written) or the report (uploaded).
  */
 export const confirmMdtConclusion = <ThrowOnError extends boolean = false>(options: Options<ConfirmMdtConclusionData, ThrowOnError>): RequestResult<ConfirmMdtConclusionResponses, ConfirmMdtConclusionErrors, ThrowOnError> => (options.client ?? client).post<ConfirmMdtConclusionResponses, ConfirmMdtConclusionErrors, ThrowOnError>({ url: '/cases/{case_id}/mdt/conclusion/confirm', ...options });
 
 /**
  * Get Mdt Conclusion Pdf
+ *
+ * The conclusion as PDF: an uploaded PDF report as it is, otherwise rendered in the
+ * `MDT_zaver` layout from the conclusion and the MDT record.
  */
 export const getMdtConclusionPdf = <ThrowOnError extends boolean = false>(options: Options<GetMdtConclusionPdfData, ThrowOnError>): RequestResult<GetMdtConclusionPdfResponses, GetMdtConclusionPdfErrors, ThrowOnError> => (options.client ?? client).get<GetMdtConclusionPdfResponses, GetMdtConclusionPdfErrors, ThrowOnError>({ url: '/cases/{case_id}/mdt/conclusion.pdf', ...options });
 

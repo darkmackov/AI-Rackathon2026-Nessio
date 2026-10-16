@@ -1,6 +1,7 @@
 """Cases module: state machine, dashboard queue, tasks and task sets, and the GP's referral
-(draft, manual handover edits, validation, sending; S3), and the coordinator's workflow
-(take-over, returns, holds, findings, tasks, task sets, notices, audit; S4).
+(draft, manual handover edits, validation, sending; S3), the coordinator's workflow
+(take-over, returns, holds, findings, tasks, task sets, notices, audit; S4), and the MDT
+(snapshot, MDT record, conclusion edit windows and confirmation; S5).
 
 Owner: stream C. Task sets are user data (created in the UI), never config files.
 Public API: only what `__all__` lists. Layout: docs/conventions/implementation.md.
@@ -28,13 +29,31 @@ from .coordination import (
     take_over,
     task_set_started,
 )
+from .mdt import (
+    CONCLUSION_EDIT_STATES,
+    RECORD_EDIT_STATES,
+    attach_uploaded_conclusion,
+    build_mdt_record,
+    conclusion_prefill,
+    confirm_conclusion,
+    late_documents,
+    open_blockers,
+    prepare_snapshot,
+    result_rows,
+    save_conclusion,
+    town,
+    update_record,
+)
 from .models import (
     CaseStateError,
     CodeNotNeededError,
+    ConclusionIncompleteError,
     HandoverEditError,
     HandoverLockedError,
+    MdtBoardError,
     NotValidatedError,
     OverrideNotAllowedError,
+    SnapshotBlockedError,
     TaskError,
     TransitionError,
 )
@@ -65,33 +84,45 @@ from .service import (
 )
 
 __all__ = [
+    "CONCLUSION_EDIT_STATES",
     "COORDINATOR_ROLE",
     "EDITABLE_STATES",
     "HOLD_STATES",
     "MANUAL_TRANSITIONS",
+    "RECORD_EDIT_STATES",
     "TASK_LOCKED_STATES",
     "CaseStateError",
     "CodeNotNeededError",
+    "ConclusionIncompleteError",
     "HandoverEditError",
     "HandoverLockedError",
+    "MdtBoardError",
     "NotValidatedError",
     "OverrideNotAllowedError",
+    "SnapshotBlockedError",
     "TaskError",
     "TransitionError",
     "add_examination",
+    "attach_uploaded_conclusion",
     "audit_event",
+    "build_mdt_record",
     "check_dependencies",
     "check_task_set",
+    "conclusion_prefill",
+    "confirm_conclusion",
     "diagnosis_for_code",
     "due_notices",
     "is_external",
+    "late_documents",
     "manual_transition",
     "matches_diagnosis",
     "new_referral",
     "next_step",
+    "open_blockers",
     "open_tasks",
     "owner_organization",
     "pick_diagnosis_code",
+    "prepare_snapshot",
     "put_on_hold",
     "queue_column",
     "ready_tasks",
@@ -101,8 +132,10 @@ __all__ = [
     "require_tasks_writable",
     "resolve_finding",
     "resolve_owners",
+    "result_rows",
     "resume",
     "return_to_referrer",
+    "save_conclusion",
     "send_referral",
     "set_handover_field",
     "start_task_set",
@@ -110,6 +143,8 @@ __all__ = [
     "take_over",
     "task_set_started",
     "time_to_treatment",
+    "town",
     "transition",
+    "update_record",
     "validate_handover",
 ]
