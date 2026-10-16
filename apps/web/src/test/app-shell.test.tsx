@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { listCasesQueryKey, meQueryKey } from '../client/@tanstack/react-query.gen'
 import { actorHeaders } from '../api'
 import { referenceCases } from '../mocks/reference'
+import { entrySearch } from '../session'
 import { renderApp } from './renderApp'
 import { changeIdentity, openUserMenu, setLanguage, signIn } from './shell'
 import { demoState, server } from './setup'
@@ -23,6 +24,28 @@ describe('app shell, identity and demo controls', () => {
     expect(seen.some((value) => value.endsWith('/api/me koordinator'))).toBe(true)
     expect(seen.some((value) => value.includes('koc_id=koc2-lipova') && value.endsWith('koordinator'))).toBe(true)
     expect(queryClient.getQueryData(meQueryKey({ headers: actorHeaders('koordinator') }))).toMatchObject({ id: 'koordinator' })
+  })
+
+  it('returns to the reloaded page, with its tab, after choosing a person again', async () => {
+    const { router } = renderApp('/coordinator/cases/vzp-prochazkova?tab=tasks')
+    const user = userEvent.setup()
+    await user.selectOptions(await screen.findByLabelText('Role'), 'coordinator')
+    await screen.findByRole('option', { name: 'Bc. Lucie Dvořáková' })
+    await user.selectOptions(screen.getByLabelText('Osoba'), 'koordinator')
+    await user.click(screen.getByRole('button', { name: 'Pokračovat' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alena Procházková' })).toBeVisible()
+    expect(router.state.location.pathname).toBe('/coordinator/cases/vzp-prochazkova')
+    expect(router.state.location.search).toEqual({ tab: 'tasks' })
+  })
+
+  it('sends a person to their role home when the reloaded page belongs to another role or is not a local path', async () => {
+    const { router } = renderApp('/coordinator/cases/vzp-prochazkova')
+    const user = userEvent.setup()
+    await signIn(user, 'referring_doctor', 'pl-reznicek')
+    expect(router.state.location.pathname).toBe('/referrer')
+    expect(entrySearch({ redirect: '//evil.example' })).toEqual({})
+    expect(entrySearch({ redirect: 'https://evil.example' })).toEqual({})
+    expect(entrySearch({ redirect: '/referrer' })).toEqual({ redirect: '/referrer' })
   })
 
   it('removes the old person and their data when switching identities, including another KOC', async () => {

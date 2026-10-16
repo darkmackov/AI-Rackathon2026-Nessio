@@ -1,6 +1,6 @@
 import { Button, NativeSelect, Paper, Stack, Text } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { listActorsOptions } from '../client/@tanstack/react-query.gen'
@@ -12,6 +12,7 @@ export default function IdentitySelection() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const session = useSession()
+  const { redirect } = useSearch({ from: '/' })
   const [role, setRole] = useState<UserRole>('referring_doctor')
   const [person, setPerson] = useState('')
   const [pending, setPending] = useState(false)
@@ -24,7 +25,8 @@ export default function IdentitySelection() {
     setError(null)
     try {
       const actor = await session.selectActor(person)
-      await navigate({ to: roleHome(actor.role), replace: true })
+      if (redirect) await navigate({ href: redirect, replace: true })
+      else await navigate({ to: roleHome(actor.role), replace: true })
     } catch (failure) { setError(failure) }
     finally { setPending(false) }
   }

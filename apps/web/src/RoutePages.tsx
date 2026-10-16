@@ -1,5 +1,5 @@
 import { Anchor, Stack, Text } from '@mantine/core'
-import { Link, Navigate } from '@tanstack/react-router'
+import { Link, Navigate, useRouter, useSearch } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { lazy, Suspense, type ReactNode } from 'react'
 import LoadingState, { QueryError } from './components/DataState'
@@ -14,12 +14,17 @@ const Referral = lazy(() => import('./screens/Referral/Referral'))
 
 export function Entry() {
   const { actor } = useSession()
-  return actor ? <Navigate to={roleHome(actor.role)} replace /> : <IdentitySelection />
+  const { redirect } = useSearch({ from: '/' })
+  if (!actor) return <IdentitySelection />
+  // A page of another role falls back to the role home in RolePage. `href` takes precedence over `to`.
+  return redirect ? <Navigate to="/" href={redirect} replace /> : <Navigate to={roleHome(actor.role)} replace />
 }
 
 function RolePage({ role, children }: { role: UserRole; children?: ReactNode }) {
   const { actor, actorId, identity } = useSession()
-  if (!actorId) return <Navigate to="/" replace />
+  // Read without subscribing: <Navigate> navigates again on every re-render.
+  const page = useRouter().state.location.href
+  if (!actorId) return <Navigate to="/" search={{ redirect: page }} replace />
   if (identity.isPending) return <LoadingState />
   if (identity.isError) return <QueryError error={identity.error} pending={identity.isFetching} retry={() => { void identity.refetch() }} />
   if (!actor) return null
