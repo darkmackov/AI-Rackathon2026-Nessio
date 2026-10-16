@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "gen:api": "openapi-ts",
+    "gen:api": "node scripts/gen-api.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "sync:demo": "node scripts/sync-demo-directory.mjs"

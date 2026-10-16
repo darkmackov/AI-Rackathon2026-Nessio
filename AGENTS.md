@@ -8,6 +8,7 @@ Each module also has its own `AGENTS.md` with its boundaries. Read it before edi
 
 1. Read the docs for the area you touch:
    - **Any Python:** [implementation.md](docs/conventions/implementation.md)
+   - **Tests and CI:** [testing.md](docs/conventions/testing.md)
    - **Domain models, API models, persistence:** [data.md](docs/conventions/data.md), and the endpoints in [api.md](docs/api.md)
    - **Web app:** [web.md](docs/conventions/web.md) and [ui-ux.md](docs/conventions/ui-ux.md)
    - **What the product does and why:** [product.md](docs/product.md), [architecture.md](docs/architecture.md), [slices.md](docs/slices.md), [open-questions.md](docs/open-questions.md)
@@ -27,7 +28,7 @@ Each module also has its own `AGENTS.md` with its boundaries. Read it before edi
 - **The API uses the models that exist** ([api.md](docs/api.md)): responses are contract models, request bodies are the `Body` models in `apps/api/src/onko_api/schemas.py`. Every route returns what api.md lists for it; new endpoints never return a `dict` or an ad-hoc model, and never add a near-duplicate of an existing model.
 - Implementing a 501 stub keeps its name, path and models. A response model changes only through a contract PR.
 - Handover values are `Sourced[T]`: `origin=ai` with verbatim `Evidence`, or `origin=manual` with `entered`. Never infer or fill in a missing value.
-- App state lives in IRIS as JSON documents, projected to FHIR only where data-model.md says (Q-A7).
+- App state lives in IRIS SQL tables generated from the contracts (the handover as one JSON document), projected to FHIR only where data-model.md says (Q-A7, Q-I14).
 - A change to `onko_contracts` is its own PR and updates the reference JSONs, tests and `data-model.md` as needed, then regenerates the client.
 
 **Web** (WEB-*, UX-*, A11Y-*)
@@ -43,12 +44,21 @@ Each module also has its own `AGENTS.md` with its boundaries. Read it before edi
 - No logic specific to the reference case.
 - Never commit `.env` or secrets.
 
+**Tests** (TEST-*)
+- New behaviour and bug fixes ship with tests. Tests run offline: in-memory repository, mocked HTTP, a fixed `now`.
+- The whole suite stays under 5 minutes; CI fails a slower one. Don't raise the limit, make the test faster.
+- IRIS/FHIR tests are opt-in (`ONKO_TEST_IRIS=1`) and run only in the manual *IRIS tests* workflow.
+
 ## Before you finish
 
-Run what applies and report the real results. Run Python commands with `uv run`:
+Run what applies and report the real results. Run Python commands with `uv run`. Run only the tests you added or changed and the rest of that module's tests (TEST-7); CI runs the full suite:
 
 ```bash
-uv run pytest
+uv run pytest packages/<module>
+```
+After an API or contract change, also run the API tests (they hold the OpenAPI drift check, TEST-8):
+```bash
+uv run pytest apps/api
 ```
 ```bash
 uv run ruff check .

@@ -1,0 +1,30 @@
+# IRIS repository contract and FHIR round trip against the shared IRIS. Manual only (TEST-5, TEST-10).
+name: IRIS tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  iris:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # TEST-6
+    env:
+      ONKO_TEST_IRIS: "1"
+      ONKO_IRIS_CONNECTION_STRING: ${{ secrets.ONKO_IRIS_CONNECTION_STRING }}
+      ONKO_FHIR_BASE_URL: ${{ secrets.ONKO_FHIR_BASE_URL }}
+      ONKO_FHIR_USERNAME: ${{ secrets.ONKO_FHIR_USERNAME }}
+      ONKO_FHIR_PASSWORD: ${{ secrets.ONKO_FHIR_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.20"  # same as the Dockerfile (TEST-11)
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - name: Fail if the connection secret is missing
+        run: test -n "$ONKO_IRIS_CONNECTION_STRING" || { echo "::error::set the ONKO_IRIS_CONNECTION_STRING secret"; exit 1; }
+      - run: uv run pytest packages/repository -rs

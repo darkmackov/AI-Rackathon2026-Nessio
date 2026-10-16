@@ -3,7 +3,7 @@ import type { CaseState, HttpValidationError, OrganizationKind, QueueColumn, Val
 
 // Exhaustive maps keep mock query enums aligned with the generated contract.
 export const organizationKinds = { koc: true, clinic: true, laboratory: true, radiology: true, gp_practice: true, insurer: true } satisfies Record<OrganizationKind, true>
-export const caseStates = { koncept: true, odeslano: true, v_triage: true, ceka_na_podklady: true, kompletni: true, pripraveno_k_mdt: true, zaver_mdt: true, zpetna_vazba_odeslana: true, uzavreno: true } satisfies Record<CaseState, true>
+export const caseStates = { koncept: true, odeslano: true, v_triage: true, ceka_na_podklady: true, kompletni: true, pripraveno_k_mdt: true, zaver_mdt: true, zpetna_vazba_odeslana: true, uzavreno: true, vraceno_lekari: true } satisfies Record<CaseState, true>
 export const queueColumns = { novy: true, aktivni: true, odlozeny: true } satisfies Record<QueueColumn, true>
 
 export function validationResponse(errors: ValidationError[]) {

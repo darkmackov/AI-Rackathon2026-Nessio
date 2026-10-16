@@ -366,7 +366,7 @@
           "documents"
         ],
         "summary": "Upload Document",
-        "description": "Upload a report (GP while drafting, coordinator later). Stores it, parses the text and\nqueues an `ingest_document` job: AI metadata + handover extraction + checks.",
+        "description": "Upload a report (GP while drafting or after a return, coordinator later). Stores it,\nparses the text and queues an `ingest_document` job: AI metadata + handover extraction +\nchecks.",
         "operationId": "upload_document",
         "parameters": [
           {
@@ -538,7 +538,7 @@
           "documents"
         ],
         "summary": "Get Document File",
-        "description": "The original uploaded file.",
+        "description": "The original uploaded file, e.g. the GP's reports opened by the coordinator next to the\nstructured handover (slide 9: 'strukturovaná zpráva + originál').",
         "operationId": "get_document_file",
         "parameters": [
           {
@@ -577,7 +577,7 @@
           "handover"
         ],
         "summary": "Update Handover Field",
-        "description": "'Doplnit' / 'Není k dispozici' on one field (origin=manual). Used by the GP's soft\n'fill in if you know' prompts and by the coordinator (final epikríza, MDT question, …).",
+        "description": "'Doplnit' / 'Není k dispozici' on one field (origin=manual). Used by the GP's soft\n'fill in if you know' prompts (case `koncept` or `vraceno_lekari`) and by the coordinator\n(final epikríza, MDT question, …).",
         "operationId": "update_handover_field",
         "parameters": [
           {
@@ -809,7 +809,7 @@
           "referral"
         ],
         "summary": "Send Referral",
-        "description": "'Validovat a odeslat': koncept → odeslano. Requires a validated handover.",
+        "description": "'Validovat a odeslat': koncept → odeslano, or vraceno_lekari → v_triage after a return\n(D-15). Requires a validated handover.",
         "operationId": "send_referral",
         "parameters": [
           {
@@ -1282,7 +1282,7 @@
           "cases"
         ],
         "summary": "Transition Case",
-        "description": "Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).",
+        "description": "Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).\n`vraceno_lekari` only through `return_case`, which requires a note.",
         "operationId": "transition_case",
         "parameters": [
           {
@@ -1312,6 +1312,70 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CaseTransition"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/return": {
+      "post": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Return Case",
+        "description": "'Vrátit lékaři': → vraceno_lekari; the note goes to the GP's inbox as a `case_returned`\nMessage (D-15). 409 outside v_triage / ceka_na_podklady / kompletni.",
+        "operationId": "return_case",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseReturn"
               }
             }
           }
@@ -2913,7 +2977,7 @@
           "feedback"
         ],
         "summary": "List Inbox",
-        "description": "The current user's in-app inbox (MVP: the GP's MDT results).",
+        "description": "The current user's in-app inbox (MVP: the GP's MDT results and returned referrals).",
         "operationId": "list_inbox",
         "parameters": [
           {
@@ -3640,12 +3704,42 @@
         ],
         "title": "Case"
       },
+      "CaseReturn": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Note",
+            "description": "What the GP should add or fix"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id",
+            "description": "The gap this return is about"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "title": "CaseReturn",
+        "description": "'Vrátit lékaři': send the referral back to the GP with what is missing (D-15)."
+      },
       "CaseState": {
         "type": "string",
         "enum": [
           "koncept",
           "odeslano",
           "v_triage",
+          "vraceno_lekari",
           "ceka_na_podklady",
           "kompletni",
           "pripraveno_k_mdt",
@@ -3654,7 +3748,7 @@
           "uzavreno"
         ],
         "title": "CaseState",
-        "description": "The 8 case states from the VZP brief (slide 10)."
+        "description": "The 8 case states from the VZP brief (slide 10), plus `koncept` (D-8) and\n`vraceno_lekari` (D-15)."
       },
       "CaseTransition": {
         "properties": {
@@ -5593,6 +5687,7 @@
         "enum": [
           "document_request",
           "info_request",
+          "case_returned",
           "mdt_result",
           "review_feed",
           "patient_notice",

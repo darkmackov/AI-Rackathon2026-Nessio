@@ -48,7 +48,7 @@ flowchart TD
 | cases | `packages/cases` | State machine (`ALLOWED_TRANSITIONS`), queue column + manual on-hold, who is on the move, tasks with dependencies (incl. request tasks linked to findings), user-editable task sets, time to treatment, audit log | `transition`, `queue_column`, `put_on_hold` / `resume`, `start_task_set`, `next_step`, `time_to_treatment` |
 | messaging | `packages/messaging` | MDT result delivery to the GP's in-app inbox, receipts, in-app notifications, simulated patient notices. Phase 2: request/reply flows (Q-F23), reviewing-doctor feed (Q-F10), email/SMS adapters | `send(message, adapters, now) -> Message`, `confirm(message, recipient_id, now) -> Receipt` |
 | repository | `packages/repository` | Domain ↔ FHIR R4 mapping ([data-model.md](data-model.md)), IRIS FHIR client, IRIS SQL (vector tables in Phase 2), in-memory fake, connection settings | `CaseRepository` protocol, `IrisSettings` |
-| api | `apps/api` | FastAPI routes, auth stub (role switcher for the demo), OpenAPI | All 62 endpoints defined in [api.md](api.md) (`routes.py` stubs return 501 until their slice lands); 8 read endpoints already serve the seeded case. Current user via `X-Actor-Id` |
+| api | `apps/api` | FastAPI routes, auth stub (role switcher for the demo), OpenAPI | All 63 endpoints defined in [api.md](api.md) (`routes.py` stubs return 501 until their slice lands); 8 read endpoints already serve the seeded case; the S0 directory and demo endpoints work. Current user via `X-Actor-Id` |
 | web | `apps/web` | All screens from [product.md](product.md) | client + TanStack Query options generated from OpenAPI |
 | bench | `packages/bench` | Runs `ai.extract` + `ai.check` for every model over reference cases and scores against the expected JSONs → leaderboard | CLI `uv run onko-bench` |
 
@@ -114,7 +114,7 @@ flowchart LR
 - **Where it runs (Q-I8):** in development the API and web run on each dev's machine; for the demo they're deployed in Azure next to IRIS.
 - **One shared namespace (Q-I3):** day-to-day work uses the in-memory fake. Anything a dev writes to the shared IRIS uses ids prefixed with their name, so the demo data stay clean.
 - **TLS (Q-I4):** optional `ONKO_IRIS_SSL_CONFIG` is passed as `sslconfig` to `iris.connect`. The FHIR endpoint uses basic auth.
-- **FHIR server** is the system of record and the interop surface (InterSystems criterion: interoperability).
+- **Workflow state lives in IRIS SQL, clinical data in FHIR** (Q-A7, Q-I14): cases, tasks, findings, documents and messages are relational tables generated from the contracts; the handover's clinical content is projected to the **FHIR server** (CZ Core profiles + `Provenance`) on every save, which is the interop surface (InterSystems criterion: interoperability). Details: [data-model.md](data-model.md), [deploy.md](deploy.md).
 - **Vector Search (Phase 2):** document chunks + embeddings in an IRIS SQL `VECTOR` column, for evidence lookup and "ask the case" (criterion: GenAI + vector search).
 - **Agent (Phase 2):** a coordinator copilot with tools for FHIR search, vector search, create task, draft request (criterion: agent-based access).
 

@@ -1,6 +1,6 @@
-"""API surface for the MVP. Every endpoint here is DEFINED ONLY: it documents the request and the
-response model and returns 501 until a slice implements it (see docs/api.md, docs/slices.md).
-The read-only endpoints in main.py already serve the seeded reference case.
+"""API surface for the MVP. Endpoints not implemented yet are DEFINED ONLY: they document the
+request and the response model and return 501 until a slice implements them (see docs/api.md,
+docs/slices.md). The read-only endpoints in main.py already serve the seeded reference case.
 
 The current user comes from the `X-Actor-Id` header (demo role switcher, Q-I11).
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from onko_contracts import (
     Actor,
@@ -33,7 +33,9 @@ from onko_contracts import (
     TimeToTreatment,
 )
 
+from .deps import ActorId, Clock, CurrentUser, Repo
 from .schemas import (
+    CaseReturn,
     CaseTransition,
     CaseUpdate,
     DemoClock,
@@ -60,10 +62,10 @@ from .schemas import (
     TaskUpdate,
     UploadResult,
 )
+from .seed import apply_scenario
 
 router = APIRouter()
 
-ActorId = Annotated[str, Header(alias="X-Actor-Id", description="Current user (demo role switcher)")]
 PDF = {200: {"content": {"application/pdf": {}}, "description": "PDF document"}}
 ReceivedAt = Annotated[
     dt.datetime | None,
@@ -79,31 +81,41 @@ def _todo() -> NoReturn:
 
 
 @router.get("/me", tags=["directory"])
-def me(actor_id: ActorId) -> Actor:
+def me(user: CurrentUser) -> Actor:
     """The current user (referring doctor or coordinator)."""
-    _todo()
+    return user
 
 
 @router.get("/directory/organizations", tags=["directory"])
-def list_organizations(kind: OrganizationKind | None = None) -> list[Organization]:
+def list_organizations(repo: Repo, kind: OrganizationKind | None = None) -> list[Organization]:
     """Organisations; `kind=koc` feeds the KOC picker on the referral screen."""
-    _todo()
+    return [o for o in repo.list_organizations() if kind is None or o.kind is kind]
 
 
 @router.get("/directory/actors", tags=["directory"])
-def list_actors(role: str | None = None, organization_id: str | None = None) -> list[Actor]:
+def list_actors(
+    repo: Repo, role: str | None = None, organization_id: str | None = None
+) -> list[Actor]:
     """People: GPs, coordinators, specialists. Owners for tasks, recipients for requests."""
-    _todo()
+    return [
+        a
+        for a in repo.list_actors()
+        if (role is None or a.role == role)
+        and (organization_id is None or a.organization_id == organization_id)
+    ]
 
 
 @router.get("/mdt-boards", tags=["directory"])
-def list_mdt_boards() -> list[MdtBoard]:
-    _todo()
+def list_mdt_boards(repo: Repo) -> list[MdtBoard]:
+    return repo.list_mdt_boards()
 
 
 @router.get("/mdt-boards/{board_id}", tags=["directory"])
-def get_mdt_board(board_id: str) -> MdtBoard:
-    _todo()
+def get_mdt_board(board_id: str, repo: Repo) -> MdtBoard:
+    try:
+        return repo.get_mdt_board(board_id)
+    except KeyError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "MDT board not found") from None
 
 
 @router.put("/mdt-boards/{board_id}/members", tags=["directory"])
@@ -125,8 +137,9 @@ def create_referral(body: ReferralCreate, actor_id: ActorId) -> Case:
 def upload_document(
     case_id: str, actor_id: ActorId, file: Annotated[UploadFile, File()], received_at: ReceivedAt = None
 ) -> UploadResult:
-    """Upload a report (GP while drafting, coordinator later). Stores it, parses the text and
-    queues an `ingest_document` job: AI metadata + handover extraction + checks."""
+    """Upload a report (GP while drafting or after a return, coordinator later). Stores it,
+    parses the text and queues an `ingest_document` job: AI metadata + handover extraction +
+    checks."""
     _todo()
 
 
@@ -139,14 +152,16 @@ def update_document(document_id: str, body: DocumentMetaUpdate, actor_id: ActorI
 @router.get("/documents/{document_id}/file", tags=["documents"], response_class=Response,
             responses={200: {"content": {"application/octet-stream": {}}, "description": "Original file"}})
 def get_document_file(document_id: str) -> Response:
-    """The original uploaded file."""
+    """The original uploaded file, e.g. the GP's reports opened by the coordinator next to the
+    structured handover (slide 9: 'strukturovaná zpráva + originál')."""
     _todo()
 
 
 @router.patch("/cases/{case_id}/handover", tags=["handover"])
 def update_handover_field(case_id: str, body: HandoverFieldUpdate, actor_id: ActorId) -> Handover:
     """'Doplnit' / 'Není k dispozici' on one field (origin=manual). Used by the GP's soft
-    'fill in if you know' prompts and by the coordinator (final epikríza, MDT question, …)."""
+    'fill in if you know' prompts (case `koncept` or `vraceno_lekari`) and by the coordinator
+    (final epikríza, MDT question, …)."""
     _todo()
 
 
@@ -164,7 +179,8 @@ def validate_handover(case_id: str, actor_id: ActorId) -> Handover:
 
 @router.post("/cases/{case_id}/send", tags=["referral"])
 def send_referral(case_id: str, actor_id: ActorId) -> Case:
-    """'Validovat a odeslat': koncept → odeslano. Requires a validated handover."""
+    """'Validovat a odeslat': koncept → odeslano, or vraceno_lekari → v_triage after a return
+    (D-15). Requires a validated handover."""
     _todo()
 
 
@@ -218,7 +234,15 @@ def update_case(case_id: str, body: CaseUpdate, actor_id: ActorId) -> Case:
 
 @router.post("/cases/{case_id}/transition", tags=["cases"])
 def transition_case(case_id: str, body: CaseTransition, actor_id: ActorId) -> Case:
-    """Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS)."""
+    """Move the case to another state (409 if not allowed by ALLOWED_TRANSITIONS).
+    `vraceno_lekari` only through `return_case`, which requires a note."""
+    _todo()
+
+
+@router.post("/cases/{case_id}/return", tags=["cases"])
+def return_case(case_id: str, body: CaseReturn, actor_id: ActorId) -> Case:
+    """'Vrátit lékaři': → vraceno_lekari; the note goes to the GP's inbox as a `case_returned`
+    Message (D-15). 409 outside v_triage / ceka_na_podklady / kompletni."""
     _todo()
 
 
@@ -389,7 +413,7 @@ def list_case_receipts(case_id: str) -> list[Receipt]:
 
 @router.get("/inbox", tags=["feedback"])
 def list_inbox(actor_id: ActorId) -> list[Message]:
-    """The current user's in-app inbox (MVP: the GP's MDT results)."""
+    """The current user's in-app inbox (MVP: the GP's MDT results and returned referrals)."""
     _todo()
 
 
@@ -403,17 +427,19 @@ def confirm_receipt(message_id: str, actor_id: ActorId) -> Receipt:
 
 
 @router.get("/demo/clock", tags=["demo"])
-def get_demo_clock() -> DemoClock:
-    _todo()
+def get_demo_clock(clock: Clock) -> DemoClock:
+    return clock.as_model()
 
 
 @router.put("/demo/clock", tags=["demo"])
-def set_demo_clock(body: DemoClockSet) -> DemoClock:
+def set_demo_clock(body: DemoClockSet, clock: Clock) -> DemoClock:
     """Set the app clock (e.g. 2026-10-21T09:00 for the MDT step), or back to the wall clock."""
-    _todo()
+    clock.set(body.now)
+    return clock.as_model()
 
 
 @router.post("/demo/reset", tags=["demo"])
-def reset_demo(body: DemoReset) -> list[Case]:
+def reset_demo(body: DemoReset, repo: Repo, clock: Clock) -> list[Case]:
     """Reset all data to a scenario; returns the resulting cases."""
-    _todo()
+    apply_scenario(repo, clock, body.scenario)
+    return repo.list_cases()

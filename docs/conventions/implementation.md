@@ -1,6 +1,6 @@
 # Implementation conventions
 
-How Python code is organised and written: module boundaries, the layout inside a module, the API layer, code style, and the git workflow. The web app has its own pages: [web.md](web.md) and [ui-ux.md](ui-ux.md). Data shapes (domain models, API models, persistence) are in [data.md](data.md).
+How Python code is organised and written: module boundaries, the layout inside a module, the API layer, code style, and the git workflow. The web app has its own pages: [web.md](web.md) and [ui-ux.md](ui-ux.md). Tests and CI: [testing.md](testing.md). Data shapes (domain models, API models, persistence) are in [data.md](data.md).
 
 Every rule has an ID so reviews (human or AI) can cite it. The [root AGENTS.md](../../AGENTS.md) makes these binding for AI agents. Decisions behind this page: Q-K1 to Q-K7 in [open-questions.md](../open-questions.md#k-code-conventions).
 
@@ -72,7 +72,9 @@ apps/api/src/onko_api/
   main.py      app, middleware, router include, the read endpoints that already serve the seed
   routes.py    every other endpoint; a stub returns 501 until its slice implements it
   schemas.py   request bodies (APIM-2)
-  seed.py      reference-case seed for the in-memory repository
+  deps.py      request dependencies: repository, app clock, current user (X-Actor-Id)
+  clock.py     the app clock (D-10); the only code that reads the system clock
+  seed.py      demo directory, reference-case seed and the demo reset scenarios
 ```
 
 | ID | Rule |
@@ -96,7 +98,7 @@ apps/api/src/onko_api/
 | PY-6 | No case-specific logic (architecture principle 5). Never branch on reference-case ids, names or values. Reference data appears only in tests, `seed.py` and the bench. |
 | PY-7 | Comments and docstrings are in English. Czech only for domain terms and user-facing text. Code that implements a decision cites its ID (`(Q-F9)`). |
 | PY-8 | Env vars are read only in `settings.py` or a `from_env()` constructor, never deep in logic. |
-| PY-9 | Tests live in each module's `tests/`. They run against `InMemoryRepository` with no network, IRIS or LLM. `uv run pytest` passes before every PR. |
+| PY-9 | Tests live in each module's `tests/`. They run against `InMemoryRepository` with no network, IRIS or LLM. The rest of the testing rules (time budget, what to run locally, CI) are in [testing.md](testing.md). |
 | PY-10 | A new dependency gets a `>=` minimum at the version current when it's added, and the updated `uv.lock` is committed (T-4). |
 
 ## Git and PRs
@@ -107,5 +109,5 @@ apps/api/src/onko_api/
 | GIT-2 | Commit messages use Conventional Commits: `<type>: <summary>`, as in the history (`feat: add initial docs`, `chore: data for VZP challenge`). Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`. |
 | GIT-3 | PRs target `main`, and `main` always runs the demo (delivery.md). |
 | GIT-4 | A change to `onko_contracts` is its own PR, reviewed by every stream (DM-13). |
-| GIT-5 | Before opening a PR: `uv run pytest`, `uv run ruff check .`, `npm --prefix apps/web run build` and `npm --prefix apps/web run lint` all pass, and the OpenAPI spec and client are regenerated if the API changed. |
+| GIT-5 | Before opening a PR: the tests you touched pass (TEST-7), `uv run ruff check .` is clean, and the OpenAPI spec and client are regenerated if the API changed. CI then runs the full suite, ruff and the web build and lint, and must be green before merge (TEST-9, TEST-10). |
 | GIT-6 | Never commit `.env`, secrets or connection strings (Q-I2). Do commit the generated client and `openapi.json` (T-8). |

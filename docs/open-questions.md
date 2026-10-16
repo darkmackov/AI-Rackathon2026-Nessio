@@ -22,7 +22,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-F4 | How do requested documents arrive? | Outside the app; the coordinator uploads them (Q-F23) | product.md, demo-script.md |
 | Q-F5 | Who validates the handover? | **The referring doctor owns the handover** (Q-F22): they validate it when sending (re-confirming after additional documents is Phase 2, Q-F23). The **coordinator** confirms the MDT snapshot (see Q-F21) | `Handover.validated_by_referrer`, `Handover.confirmed_by_coordinator` |
 | Q-F6 | How does the referral start, and who gets the requests for 01–06? | **The GP sends 07; the KOC then requests 01–06 from whoever holds each report** (corrected 16. 10.). In the reference case that's the GP, who ordered 02–04, was copied on 01 and 05, and knows the UZ result. Otherwise the request goes to the producing facility. The brief doesn't say who the coordinator asked ("vyžádal si … zprávy (01-06)"); its capability text says "z jiných pracovišť" (from other facilities). "Whoever holds it" covers both readings. Everything from 08 on is arranged by the KOC. The request/reply flow itself is Phase 2 (Q-F23) | product.md, demo-script.md, reference-case.md, manifest `received_at` |
-| Q-F7 | Triage, rejection? | The coordinator accepts; no rejection or redirect | state machine unchanged |
+| Q-F7 | Triage, rejection? | The coordinator accepts, or **returns the referral to the GP with a note** on what is missing (slide 8; `vraceno_lekari`, D-15). The GP fixes and resends it. No redirect to another KOC (revised 16. 10.) | `CaseState.RETURNED_TO_REFERRER`, `returnCase`, `MessageKind.CASE_RETURNED` |
 | Q-F9 | What is "Odložený pacient"? | **A manual flag** set by the coordinator, with a reason and an optional resume date | `Case.on_hold`, `onko_cases.put_on_hold/resume` |
 | Q-F10 | Which reviewing doctor? | The patient's insurer's revizní lékař (code 211 = ZPMV here), but **not in the MVP** | `MessageKind.REVIEW_FEED`, delivery.md Phase 2 |
 | Q-F11 | Proof of delivery? | The GP clicks *Potvrzuji převzetí* | `Receipt` |
@@ -35,7 +35,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-F18 | Time to treatment? | **In the MVP**: T1 symptom → referral, T2 referral → MDT, T3 MDT → treatment | `Case.milestones`, `onko_cases.time_to_treatment` |
 | Q-F19 | KOC list? | Fictional, from the data (KOC 1 Severní, KOC 2 Lipová) | seed |
 | Q-F20 | UI language? | **Czech + English UI**; data stays Czech (Q-A6) | delivery.md stream E |
-| Q-F23 | Which handover flows are in the MVP? | **Two flows:** (1) **initial GP handover**: referral, AI extraction, the GP validates with soft prompts, sends. **In the MVP.** (2) **Additional document handovers** from the GP or others: request → reply in an inbox → upload → re-confirm. **Not in the MVP (Phase 2).** In the MVP the coordinator logs a request task and **uploads** the reports that arrive by other channels (01–06, 08–11) | product.md, demo-script.md, delivery.md |
+| Q-F23 | Which handover flows are in the MVP? | **Two flows:** (1) **initial GP handover**: referral, AI extraction, the GP validates with soft prompts, sends. **In the MVP.** (2) **Additional document handovers** from the GP or others: request → reply in an inbox → upload → re-confirm. **Not in the MVP (Phase 2).** The exception is returning the GP's own referral with a note (Q-F7, D-15), which is in the MVP. In the MVP the coordinator logs a request task and **uploads** the reports that arrive by other channels (01–06, 08–11) | product.md, demo-script.md, delivery.md |
 | Q-F22 | Does the GP gap-fill before sending? | **The referring doctor completes and validates the handover.** Remaining gaps (ECOG, emails, …) are **soft "fill in if you know" prompts**, never blocking the GP. Referenced reports are not demanded at sending; the KOC requests them afterwards | product.md screen 1, demo-script.md |
 | Q-F21 | Is the coordinator the only KOC-side user? | **Yes: the users are the GP and the coordinator.** MDT doctors appear as roster/signatory information only | product.md roles |
 
@@ -49,7 +49,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-A4 | Recording finding resolutions? | `Finding.resolution` {kind resolved / overridden / dismissed, note, by, at}; an override needs a note | `onko_contracts.findings` |
 | Q-A5 | People and places? | Directory of organisations + actors + MDT boards, seeded | `onko_contracts.directory`, `mdt.MdtBoard` |
 | Q-A6 | Multilingual scope? | **UI only**. Data, findings, notes and drafts stay Czech (`message_cs`) | refines Q-F20 |
-| Q-A7 | Where the MVP keeps its state? | **IRIS** (app state as JSON documents), projected to FHIR only where needed | architecture.md, slices.md S7 |
+| Q-A7 | Where the MVP keeps its state? | **IRIS** (app state in IRIS SQL; layout refined by Q-I14), projected to FHIR only where needed | architecture.md, slices.md S7 |
 | Q-A8 | Who sets document metadata (type, date, facility)? | **AI-extracted** by the ingest job; optional in `DocumentMeta` until then | `onko_contracts.documents` |
 
 ## C: Clinical and data interpretation
@@ -83,6 +83,10 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-I10 | File storage? | FHIR `DocumentReference` + `Binary` in IRIS | data-model.md |
 | Q-I11 | Auth? | Role switcher (GP / coordinator) | api |
 | Q-I12 | Send fictional data to our models? | Yes | |
+| Q-I13 | Which repository does the API use? | **IRIS automatically when `ONKO_IRIS_CONNECTION_STRING` is set**, otherwise the in-memory fake. An empty store is seeded with the reference case, so IRIS keeps the demo state across restarts. API tests always use the fake | `onko_api.main.make_repository`, docs/deploy.md |
+| Q-I14 | App-state layout in IRIS SQL? | **Relational tables generated from the contract models** (typed column per field, nested models flattened, lists as JSON), with missing columns added on start so contract changes need no migration. Only the **handover** stays one JSON document (queryable with `JSON_TABLE`); its clinical content goes to FHIR. Plain JSON bodies were dropped: weak use of IRIS for the InterSystems criterion | data-model.md › Non-FHIR storage |
+| Q-I15 | How is the demo deployed? | **One container** (API under `/api`, web at `/`) on **Azure Container Apps**, one replica. `scripts/deploy_azure.sh` is run by a dev with their own `az login`; Claude never touches the Azure account | Dockerfile, docs/deploy.md |
+| Q-I16 | Is a FHIR server set up on the Azure IRIS? | It wasn't (16. 10.): being created with `scripts/fhir_server.py` (not confirmed ready yet), namespace `FHIRSERVER`, endpoint `/fhir/r4` on the web port, base R4 metadata | scripts/fhir_server.py |
 
 ## M: Models
 
@@ -95,7 +99,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 
 ## K: Code conventions
 
-Asked and decided on 16. 10. 2026. The rules are in [docs/conventions](conventions).
+Asked and decided on 16. 10. 2026 (Q-K8 to Q-K11 later the same day). The rules are in [docs/conventions](conventions).
 
 | ID | Question | Decision | Lands in |
 |---|---|---|---|
@@ -106,6 +110,10 @@ Asked and decided on 16. 10. 2026. The rules are in [docs/conventions](conventio
 | Q-K5 | How are conventions enforced on AI? | `AGENTS.md` (root + per module) with `CLAUDE.md` importing it. No architecture tests or hooks | AGENTS.md |
 | Q-K6 | Branch naming? | `<type>/<short-topic>`; commits stay Conventional Commits | GIT-1, GIT-2 |
 | Q-K7 | Error model? | None: `{"detail": …}` with the codes in api.md | APIM-6 |
+| Q-K8 | Test time limit? | **The whole suite (each CI job) under 5 minutes**, enforced by `timeout-minutes: 5`. No per-test timeout, so no `pytest-timeout` | testing.md TEST-6 |
+| Q-K9 | What do devs run locally? | **Only new or changed tests** and that module's tests; CI runs everything | TEST-7 |
+| Q-K10 | CI? | GitHub Actions on every PR and push to `main`: ruff, full pytest, web client drift check, build and lint. No web test runner yet. **No CD**: the Azure deploy stays manual | `.github/workflows/ci.yml`, TEST-10 |
+| Q-K11 | IRIS tests in CI? | **A separate, manually started workflow** with the connection in repository secrets | `.github/workflows/iris.yml`, TEST-12 |
 
 ## W: Web
 
@@ -156,4 +164,7 @@ These S0 choices were agreed with the user before implementation. No backend imp
 | D-10 | An app clock (`/demo/clock`) and `received_at` on uploads let the 2.–27. 10. story play in minutes; every "now" uses the clock |
 | D-11 | Priority (`normal` / `high` / `urgent`) on cases and tasks (slide 9); the reference case is `high` (the GP asked for urgent handling) |
 | D-12 | The demo directory is fictional apart from the reference-case people and facilities; insurer codes are the real public ones |
+| D-13 | Naive datetimes (Q-K8) are treated as Europe/Prague local time when projected to FHIR, whose instants need a zone |
+| D-14 | FHIR projection is written through on every repository save; a failure is logged, never loses the app-state save |
+| D-15 | Extra state `vraceno_lekari` (returned to the GP) and `returnCase` (slide 8: the coordinator contacts the doctor). Reachable from *V triage*, *Čeká na podklady* and *Kompletní*, i.e. before the MDT snapshot. The note is a `case_returned` message in the GP's inbox. The GP's resend goes straight back to *V triage* with the same coordinator |
 | D-7 | Seeded task set "Karcinom pankreatu – diagnostika do MDT": CT → EUS-FNB → histology, labs, MDT, then pain clinic and psychologist; due offsets are ours |

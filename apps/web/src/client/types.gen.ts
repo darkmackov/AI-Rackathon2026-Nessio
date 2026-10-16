@@ -168,11 +168,32 @@ export type Case = {
 };
 
 /**
+ * CaseReturn
+ *
+ * 'Vrátit lékaři': send the referral back to the GP with what is missing (D-15).
+ */
+export type CaseReturn = {
+    /**
+     * Note
+     *
+     * What the GP should add or fix
+     */
+    note: string;
+    /**
+     * Finding Id
+     *
+     * The gap this return is about
+     */
+    finding_id?: string | null;
+};
+
+/**
  * CaseState
  *
- * The 8 case states from the VZP brief (slide 10).
+ * The 8 case states from the VZP brief (slide 10), plus `koncept` (D-8) and
+ * `vraceno_lekari` (D-15).
  */
-export type CaseState = 'koncept' | 'odeslano' | 'v_triage' | 'ceka_na_podklady' | 'kompletni' | 'pripraveno_k_mdt' | 'zaver_mdt' | 'zpetna_vazba_odeslana' | 'uzavreno';
+export type CaseState = 'koncept' | 'odeslano' | 'v_triage' | 'vraceno_lekari' | 'ceka_na_podklady' | 'kompletni' | 'pripraveno_k_mdt' | 'zaver_mdt' | 'zpetna_vazba_odeslana' | 'uzavreno';
 
 /**
  * CaseTransition
@@ -1233,7 +1254,7 @@ export type Message = {
 /**
  * MessageKind
  */
-export type MessageKind = 'document_request' | 'info_request' | 'mdt_result' | 'review_feed' | 'patient_notice' | 'notification';
+export type MessageKind = 'document_request' | 'info_request' | 'case_returned' | 'mdt_result' | 'review_feed' | 'patient_notice' | 'notification';
 
 /**
  * Milestones
@@ -2823,6 +2844,44 @@ export type TransitionCaseResponses = {
 };
 
 export type TransitionCaseResponse = TransitionCaseResponses[keyof TransitionCaseResponses];
+
+export type ReturnCaseData = {
+    body: CaseReturn;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/return';
+};
+
+export type ReturnCaseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReturnCaseError = ReturnCaseErrors[keyof ReturnCaseErrors];
+
+export type ReturnCaseResponses = {
+    /**
+     * Successful Response
+     */
+    200: Case;
+};
+
+export type ReturnCaseResponse = ReturnCaseResponses[keyof ReturnCaseResponses];
 
 export type ClearHoldData = {
     body?: never;

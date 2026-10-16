@@ -11,11 +11,13 @@ from .common import Model
 
 
 class CaseState(StrEnum):
-    """The 8 case states from the VZP brief (slide 10)."""
+    """The 8 case states from the VZP brief (slide 10), plus `koncept` (D-8) and
+    `vraceno_lekari` (D-15)."""
 
     DRAFT = "koncept"  # GP is preparing the referral; not on the KOC dashboard
     SENT = "odeslano"
     TRIAGE = "v_triage"
+    RETURNED_TO_REFERRER = "vraceno_lekari"  # coordinator sent it back to the GP with a note
     WAITING_FOR_DOCUMENTS = "ceka_na_podklady"
     COMPLETE = "kompletni"
     READY_FOR_MDT = "pripraveno_k_mdt"
@@ -27,9 +29,19 @@ class CaseState(StrEnum):
 ALLOWED_TRANSITIONS: dict[CaseState, set[CaseState]] = {
     CaseState.DRAFT: {CaseState.SENT},
     CaseState.SENT: {CaseState.TRIAGE},
-    CaseState.TRIAGE: {CaseState.WAITING_FOR_DOCUMENTS, CaseState.COMPLETE},
-    CaseState.WAITING_FOR_DOCUMENTS: {CaseState.COMPLETE},
-    CaseState.COMPLETE: {CaseState.READY_FOR_MDT, CaseState.WAITING_FOR_DOCUMENTS},
+    CaseState.TRIAGE: {
+        CaseState.WAITING_FOR_DOCUMENTS,
+        CaseState.COMPLETE,
+        CaseState.RETURNED_TO_REFERRER,
+    },
+    # The GP resends; the case goes straight back to the coordinator who returned it (D-15)
+    CaseState.RETURNED_TO_REFERRER: {CaseState.TRIAGE},
+    CaseState.WAITING_FOR_DOCUMENTS: {CaseState.COMPLETE, CaseState.RETURNED_TO_REFERRER},
+    CaseState.COMPLETE: {
+        CaseState.READY_FOR_MDT,
+        CaseState.WAITING_FOR_DOCUMENTS,
+        CaseState.RETURNED_TO_REFERRER,
+    },
     CaseState.READY_FOR_MDT: {CaseState.MDT_CONCLUSION},
     CaseState.MDT_CONCLUSION: {CaseState.FEEDBACK_SENT},
     CaseState.FEEDBACK_SENT: {CaseState.CLOSED},
