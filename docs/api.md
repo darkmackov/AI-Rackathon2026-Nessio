@@ -12,6 +12,8 @@ Every endpoint already has its request and response shape in the OpenAPI spec ([
 
 62 operations in total.
 
+**S0 web demo (Q-W6):** the standalone web simulates the eight S0 directory/identity and demo clock/reset operations, plus `/cases` for the existing provisional S1 queue, using MSW and these existing models. Contract tests check the implemented success responses and `HTTPValidationError` response shapes against the committed OpenAPI. This does not implement or change backend endpoints; the statuses below still describe the actual API. The simulation does not cover the full API or every undocumented backend coercion. `VITE_API_MODE=real` disables it without falling back on errors. See [web README](../apps/web/README.md).
+
 Live docs while the API runs: `http://localhost:8000/docs`.
 
 ## Conventions

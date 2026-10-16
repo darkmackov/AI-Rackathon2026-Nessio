@@ -1,6 +1,7 @@
-import CoordinatorDashboard from './screens/CoordinatorDashboard'
+import { RouterProvider } from '@tanstack/react-router'
+import { createAppRouter } from './router'
 
-// App shell. Routing between screens comes with the router decision (docs/open-questions.md, Q-W2).
+const router = createAppRouter()
 export default function App() {
-  return <CoordinatorDashboard />
+  return <RouterProvider router={router} />
 }

@@ -9,9 +9,6 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | ID | Question | Interim assumption | Ask |
 |---|---|---|---|
 | Q-F8 | **Repeated MDT:** slide 4's example has two MDTs, and the sample conclusion plans another one after neoadjuvant therapy. Can a case go back from *Závěr MDT*? | Not supported. `ALLOWED_TRANSITIONS` has no way back from `zaver_mdt` | VZP |
-| Q-W1 | **UI component library** (WEB-9 requires one for everything it offers) | None yet: semantic HTML only, no library added | Team |
-| Q-W2 | **Router** for the web app | None yet: `App.tsx` renders the dashboard directly | Team |
-| Q-W3 | **i18n library** for Czech + English (Q-F20) | None yet: UI text in Czech | Team |
 | Q-K8 | **Time zones:** contracts use naive `datetime`s and api.md says ISO 8601. Store UTC, local time, or aware datetimes? | Unchanged (naive) | Team |
 | Q-K9 | **Id scheme** for new cases, tasks, findings, messages (api.md: string ids; today slugs and composite ids from seed and `start_task_set`) | Unchanged | Team |
 
@@ -114,10 +111,20 @@ Asked and decided on 16. 10. 2026. The rules are in [docs/conventions](conventio
 
 | ID | Question | Decision | Lands in |
 |---|---|---|---|
+| Q-W1 | UI component library? | **Mantine**, including its forms; use its components and theme | apps/web |
+| Q-W2 | Router? | **TanStack Router**, code-based routes | apps/web |
+| Q-W3 | Czech / English translations? | **i18next + react-i18next**, both dictionaries bundled; UI only | apps/web |
 | Q-W4 | How does the web app load data without `useEffect`? | **TanStack Query** through hey-api's generated `xxxOptions()` / `xxxMutation()` helpers. `useEffect` is banned | web.md WEB-1, WEB-10 |
 | Q-W5 | Accessibility bar? | **WCAG 2.2 AA** | ui-ux.md A11Y-* |
+| Q-W6 | Does S0 implement backend endpoints? | **Frontend only, with explicit permission for contract-shaped dummy HTTP data through MSW.** Mock is the default in development and built demos; `VITE_API_MODE=real` selects the real API with no silent fallback. This is a narrow exception to WEB-4 / WEB-6 for the mock HTTP boundary, never for components. Backend stubs remain 501; no contract change | web.md, slices.md, apps/web/README.md |
+| Q-W7 | Which identities can be selected? | Role plus any of the five referring doctors or five coordinators from the directory, verified by `/me`. Specialists are directory information only. Send `X-Actor-Id` explicitly; identity-dependent query keys include it. Switch to the new role's home and remove the previous identity's queries; switching is disabled during writes | apps/web |
+| Q-W8 | Persist identity, language or demo changes? | **Memory only, per tab.** A reload requires choosing a person, starts in Czech and restores the reference scenario. React context holds UI identity selection only; server data stays in Query | apps/web |
+| Q-W9 | Which pages belong in S0? | `/` identity picker and `/referrer` identity, workplace and contacts; shared routing sends each role to its home. **Scope clarification: the coordinator dashboard belongs to S1**, including the already existing provisional kanban retained at `/coordinator`. It is partial S1 work, not an S0 acceptance criterion. No links to future screens. Referral submission is S3, inbox S6 | product.md, slices.md |
+| Q-W10 | Demo clock and resets? | Both roles can open a **Demo** panel. Start at `reference_at_mdt`, **2026-10-21 09:00**. Simulated time continues at real speed, interpreted in the **computer's local zone**, with no UTC conversion of naive datetimes. `empty` resets to **2026-10-02 14:00**, reference resets to **2026-10-21 09:00**. Reset needs confirmation, preserves identity/language, refreshes affected queries and returns to the role home. Real time is selectable. Backend timezone policy Q-K8 remains open | apps/web/README.md |
+| Q-W11 | Web verification? | Vitest + React Testing Library + MSW for targeted behavior tests; manual built-browser check, keyboard and narrow layout | apps/web |
+| Q-W12 | Visual baseline? | Light, compact clinical interface, blue accent, neutral surfaces and system font. No dark mode in S0 | apps/web |
 
-Q-W1 to Q-W3 (UI library, router, i18n) are still open, see the top of this page.
+These S0 choices were agreed with the user before implementation. No backend implementation or real authentication is implied by the role switcher.
 
 ## T: Tooling decisions (taken without asking; review if you disagree)
 

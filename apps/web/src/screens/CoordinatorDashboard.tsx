@@ -1,53 +1,58 @@
+import { Badge, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
-
-import { listCasesOptions } from '../client/@tanstack/react-query.gen'
+import { useTranslation } from 'react-i18next'
+import { actorHeaders } from '../api'
+import { listActorsOptions, listCasesOptions, listOrganizationsOptions } from '../client/@tanstack/react-query.gen'
 import type { Case, QueueColumn } from '../client/types.gen'
+import LoadingState, { EmptyState, QueryError } from '../components/DataState'
+import PageHeading from '../components/PageHeading'
+import { useSession } from '../session'
+import { formatDateTime } from '../time'
 
-// Placeholder coordinator dashboard (slide 9): proves web -> api wiring with the seeded reference case.
-// Data comes from the generated TanStack Query options, typed with the API's models.
+const columns: QueueColumn[] = ['novy', 'aktivni', 'odlozeny']
 
-const COLUMNS: { key: QueueColumn; label: string }[] = [
-  { key: 'novy', label: 'Nový pacient' },
-  { key: 'aktivni', label: 'Aktivní pacient' },
-  { key: 'odlozeny', label: 'Odložený pacient' },
-]
-
-function CaseCard({ item }: { item: Case }) {
-  return (
-    <article style={{ background: '#fff', borderRadius: 8, padding: 12 }}>
-      <strong>{item.patient_name}</strong>
-      <div>{item.diagnosis_label}</div>
-      <div>Stav: {item.state}</div>
-      <div>
-        Další krok: {item.next_step} ({item.on_move}
-        {item.next_due ? `, do ${new Date(item.next_due).toLocaleDateString('cs-CZ')}` : ''})
-      </div>
-    </article>
-  )
+function CaseCard({ item, owner }: { item: Case; owner: string }) {
+  const { t, i18n } = useTranslation()
+  return <Paper component="article" withBorder p="md">
+    <Stack gap="sm">
+      <div><Text fw={650}>{item.patient_name}</Text><Text size="sm" mt={4}>{item.diagnosis_label ?? t('unavailable')}</Text></div>
+      <Group gap="xs">
+        <Badge variant="light">{t('state')}: {item.state ? t(`states.${item.state}`) : t('unavailable')}</Badge>
+        <Badge variant="outline" color={item.priority === 'urgent' ? 'red' : 'gray'}>{t('priority')}: {item.priority ? t(`priorities.${item.priority}`) : t('unavailable')}</Badge>
+      </Group>
+      <div><Text size="xs" c="dimmed">{t('nextStep')}</Text><Text size="sm">{item.next_step ?? t('unavailable')}</Text></div>
+      <div><Text size="xs" c="dimmed">{t('owner')}</Text><Text size="sm">{owner}</Text></div>
+      <div><Text size="xs" c="dimmed">{t('nextDue')}</Text><Text size="sm">{item.next_due ? formatDateTime(item.next_due, i18n.language) : t('unavailable')}</Text></div>
+    </Stack>
+  </Paper>
 }
 
 export default function CoordinatorDashboard() {
-  const cases = useQuery(listCasesOptions())
-
-  return (
-    <main style={{ padding: 24 }}>
-      <h1>Pracovní fronta koordinátora</h1>
-      {cases.isPending && <p role="status">Načítám…</p>}
-      {cases.isError && <p role="alert">API nedostupné: {String(cases.error)}</p>}
-      {cases.isSuccess && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          {COLUMNS.map((col) => (
-            <section key={col.key} aria-labelledby={`col-${col.key}`}>
-              <h2 id={`col-${col.key}`}>{col.label}</h2>
-              {cases.data
-                .filter((c) => c.queue === col.key)
-                .map((c) => (
-                  <CaseCard key={c.id} item={c} />
-                ))}
-            </section>
-          ))}
-        </div>
-      )}
-    </main>
-  )
+  const { t } = useTranslation()
+  const { actor } = useSession()
+  const cases = useQuery({
+    ...listCasesOptions({ headers: actorHeaders(actor?.id ?? ''), query: { koc_id: actor?.organization_id } }),
+    enabled: !!actor?.organization_id,
+  })
+  const actors = useQuery(listActorsOptions())
+  const organizations = useQuery(listOrganizationsOptions())
+  if (!actor) return null
+  return <Stack>
+    <div><PageHeading>{t('dashboardTitle')}</PageHeading><Text c="dimmed" mt="xs">{t('dashboardDescription')}</Text></div>
+    {!actor.organization_id && <EmptyState title={t('missingOrganization')} />}
+    {actor.organization_id && (cases.isPending || actors.isPending || organizations.isPending) && <LoadingState />}
+    {cases.isError && <QueryError error={cases.error} retry={() => { void cases.refetch() }} />}
+    {actors.isError && <QueryError error={actors.error} retry={() => { void actors.refetch() }} />}
+    {organizations.isError && <QueryError error={organizations.error} retry={() => { void organizations.refetch() }} />}
+    {cases.isSuccess && actors.isSuccess && organizations.isSuccess && (cases.data.length === 0
+      ? <EmptyState title={t('emptyCases')} description={t('emptyCasesHint')} retry={() => { void cases.refetch() }} />
+      : <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+        {columns.map((column) => <Stack component="section" key={column} gap="sm" aria-labelledby={`queue-${column}`}>
+          <Group justify="space-between"><Title order={2} size="h4" id={`queue-${column}`}>{t(`queue.${column}`)}</Title><Badge variant="light" color="gray">{cases.data.filter((item) => item.queue === column).length}</Badge></Group>
+          {cases.data.filter((item) => item.queue === column).map((item) => <CaseCard key={item.id} item={item}
+            owner={actors.data.find((person) => person.id === item.on_move)?.name ?? organizations.data.find((org) => org.id === item.on_move)?.name ?? t('unavailable')} />)}
+          {!cases.data.some((item) => item.queue === column) && <Text size="sm" c="dimmed">{t('emptyColumn')}</Text>}
+        </Stack>)}
+      </SimpleGrid>)}
+  </Stack>
 }
