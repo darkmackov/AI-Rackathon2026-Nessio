@@ -1,6 +1,6 @@
 import { Badge, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
-import { IconAlertTriangle } from '@tabler/icons-react'
+import { IconAlertTriangle, IconHourglass } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../api'
 import { getTimeToTreatmentOptions } from '../client/@tanstack/react-query.gen'
@@ -36,13 +36,27 @@ export default function CaseTime({ item, compact = false }: { item: Case; compac
     if (points[index] && day < points[index]!.slice(0, 10)) return 'beforeStart'
     return !points[index] && !points.slice(index + 1).some(Boolean) ? 'notStarted' : 'unknownInterval'
   }
-  return <Stack gap="xs" aria-label={t('caseDetail.treatment')}>
+  const errors = <>
+    {clock.isError && <QueryError error={clock.error} pending={clock.isFetching} retry={() => { void clock.refetch() }} />}
+    {times.isError && <QueryError error={times.error} pending={times.isFetching} retry={() => { void times.refetch() }} />}
+  </>
+  // Kanban cards get a one-line summary: the total, then the intervals that can be counted.
+  if (compact) return <Group gap={6} wrap="wrap" role="group" aria-label={t('caseDetail.treatment')}>
+    <IconHourglass size={16} aria-hidden />
+    <Text size="xs" c="dimmed">{t('caseDetail.treatment')}</Text>
+    {(clock.isPending || (!!day && times.isPending)) && <Text size="xs" c="dimmed" role="status">{t('loading')}</Text>}
+    {times.data && <>
+      <Text size="sm" fw={600}>{times.data.total != null ? t('caseDetail.days', { count: times.data.total }) : t('caseDetail.unknownInterval')}</Text>
+      <Text size="xs" c="dimmed">{values.flatMap((value, index) => value != null ? [t('caseDetail.intervalShort', { number: index + 1, count: value })] : []).join(', ')}</Text>
+    </>}
+    {errors}
+  </Group>
+  return <Stack gap="xs" role="group" aria-label={t('caseDetail.treatment')}>
     <Text fw={600} size="sm">{t('caseDetail.treatment')}</Text>
     {clock.isPending && <LoadingState />}
-    {clock.isError && <QueryError error={clock.error} pending={clock.isFetching} retry={() => { void clock.refetch() }} />}
     {day && times.isPending && <LoadingState />}
-    {times.isError && <QueryError error={times.error} pending={times.isFetching} retry={() => { void times.refetch() }} />}
-    {times.data && <SimpleGrid cols={compact ? 2 : { base: 2, sm: 4 }} spacing={6} verticalSpacing={6}>
+    {errors}
+    {times.data && <SimpleGrid cols={{ base: 2, sm: 4 }} spacing={6} verticalSpacing={6}>
       {values.map((value, index) => <Paper key={index} px="xs" py={4} bg="gray.0" withBorder>
         <Text size="xs" fw={600}>{t(`caseDetail.t${index + 1}`)}</Text>
         <Text fw={650} size="sm">{value != null ? t('caseDetail.days', { count: value }) : '—'}</Text>

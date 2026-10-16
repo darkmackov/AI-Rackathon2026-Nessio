@@ -1,7 +1,7 @@
 import { Accordion, Anchor, Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { IconArrowRight } from '@tabler/icons-react'
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { listFindingsOptions } from '../../client/@tanstack/react-query.gen'
@@ -16,10 +16,11 @@ const severities: Severity[] = ['blocker', 'warning', 'info']
 
 function FindingItem({ finding, names, fieldLink, sources }: { finding: Finding; names: Record<string, string>; fieldLink: (path: string) => ReactNode; sources: Sources }) {
   const { t } = useTranslation()
+  const message = useId()
   const links = finding.fields?.map(fieldLink).filter(Boolean) ?? []
-  return <Paper withBorder p="sm" id={`finding-${finding.id}`}>
+  return <Paper component="article" aria-labelledby={message} withBorder p="sm" id={`finding-${finding.id}`}>
     <Stack gap={6}>
-      <Text size="sm" fw={500}>{finding.message_cs}</Text>
+      <Text size="sm" fw={500} id={message}>{finding.message_cs}</Text>
       <Group gap="sm" wrap="wrap">
         <Text size="xs" c="dimmed">{t(`caseDetail.findingKinds.${finding.kind}`)}</Text>
         {finding.advisory && <Text size="xs" c="dimmed">{t('caseDetail.advisory')}</Text>}

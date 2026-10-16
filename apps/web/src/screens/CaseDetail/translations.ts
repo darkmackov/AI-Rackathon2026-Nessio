@@ -40,7 +40,7 @@ export const caseDetailCs = {
   conflictFields_one: '{{count}} rozpor v údajích', conflictFields_few: '{{count}} rozpory v údajích', conflictFields_many: '{{count}} rozporu v údajích', conflictFields_other: '{{count}} rozporů v údajích',
   sourcePlaceholder: 'Vyberte zdroj u hodnoty', sourcePlaceholderHelp: 'Zdrojový dokument se zobrazí zde a citace v něm bude zvýrazněná.',
   caseFacts: 'Údaje o případu', koc: 'KOC',
-  toWorklist: 'Přejít na nález', concerns: 'Týká se:',
+  toWorklist: 'Přejít na nález', concerns: 'Týká se:', intervalShort: 'T{{number}} {{count}} d',
   documentCitations_one: '{{document}} ({{count}} citace)', documentCitations_few: '{{document}} ({{count}} citace)', documentCitations_many: '{{document}} ({{count}} citace)', documentCitations_other: '{{document}} ({{count}} citací)',
 }
 
@@ -85,6 +85,6 @@ export const caseDetailEn = {
   conflictFields_one: '{{count}} conflicting value', conflictFields_few: '{{count}} conflicting values', conflictFields_many: '{{count}} conflicting values', conflictFields_other: '{{count}} conflicting values',
   sourcePlaceholder: 'Select a source next to a value', sourcePlaceholderHelp: 'The source document opens here with the quote highlighted.',
   caseFacts: 'Case details', koc: 'KOC',
-  toWorklist: 'Go to finding', concerns: 'Concerns:',
+  toWorklist: 'Go to finding', concerns: 'Concerns:', intervalShort: 'T{{number}} {{count}} d',
   documentCitations_one: '{{document}} ({{count}} quote)', documentCitations_few: '{{document}} ({{count}} quotes)', documentCitations_many: '{{document}} ({{count}} quotes)', documentCitations_other: '{{document}} ({{count}} quotes)',
 }

@@ -1,6 +1,6 @@
 import { Alert, Anchor, Badge, Box, Button, Grid, Group, HoverCard, Paper, SimpleGrid, Stack, Text, type MantineSize } from '@mantine/core'
 import { IconArrowRight, IconFileText, IconPencil, IconSparkles } from '@tabler/icons-react'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Evidence, Finding, SourcedStr, Stamp } from '../../client/types.gen'
 import PersonChip from '../../components/PersonChip'
@@ -94,13 +94,14 @@ export default function ClinicalValue({ label, path, value, names, sources, find
   label: string; path: string; value?: SourcedValue; names: Record<string, string>; sources: Sources; findings: Finding[]; showFinding: (id: string) => void; formatted?: string;
 }) {
   const { t } = useTranslation()
+  const labelId = useId()
   const status = value?.status ?? 'missing'
   // A found empty value ('' or []) is shown explicitly, never as a blank (UX-3).
   const shown = value?.value != null ? formatted ?? displayValue(value.value) : null
-  return <Box id={`field-${path}`} py="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+  return <Box id={`field-${path}`} role="group" aria-labelledby={labelId} py="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
     <Grid gap="xs">
       <Grid.Col span={{ base: 12, sm: 4 }}>
-        <Text fw={600} size="sm">{label}</Text>
+        <Text fw={600} size="sm" id={labelId}>{label}</Text>
         <Group gap={6} mt={4}><StatusBadge status={status} />{value && <Provenance value={value} names={names} />}</Group>
       </Grid.Col>
       <Grid.Col span={{ base: 12, sm: 8 }}><Stack gap={6}>

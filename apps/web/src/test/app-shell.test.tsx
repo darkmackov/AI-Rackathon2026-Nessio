@@ -6,18 +6,10 @@ import { listCasesQueryKey, meQueryKey } from '../client/@tanstack/react-query.g
 import { actorHeaders } from '../api'
 import { referenceCases } from '../mocks/reference'
 import { renderApp } from './renderApp'
-import { changeIdentity, openUserMenu, setLanguage } from './shell'
+import { changeIdentity, openUserMenu, setLanguage, signIn } from './shell'
 import { demoState, server } from './setup'
 
-async function choosePerson(user: ReturnType<typeof userEvent.setup>, role = 'coordinator', id = role === 'coordinator' ? 'koordinator' : 'pl-reznicek') {
-  await user.selectOptions(await screen.findByLabelText('Role'), role)
-  await screen.findByRole('option', { name: role === 'coordinator' ? 'Bc. Lucie Dvořáková' : 'MUDr. Tomáš Řezníček' })
-  await user.selectOptions(screen.getByLabelText('Osoba'), id)
-  await user.click(screen.getByRole('button', { name: 'Pokračovat' }))
-  await screen.findByRole('heading', { level: 1, name: role === 'coordinator' ? 'Pracovní fronta koordinátora' : 'Vítejte, MUDr. Tomáš Řezníček' })
-}
-
-describe('S0 app', () => {
+describe('app shell, identity and demo controls', () => {
   it('requires choosing a person even for a direct role URL, then sends their identity and KOC filter', async () => {
     const seen: string[] = []
     server.events.on('request:start', ({ request }) => {
@@ -25,7 +17,7 @@ describe('S0 app', () => {
     })
     const { router, queryClient } = renderApp('/coordinator')
     const user = userEvent.setup()
-    await choosePerson(user)
+    await signIn(user)
     expect(await screen.findByText('Alena Procházková')).toBeVisible()
     expect(router.state.location.pathname).toBe('/coordinator')
     expect(seen.some((value) => value.endsWith('/api/me koordinator'))).toBe(true)
@@ -36,12 +28,12 @@ describe('S0 app', () => {
   it('removes the old person and their data when switching identities, including another KOC', async () => {
     const { queryClient } = renderApp()
     const user = userEvent.setup()
-    await choosePerson(user)
+    await signIn(user)
     await screen.findByText('Alena Procházková')
     await changeIdentity(user)
     expect(screen.queryByText('Alena Procházková')).not.toBeInTheDocument()
     expect(queryClient.getQueriesData({ queryKey: listCasesQueryKey() })).toEqual([])
-    await choosePerson(user, 'coordinator', 'koord-severni')
+    await signIn(user, 'coordinator', 'koord-severni')
     expect(await screen.findByText('Vaše KOC zatím nemá žádné případy.')).toBeVisible()
     expect(screen.queryByText('Alena Procházková')).not.toBeInTheDocument()
     expect(screen.getByText('Mgr. Jitka Králová')).toBeVisible()
@@ -50,7 +42,7 @@ describe('S0 app', () => {
   it('translates UI and document language while keeping Czech clinical data and identity', async () => {
     renderApp()
     const user = userEvent.setup()
-    await choosePerson(user)
+    await signIn(user)
     await screen.findByText('Alena Procházková')
     await setLanguage(user, 'English')
     expect(await screen.findByRole('heading', { name: 'Coordinator work queue' })).toBeVisible()
@@ -75,10 +67,10 @@ describe('S0 app', () => {
     }))
     const { queryClient } = renderApp()
     const user = userEvent.setup()
-    await choosePerson(user)
+    await signIn(user)
     await started
     await changeIdentity(user)
-    await choosePerson(user, 'coordinator', 'koord-severni')
+    await signIn(user, 'coordinator', 'koord-severni')
     await screen.findByText('Vaše KOC zatím nemá žádné případy.')
     await act(async () => { finish?.() })
     expect(screen.queryByText('Alena Procházková')).not.toBeInTheDocument()
@@ -88,7 +80,7 @@ describe('S0 app', () => {
   it('shows the referrer identity in the user menu, redirects a wrong-role route, and offers no referral controls', async () => {
     const { router } = renderApp()
     const user = userEvent.setup()
-    await choosePerson(user, 'referring_doctor', 'pl-reznicek')
+    await signIn(user, 'referring_doctor', 'pl-reznicek')
     const menu = await openUserMenu(user)
     expect(await within(menu).findByText('Ordinace praktického lékaře pro dospělé, MUDr. Tomáš Řezníček')).toBeVisible()
     expect(within(menu).getByText('Odesílající lékař')).toBeVisible()
@@ -121,7 +113,7 @@ describe('S0 app', () => {
   it('sets time, switches to real time, confirms reset, and preserves identity and language', async () => {
     renderApp()
     const user = userEvent.setup()
-    await choosePerson(user)
+    await signIn(user)
     await screen.findByText('Alena Procházková')
     await user.click(screen.getByRole('button', { name: 'Demo' }))
     const drawer = await screen.findByRole('dialog', { name: 'Ovládání dema' })
@@ -153,7 +145,7 @@ describe('S0 app', () => {
   it('validates the time on submit and focuses the error summary', async () => {
     renderApp()
     const user = userEvent.setup()
-    await choosePerson(user)
+    await signIn(user)
     await user.click(screen.getByRole('button', { name: 'Demo' }))
     const drawer = await screen.findByRole('dialog', { name: 'Ovládání dema' })
     await user.clear(within(drawer).getByLabelText('Datum a čas'))
@@ -166,7 +158,7 @@ describe('S0 app', () => {
   it('keeps data when reset is cancelled or fails, and can retry the same confirmation', async () => {
     renderApp()
     const user = userEvent.setup()
-    await choosePerson(user)
+    await signIn(user)
     await user.click(screen.getByRole('button', { name: 'Demo' }))
     const drawer = await screen.findByRole('dialog', { name: 'Ovládání dema' })
     await user.click(within(drawer).getByRole('button', { name: 'Obnovit prázdné demo' }))
@@ -196,7 +188,7 @@ describe('S0 app', () => {
     server.use(http.put('*/api/demo/clock', async () => { await held; return HttpResponse.json(demoState.clock()) }))
     renderApp()
     const user = userEvent.setup()
-    await choosePerson(user)
+    await signIn(user)
     await user.click(screen.getByRole('button', { name: 'Demo' }))
     const drawer = await screen.findByRole('dialog', { name: 'Ovládání dema' })
     await user.click(within(drawer).getByRole('button', { name: 'Nastavit čas' }))
@@ -211,7 +203,7 @@ describe('S0 app', () => {
   it('returns focus after closing the Demo dialog with Escape', async () => {
     renderApp()
     const user = userEvent.setup()
-    await choosePerson(user, 'referring_doctor')
+    await signIn(user, 'referring_doctor')
     const button = screen.getByRole('button', { name: 'Demo' })
     await user.click(button)
     await screen.findByRole('dialog', { name: 'Ovládání dema' })

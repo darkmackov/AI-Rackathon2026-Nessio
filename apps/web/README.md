@@ -62,7 +62,7 @@ npm --prefix apps/web run build
 npm --prefix apps/web run lint
 ```
 
-Tests use Vitest, Testing Library and the same MSW handlers in Node, with a new scenario for every test. They cover identity isolation, routing, translations, errors, time progression, validation and confirmed resets. `test:watch` starts Vitest's watch mode.
+Tests use Vitest, Testing Library and the same MSW handlers in Node, with a new scenario for every test. UI tests are grouped per screen (`app-shell`, `coordinator-dashboard`, `case-detail`, `handover`, `findings`, `documents`) and written as user flows that query by role and label; shared steps such as `signIn`, `openReferenceCase` and `openTab` live in `src/test/shell.ts`. They cover identity isolation, routing, translations, errors, time progression, validation and confirmed resets. They test what the user sees, not the internals of the mock. `demo.test.ts` keeps the demo data identical to the canonical files in `data/`, and `i18n.test.ts` checks that Czech and English have the same keys. `test:watch` starts Vitest's watch mode.
 
 The contract tests check every implemented successful response and the validation-error bodies against the committed `openapi.json`, with a bounded checker for the schema constructs used by S0. Required headers, query enums, missing/extra body fields, malformed JSON, optional clock reset and ISO datetime inputs are covered. Mode initialization tests verify that real mode does not activate interception and that mock startup must finish before the app starts.
 
