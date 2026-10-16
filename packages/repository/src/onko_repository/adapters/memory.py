@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import math
+
 from onko_contracts import (
     Actor,
     AuditEvent,
     Case,
+    CodeCandidate,
+    DocChunk,
     DocumentMeta,
     Finding,
     Handover,
@@ -25,6 +29,8 @@ class InMemoryRepository:
     """Dict-backed fake. Good enough for tests and for running the API without IRIS."""
 
     def __init__(self) -> None:
+        # Reference data, kept by the demo reset (`clear`).
+        self.codes: list[tuple[CodeCandidate, list[float]]] = []
         self.clear()
 
     def clear(self) -> None:
@@ -43,6 +49,7 @@ class InMemoryRepository:
         self.audit: dict[str, AuditEvent] = {}
         self.mdt_records: dict[str, MdtRecord] = {}
         self.mdt_conclusions: dict[str, MdtConclusion] = {}
+        self.chunks: dict[str, list[tuple[DocChunk, list[float]]]] = {}  # by document id
 
     def save_organization(self, organization: Organization) -> None:
         self.organizations[organization.id] = organization
@@ -78,6 +85,7 @@ class InMemoryRepository:
         return list(self.cases.values())
 
     def save_document(self, meta: DocumentMeta, data: bytes, text: str) -> None:
+        self._require_case(meta.case_id)
         self.documents[meta.id] = (meta, data, text)
 
     def list_documents(self, case_id: str) -> list[DocumentMeta]:
@@ -99,18 +107,21 @@ class InMemoryRepository:
         self.documents[meta.id] = (meta, data, text)
 
     def save_handover(self, handover: Handover, *, snapshot: bool = False) -> None:
+        self._require_case(handover.case_id)
         self.handovers[(handover.case_id, snapshot)] = handover
 
     def get_handover(self, case_id: str, *, snapshot: bool = False) -> Handover | None:
         return self.handovers.get((case_id, snapshot))
 
     def save_findings(self, case_id: str, findings: list[Finding]) -> None:
+        self._require_case(case_id)
         self.findings[case_id] = findings
 
     def list_findings(self, case_id: str) -> list[Finding]:
         return self.findings.get(case_id, [])
 
     def save_task(self, task: Task) -> None:
+        self._require_case(task.case_id)
         self.tasks[task.id] = task
 
     def get_task(self, task_id: str) -> Task | None:
@@ -129,6 +140,7 @@ class InMemoryRepository:
         return list(self.task_sets.values())
 
     def save_message(self, message: Message) -> None:
+        self._require_case(message.case_id)
         self.messages[message.id] = message
 
     def list_messages(self, case_id: str) -> list[Message]:
@@ -148,7 +160,7 @@ class InMemoryRepository:
                       key=lambda j: j.created_at)
 
     def _require_case(self, case_id: str) -> None:
-        """The foreign key `case_id` -> case, as in IRIS (PER-13)."""
+        """The foreign key `case_id` -> case, as in IRIS (Q-I26, PER-13)."""
         if case_id not in self.cases:
             raise KeyError(case_id)
 
@@ -175,5 +187,51 @@ class InMemoryRepository:
     def get_mdt_conclusion(self, case_id: str) -> MdtConclusion | None:
         return self.mdt_conclusions.get(case_id)
 
+    def save_chunks(self, document_id: str, chunks: list[DocChunk], vectors: list[list[float]]
+                    ) -> None:
+        if document_id not in self.documents:
+            raise KeyError(document_id)
+        _check_vectors(chunks, vectors)
+        if any(c.document_id != document_id for c in chunks):
+            raise ValueError(f"every chunk must belong to document {document_id}")
+        self.chunks[document_id] = list(zip(chunks, vectors, strict=True))
+
+    def _case_chunks(self, case_id: str) -> list[tuple[DocChunk, list[float]]]:
+        return [cv for rows in self.chunks.values() for cv in rows if cv[0].case_id == case_id]
+
+    def list_chunks(self, case_id: str) -> list[DocChunk]:
+        return sorted((c for c, _ in self._case_chunks(case_id)), key=lambda c: (c.document_id, c.ord))
+
+    def nearest_chunks(self, case_id: str, vector: list[float], limit: int, *,
+                       document_id: str | None = None) -> list[DocChunk]:
+        rows = [cv for cv in self._case_chunks(case_id)
+                if document_id is None or cv[0].document_id == document_id]
+        rows.sort(key=lambda cv: -_cosine(vector, cv[1]))
+        return [c for c, _ in rows[:limit]]
+
+    def save_codes(self, codes: list[CodeCandidate], vectors: list[list[float]]) -> None:
+        _check_vectors(codes, vectors)
+        self.codes = list(zip(codes, vectors, strict=True))
+
+    def count_codes(self) -> int:
+        return len(self.codes)
+
+    def nearest_codes(self, vector: list[float], limit: int) -> list[CodeCandidate]:
+        ranked = sorted(self.codes, key=lambda cv: -_cosine(vector, cv[1]))
+        return [c for c, _ in ranked[:limit]]
+
     def pending_fhir_writes(self) -> int:
         return 0  # no FHIR projection
+
+
+def _check_vectors(items: list, vectors: list[list[float]]) -> None:
+    if len(items) != len(vectors):
+        raise ValueError(f"{len(vectors)} vectors for {len(items)} items")
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    """Cosine similarity, like IRIS `VECTOR_COSINE`."""
+    if len(a) != len(b):
+        raise ValueError("vectors of different dimensions")
+    norm = math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b))
+    return sum(x * y for x, y in zip(a, b, strict=True)) / norm if norm else 0.0

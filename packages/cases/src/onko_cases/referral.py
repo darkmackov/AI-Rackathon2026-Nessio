@@ -6,8 +6,10 @@ import datetime as dt
 from typing import Any
 
 from onko_contracts import (
+    AuditEvent,
     Case,
     CaseState,
+    CodeCandidate,
     Examination,
     FieldStatus,
     Handover,
@@ -17,7 +19,13 @@ from onko_contracts import (
     Stamp,
 )
 
-from .models import HandoverEditError, HandoverLockedError, NotValidatedError, TransitionError
+from .models import (
+    CodeNotNeededError,
+    HandoverEditError,
+    HandoverLockedError,
+    NotValidatedError,
+    TransitionError,
+)
 from .service import queue_column, transition
 
 # Who may edit the handover when (Q-F22, D-15): the GP while drafting or after a return, the
@@ -105,6 +113,45 @@ def set_handover_field(
         target = target[part]
     target[parts[-1]] = entry
     return Handover.model_validate(data)
+
+
+def diagnosis_for_code(handover: Handover) -> str:
+    """The diagnosis text MKN-10 candidates are searched for (Q-C11): only while the diagnosis is
+    known and its code is not."""
+    if handover.diagnosis.value is None:
+        raise CodeNotNeededError("the handover has no diagnosis")
+    if handover.diagnosis_code.value is not None:
+        raise CodeNotNeededError("the diagnosis already has a code")
+    return handover.diagnosis.value
+
+
+def pick_diagnosis_code(
+    handover: Handover,
+    code: str,
+    candidates: list[CodeCandidate],
+    *,
+    event_id: str,
+    by: str,
+    now: dt.datetime,
+) -> tuple[Handover, AuditEvent]:
+    """The person's pick among the AI candidates becomes `diagnosis_code` with origin=manual; the
+    audit event keeps that it came from AI suggestions, and which (Q-C11, until Q-I21)."""
+    diagnosis_for_code(handover)
+    picked = next((c for c in candidates if c.code == code), None)
+    if picked is None:
+        raise HandoverEditError(f"{code} is not one of the suggested codes")
+    handover = set_handover_field(handover, "diagnosis_code", code, not_available=False,
+                                  note=None, by=by, now=now)
+    event = AuditEvent(
+        id=event_id,
+        case_id=handover.case_id,
+        at=now,
+        actor_id=by,
+        action="diagnosis_code_from_ai",
+        detail=f"Kód MKN-10 {picked.code} ({picked.title_cs}) vybrán z návrhů AI: "
+        + ", ".join(c.code for c in candidates),
+    )
+    return handover, event
 
 
 def _is_sourced_path(handover: Handover, parts: list[str]) -> bool:

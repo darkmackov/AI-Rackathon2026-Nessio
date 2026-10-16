@@ -11,6 +11,12 @@ export function roleHome(role: string) {
   return role === 'coordinator' ? '/coordinator' : '/referrer'
 }
 
+// The page to reopen after choosing a person again (a reload drops the identity, Q-W8). Only same-origin paths.
+export function entrySearch(search: Record<string, unknown>): { redirect?: string } {
+  const { redirect } = search
+  return typeof redirect === 'string' && /^\/(?![/\\])/.test(redirect) ? { redirect } : {}
+}
+
 export function useSessionState() {
   const queryClient = useQueryClient()
   const [actorId, setActorId] = useState<string | null>(null)

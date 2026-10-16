@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'emscripten'",
@@ -1025,12 +1025,14 @@ source = { editable = "packages/ai" }
 dependencies = [
     { name = "onko-contracts" },
     { name = "onko-llm-gateway" },
+    { name = "onko-repository" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "onko-contracts", editable = "packages/contracts" },
     { name = "onko-llm-gateway", editable = "packages/llm-gateway" },
+    { name = "onko-repository", editable = "packages/repository" },
 ]
 
 [[package]]

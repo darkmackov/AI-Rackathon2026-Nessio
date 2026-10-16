@@ -13,8 +13,10 @@ from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
+from onko_ai import code_candidates
 from onko_cases import (
     CaseStateError,
+    CodeNotNeededError,
     ConclusionIncompleteError,
     HandoverEditError,
     HandoverLockedError,
@@ -30,6 +32,7 @@ from onko_cases import (
     check_dependencies,
     check_task_set,
     confirm_conclusion,
+    diagnosis_for_code,
     due_notices,
     is_external,
     manual_transition,
@@ -54,6 +57,9 @@ from onko_cases import (
     update_record,
 )
 from onko_cases import add_examination as add_manual_examination
+from onko_cases import (
+    pick_diagnosis_code as pick_code,
+)
 from onko_cases import resolve_finding as resolve_case_finding
 from onko_cases import (
     send_referral as send_case,
@@ -65,6 +71,7 @@ from onko_contracts import (
     AuditEvent,
     Case,
     Channel,
+    CodeCandidate,
     ConclusionSource,
     DocumentMeta,
     DocumentType,
@@ -95,14 +102,25 @@ from onko_repository import BundleError, CaseRepository, referral_attachments
 from pydantic import ValidationError
 
 from .deps import ActorId, Clock, CurrentUser, Jobs, Llm, Repo
-from .jobs import RECORD_DRAFTS, new_id, queue_draft, queue_ingest, run_draft, run_ingest
+from .jobs import (
+    RECORD_DRAFTS,
+    new_id,
+    queue_ask,
+    queue_draft,
+    queue_ingest,
+    run_ask,
+    run_draft,
+    run_ingest,
+)
 from .schemas import (
+    CaseAsk,
     CaseReturn,
     CaseTransition,
     CaseUpdate,
     DemoClock,
     DemoClockSet,
     DemoReset,
+    DiagnosisCodePick,
     DocumentMetaUpdate,
     DraftCreate,
     ExaminationCreate,
@@ -476,6 +494,51 @@ def add_examination(
     return handover
 
 
+@router.get("/cases/{case_id}/handover/code-candidates", tags=["handover"])
+def list_code_candidates(case_id: str, repo: Repo, llm: Llm) -> list[CodeCandidate]:
+    """MKN-10 candidates for a diagnosis without a code (S8, Q-C11), best first, from vector search
+    over the code list. AI proposals only: nothing is filled in. 409 if the handover has no
+    diagnosis or its code is already set, or no embedding model or code list is set up."""
+    _case_or_404(repo, case_id)
+    return _code_candidates(repo, llm, _handover_or_404(repo, case_id))
+
+
+@router.post("/cases/{case_id}/handover/diagnosis-code", tags=["handover"])
+def pick_diagnosis_code(
+    case_id: str, body: DiagnosisCodePick, user: CurrentUser, repo: Repo, clock: Clock, llm: Llm
+) -> Handover:
+    """Store the picked candidate as `diagnosis_code` (origin=manual) and keep the AI suggestion in
+    the audit log (Q-C11, until Q-I21 adds it to the contract). 400 if the code is not a current
+    candidate."""
+    case = _case_or_404(repo, case_id)
+    _require_editor(user, case)
+    handover = _handover_or_404(repo, case_id)
+    candidates = _code_candidates(repo, llm, handover)
+    try:
+        handover, event = pick_code(handover, body.code, candidates, event_id=new_id("audit"),
+                                    by=user.id, now=clock.now())
+    except HandoverEditError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
+    handover = _save_handover(repo, case, handover)
+    repo.save_audit(event)
+    return handover
+
+
+def _code_candidates(repo: Repo, llm: Llm, handover: Handover) -> list[CodeCandidate]:
+    try:
+        diagnosis = diagnosis_for_code(handover)
+    except CodeNotNeededError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    if llm is None or not llm.can_embed:
+        raise HTTPException(status.HTTP_409_CONFLICT, "no embedding model is configured")
+    try:
+        if not repo.count_codes():
+            raise HTTPException(status.HTTP_409_CONFLICT, "the MKN-10 code list is not loaded")
+    except RuntimeError as e:  # IRIS without vector tables (ONKO_EMBED_DIM)
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    return code_candidates(diagnosis, repo, llm)
+
+
 @router.post("/cases/{case_id}/handover/validate", tags=["handover"])
 def validate_handover(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> Handover:
     """Referring doctor validates the AI proposal (sets `validated_by_referrer`)."""
@@ -569,6 +632,18 @@ def create_draft(
 def suggest_tasks(case_id: str, actor_id: ActorId) -> Job:
     """Bonus (Q-F3): high-precision, quote-backed task proposals in `job.result.tasks`."""
     _todo()
+
+
+@router.post("/cases/{case_id}/ask", status_code=202, tags=["jobs"])
+def ask_case(case_id: str, body: CaseAsk, actor_id: ActorId, repo: Repo, clock: Clock, llm: Llm,
+             jobs: Jobs) -> Job:
+    """'Ask the case' (S8, Q-I19): the nearest document chunks go to the model, which may answer
+    only with quotes; each is checked verbatim. The `CaseAnswer` arrives in `job.answer`
+    (`found=false`, 'nenalezeno', when no quote passes)."""
+    _case_or_404(repo, case_id)
+    job = queue_ask(repo, clock.now(), case_id, body.question)
+    jobs.submit(run_ask, job.id, repo, clock, llm)
+    return job
 
 
 # --- Coordinator: case (slice S4) --------------------------------------------------------------

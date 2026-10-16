@@ -3,7 +3,7 @@ name = "onko-ai"
 version = "0.1.0"
 description = "Handover extraction with evidence, completeness/consistency checks, drafting."
 requires-python = ">=3.11"
-dependencies = ["onko-contracts", "onko-llm-gateway"]
+dependencies = ["onko-contracts", "onko-llm-gateway", "onko-repository"]
 
 [build-system]
 requires = ["hatchling>=1.32.4"]

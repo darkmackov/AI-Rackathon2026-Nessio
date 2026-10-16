@@ -121,6 +121,7 @@ class ModelTable(Generic[M]):
         key: tuple[str, ...],
         extra: dict[str, str] | None = None,
         indexes: tuple[str, ...] = (),
+        bitmap_indexes: tuple[str, ...] = (),
         foreign_keys: dict[str, str] | None = None,
     ) -> None:
         self.name = name
@@ -128,6 +129,9 @@ class ModelTable(Generic[M]):
         self.key = key
         self.extra = extra or {}
         self.indexes = indexes
+        # Low-cardinality filter columns. IRIS allows bitmap indexes because the generated tables
+        # keep its integer row ID: the string primary key is not the IDKEY (Q-I27).
+        self.bitmap_indexes = bitmap_indexes
         self.foreign_keys = foreign_keys or {}  # column -> referenced table (its "id")
         self.columns = model_columns(model)
         self.column_names = [c.name for c in self.columns]
@@ -137,12 +141,27 @@ class ModelTable(Generic[M]):
         types_.update(self.extra)
         return types_
 
-    def create_sql(self, qualified: str, qualify: Callable[[str], str] = lambda name: name) -> str:
+    def create_sql(self, qualified: str) -> str:
         parts = [f"{quote(n)} {t}" for n, t in self.column_types().items()]
         parts.append(f"PRIMARY KEY ({', '.join(quote(k) for k in self.key)})")
-        for column, table in self.foreign_keys.items():
-            parts.append(f"FOREIGN KEY ({quote(column)}) REFERENCES {qualify(table)} ({quote('id')})")
         return f"CREATE TABLE {qualified} ({', '.join(parts)})"
+
+    def index_sql(self, qualified: str, missing: Callable[[str], bool] = lambda name: True
+                  ) -> list[str]:
+        """`CREATE INDEX` statements for the indexes (`idx_…`, bitmap `bm_…`) whose name `missing`
+        says doesn't exist yet."""
+        indexes = [("INDEX", f"idx_{self.name}_{c}", c) for c in self.indexes]
+        indexes += [("BITMAP INDEX", f"bm_{self.name}_{c}", c) for c in self.bitmap_indexes]
+        return [f"CREATE {kind} {name} ON {qualified} ({quote(column)})"
+                for kind, name, column in indexes if missing(name)]
+
+    def foreign_key_sql(self, qualified: str, qualify: Callable[[str], str],
+                        missing: Callable[[str], bool] = lambda column: True) -> list[str]:
+        """`ALTER TABLE … ADD CONSTRAINT` for the foreign keys `missing` says don't exist yet. Added
+        after `CREATE TABLE`, so the same statements bring an older table up to date."""
+        return [f"ALTER TABLE {qualified} ADD CONSTRAINT fk_{self.name}_{column} FOREIGN KEY "
+                f"({quote(column)}) REFERENCES {qualify(table)} ({quote('id')})"
+                for column, table in self.foreign_keys.items() if missing(column)]
 
     def select_list(self) -> str:
         return ", ".join(quote(n) for n in self.column_names)

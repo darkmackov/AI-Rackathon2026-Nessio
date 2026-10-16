@@ -150,3 +150,52 @@ def test_live_structured_output(slot):
         slot=slot,
     )
     assert out.quote and out.quote in "Závěr: adenokarcinom hlavy pankreatu, G2."
+
+
+EMBED = ModelSlot("e", "https://apim.example/openai/v1", "embed-key", "embed-test")
+
+
+def _embed_gateway(seen: list[httpx.Request]) -> Gateway:
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        texts = json.loads(request.content)["input"]
+        data = [  # out of order, as an endpoint may answer
+            {"object": "embedding", "index": i, "embedding": [float(len(t)), float(i)]}
+            for i, t in reversed(list(enumerate(texts)))
+        ]
+        return httpx.Response(200, json={"object": "list", "data": data, "model": "embed-test",
+                                         "usage": {"prompt_tokens": 3, "total_tokens": 3}})
+
+    client = OpenAICompatClient(http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+    return Gateway({"a": SLOT, "e": EMBED}, "a", "e", client=client)
+
+
+def test_embed_returns_one_vector_per_text_in_order_on_the_embedding_slot():
+    seen: list[httpx.Request] = []
+    gw = _embed_gateway(seen)
+
+    vectors = gw.embed(["ab", "abcd", "ab"])
+
+    assert [v[0] for v in vectors] == [2.0, 4.0, 2.0]
+    body = json.loads(seen[0].content)
+    assert body["model"] == "embed-test" and body["input"] == ["ab", "abcd"]  # distinct texts once
+    assert seen[0].headers["api-key"] == "embed-key"
+    assert gw.calls[0].slot == "e" and gw.calls[0].prompt_tokens == 3
+
+
+def test_embed_serves_known_texts_from_the_cache_and_batches_the_rest():
+    seen: list[httpx.Request] = []
+    gw = _embed_gateway(seen)
+    gw.embed(["a"])
+
+    vectors = gw.embed(["a", "bb", "ccc"], batch=1)
+
+    assert [v[0] for v in vectors] == [1.0, 2.0, 3.0]
+    assert [json.loads(r.content)["input"] for r in seen] == [["a"], ["bb"], ["ccc"]]
+
+
+def test_embed_without_an_embedding_slot_is_an_error():
+    gw = Gateway({"a": SLOT}, "a", client=OpenAICompatClient())
+    assert not gw.can_embed
+    with pytest.raises(RuntimeError, match="ONKO_EMBED_MODEL"):
+        gw.embed(["text"])

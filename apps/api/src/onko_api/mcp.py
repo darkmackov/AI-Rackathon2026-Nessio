@@ -2,7 +2,8 @@
 
 Streamable HTTP, stateless with JSON responses, so any worker can answer any call. Every tool needs
 the same `X-Actor-Id` header as the REST API and returns the same contract models as the read
-endpoints. There are no write tools: AI proposes, a human confirms. "Ask the case" joins with S8.
+endpoints. There are no write tools: AI proposes, a human confirms. `ask_case` (S8, Q-I24) runs
+synchronously, since a tool can't poll a job; its only write is the chunk indexing it needs.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from onko_cases import open_tasks, time_to_treatment
 from onko_contracts import (
     Actor,
     Case,
+    CaseAnswer,
     CaseOverview,
     CaseState,
     Finding,
@@ -25,10 +27,12 @@ from onko_contracts import (
     QueueColumn,
     TimeToTreatment,
 )
+from onko_llm_gateway import Gateway
 from onko_repository import CaseRepository
 
 from .clock import AppClock
 from .deps import get_current_user
+from .jobs import answer
 from .queries import search_cases as query_cases
 
 INSTRUCTIONS = (
@@ -39,8 +43,13 @@ INSTRUCTIONS = (
 )
 
 
-def build_mcp(repo: Callable[[], CaseRepository], clock: Callable[[], AppClock]) -> FastMCP:
-    """The MCP server over the repository and clock the app holds (both set up in its lifespan)."""
+def build_mcp(
+    repo: Callable[[], CaseRepository],
+    clock: Callable[[], AppClock],
+    gateway: Callable[[], Gateway | None],
+) -> FastMCP:
+    """The MCP server over the repository, clock and gateway the app holds (all set up in its
+    lifespan)."""
     mcp = FastMCP("onko-koordinace", instructions=INSTRUCTIONS)
 
     def user() -> Actor:
@@ -125,5 +134,19 @@ def build_mcp(repo: Callable[[], CaseRepository], clock: Callable[[], AppClock])
         if handover is None:
             raise ToolError("no handover yet")
         return handover
+
+    @mcp.tool(annotations={"readOnlyHint": True})
+    def ask_case(case_id: str, question: str) -> CaseAnswer:
+        """Ask a question about the case's documents (in Czech works best). The answer is only
+        verbatim quotes from the documents (`quotes`, each with its document and position), or
+        found=false ('nenalezeno') when no quote supports one. Never an inferred answer."""
+        user()
+        case_or_error(case_id)
+        if not question.strip():
+            raise ToolError("question is required")
+        try:
+            return answer(repo(), case_id, question, clock().now(), gateway())
+        except RuntimeError as e:
+            raise ToolError(str(e)) from None
 
     return mcp

@@ -46,6 +46,7 @@ from .mdt import (
 )
 from .models import (
     CaseStateError,
+    CodeNotNeededError,
     ConclusionIncompleteError,
     HandoverEditError,
     HandoverLockedError,
@@ -59,7 +60,9 @@ from .models import (
 from .referral import (
     EDITABLE_STATES,
     add_examination,
+    diagnosis_for_code,
     new_referral,
+    pick_diagnosis_code,
     receive_referral,
     require_editable,
     send_referral,
@@ -89,6 +92,7 @@ __all__ = [
     "RECORD_EDIT_STATES",
     "TASK_LOCKED_STATES",
     "CaseStateError",
+    "CodeNotNeededError",
     "ConclusionIncompleteError",
     "HandoverEditError",
     "HandoverLockedError",
@@ -106,6 +110,7 @@ __all__ = [
     "check_task_set",
     "conclusion_prefill",
     "confirm_conclusion",
+    "diagnosis_for_code",
     "due_notices",
     "is_external",
     "late_documents",
@@ -116,6 +121,7 @@ __all__ = [
     "open_blockers",
     "open_tasks",
     "owner_organization",
+    "pick_diagnosis_code",
     "prepare_snapshot",
     "put_on_hold",
     "queue_column",

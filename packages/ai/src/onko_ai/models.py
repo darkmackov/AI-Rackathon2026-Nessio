@@ -179,6 +179,12 @@ class ResultLines(BaseModel):
     lines: list[ResultLine]
 
 
+class AnswerDraft(BaseModel):
+    """'Ask the case' (Q-I19): the model answers only with quotes from the chunks it was given."""
+
+    quotes: list[QuoteRef] = Field(description="Verbatim passages that answer the question; empty if none")
+
+
 @dataclass(frozen=True)
 class Extraction:
     """Per-document model output, already quote-verified, with the document it came from."""

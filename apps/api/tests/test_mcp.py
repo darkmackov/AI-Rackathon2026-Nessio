@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from api_testkit import FakeGateway
 from fastapi.testclient import TestClient
 from onko_api.main import app
 from onko_api.serve import app as served_app
@@ -43,7 +44,7 @@ def test_mcp_lists_only_read_only_tools():
         tools = call(client, "tools/list", {})["tools"]
         assert {t["name"] for t in tools} == {
             "search_cases", "get_case", "get_time_to_treatment", "case_overview", "list_findings",
-            "get_handover",
+            "get_handover", "ask_case",
         }
         assert all(t["annotations"]["readOnlyHint"] for t in tools)
 
@@ -107,6 +108,39 @@ def test_findings_and_handover_match_the_rest_endpoints():
         assert handover == client.get(f"/cases/{CASE}/handover").json()
         assert handover["performance_status"]["status"] == "missing"
         assert tool_error(client, "list_findings", case_id="missing") == "case not found"
+
+
+def test_ask_case_answers_with_verbatim_quotes_from_the_documents():
+    with TestClient(app) as client:
+        client.app.state.gateway = FakeGateway()
+        question = "Jaké má pacient alergie?"
+
+        answer = tool(client, "ask_case", case_id=CASE, question=question)
+
+        assert answer["found"] and answer["question"] == question
+        for quote in answer["quotes"]:
+            text = client.get(f"/documents/{quote['document_id']}/text").json()["text"]
+            assert text[quote["start"]:quote["end"]] == quote["quote"] == "AA: neguje"
+
+
+def test_ask_case_without_a_verbatim_quote_is_not_found():
+    with TestClient(app) as client:
+        client.app.state.gateway = FakeGateway(answer_quote="AA: penicilin")
+        answer = tool(client, "ask_case", case_id=CASE, question="Jaké má pacient alergie?")
+        assert answer == {"question": "Jaké má pacient alergie?", "found": False, "quotes": []}
+
+
+def test_ask_case_without_a_model_is_a_tool_error_with_the_reason():
+    with TestClient(app) as client:  # tests start without a model (conftest)
+        assert "ONKO_MODELS" in tool_error(client, "ask_case", case_id=CASE, question="ECOG?")
+        client.app.state.gateway = FakeGateway(can_embed=False)
+        assert "ONKO_EMBED_MODEL" in tool_error(client, "ask_case", case_id=CASE, question="ECOG?")
+        assert tool_error(client, "ask_case", case_id="missing", question="ECOG?") == (
+            "case not found"
+        )
+        assert tool_error(client, "ask_case", actor_id=None, case_id=CASE, question="ECOG?") == (
+            "X-Actor-Id header is required"
+        )
 
 
 def test_tools_use_the_same_actor_check_as_the_rest_api():

@@ -2,10 +2,11 @@ import { createRootRoute, createRoute, createRouter, type RouterHistory } from '
 import AppShell from './components/AppShell'
 import { Entry, CoordinatorRoute, CoordinatorDetailRoute, ReferrerRoute, ReferralRoute, NotFound } from './RoutePages'
 import { detailSearch } from './case-route'
+import { entrySearch } from './session'
 
 export function createAppRouter(history?: RouterHistory) {
   const root = createRootRoute({ component: AppShell, notFoundComponent: NotFound })
-  const entry = createRoute({ getParentRoute: () => root, path: '/', component: Entry })
+  const entry = createRoute({ getParentRoute: () => root, path: '/', validateSearch: entrySearch, component: Entry })
   const coordinator = createRoute({ getParentRoute: () => root, path: '/coordinator', component: CoordinatorRoute })
   const referrer = createRoute({ getParentRoute: () => root, path: '/referrer', component: ReferrerRoute })
   const referral = createRoute({ getParentRoute: () => root, path: '/referrer/cases/$caseId', component: ReferralRoute })

@@ -32,6 +32,7 @@ from .handover import (
 from .jobs import Job, JobKind, JobStatus
 from .mdt import ConclusionSource, MdtBoard, MdtConclusion, MdtMember, MdtRecord, MdtResultRow
 from .messaging import Channel, DueNotice, Message, MessageKind, Receipt
+from .search import CaseAnswer, CodeCandidate, DocChunk
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
@@ -39,11 +40,14 @@ __all__ = [
     "Actor",
     "AuditEvent",
     "Case",
+    "CaseAnswer",
     "CaseOverview",
     "CaseState",
     "Channel",
+    "CodeCandidate",
     "ConclusionSource",
     "Contacts",
+    "DocChunk",
     "DocumentMeta",
     "DocumentType",
     "DueNotice",

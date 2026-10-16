@@ -18,7 +18,7 @@ Public API: only what `__all__` lists. Layout: docs/conventions/implementation.m
 
 from __future__ import annotations
 
-from .models import CallRecord, ChatResult, ModelSlot
+from .models import CallRecord, ChatResult, EmbedResult, ModelSlot
 from .ports import ChatClient
 from .service import Gateway, load_slots, strict_schema
 
@@ -26,6 +26,7 @@ __all__ = [
     "CallRecord",
     "ChatClient",
     "ChatResult",
+    "EmbedResult",
     "Gateway",
     "ModelSlot",
     "load_slots",

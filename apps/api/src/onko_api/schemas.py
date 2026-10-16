@@ -178,6 +178,21 @@ class DraftCreate(Body):
     kind: DraftKind
 
 
+# --- Vector search (slice S8) ------------------------------------------------------------------
+
+
+class CaseAsk(Body):
+    """'Ask the case' (Q-I19): a question in Czech, answered only with verbatim quotes."""
+
+    question: str = Field(min_length=1, description="e.g. 'Jaké je ECOG pacienta?'")
+
+
+class DiagnosisCodePick(Body):
+    """The MKN-10 code a person picked from the AI candidates (Q-C11)."""
+
+    code: str = Field(min_length=1, description="One of the codes from listCodeCandidates")
+
+
 # --- MDT ---------------------------------------------------------------------------------------
 
 

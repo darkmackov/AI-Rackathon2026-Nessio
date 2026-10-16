@@ -129,3 +129,11 @@ conclusion. Copy numbers, units and terms exactly as written. Return one line pe
 """
     + DRAFT_RULES
 )
+
+ASK = """\
+You answer a question about one patient's case from excerpts of the case's Czech clinical documents.
+Answer ONLY with quotes: return the passages that answer the question, each with the id of the
+document it comes from, copied character for character from the excerpt. No explanation, no summary,
+no answer of your own. Prefer the shortest passages that fully answer the question. If no excerpt
+answers it, return an empty list.
+"""
