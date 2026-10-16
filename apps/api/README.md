@@ -6,7 +6,7 @@ FastAPI, thin over the modules, models from `onko_contracts`. Runs with uvicorn;
 
 ## MCP server (S10)
 
-A read-only MCP server for agents is mounted in the same app: `http://localhost:8000/mcp` locally, `https://<host>/api/mcp` on Azure (streamable HTTP). Every tool call needs the `X-Actor-Id` header, like the REST API. Tools: `search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`.
+A read-only MCP server for agents is mounted in the same app: `http://localhost:8000/mcp` locally, `https://<host>/api/mcp` on Azure (streamable HTTP). Every tool call needs the `X-Actor-Id` header, like the REST API. Tools: `search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`, `ask_case`.
 
 Claude Desktop, through the `mcp-remote` bridge (`claude_desktop_config.json`):
 

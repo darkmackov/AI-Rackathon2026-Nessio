@@ -64,9 +64,9 @@ async def lifespan(_: FastAPI):
         repo.close()
 
 
-mcp_app = build_mcp(lambda: app.state.repo, lambda: app.state.clock).http_app(
-    path="/mcp", stateless_http=True, json_response=True
-)
+mcp_app = build_mcp(
+    lambda: app.state.repo, lambda: app.state.clock, lambda: app.state.gateway
+).http_app(path="/mcp", stateless_http=True, json_response=True)
 
 app = FastAPI(
     title="Onko-koordinace API",

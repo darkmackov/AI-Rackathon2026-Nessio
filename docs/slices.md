@@ -183,7 +183,7 @@ flowchart LR
   - one case at a glance: `case_overview` → `CaseOverview` (the case, time to treatment, unresolved findings, open tasks earliest due first), so "what's missing in the overdue cases" takes one call per case
   - findings of a case: `list_findings` → `list[Finding]`
   - handover with sources (values with their quotes): `get_handover` → `Handover`
-  - "ask the case" (from S8): **not built yet**; the REST endpoint (`askCase`) works, the MCP tool is still to add
+  - "ask the case" (from S8): `ask_case(case_id, question)` → `CaseAnswer` (verbatim quotes as `Evidence`, or `found=false`). A tool can't poll a job, so it runs `onko_ai.ask_case` synchronously over the documents received by the app clock's now, unlike the REST job (`askCase`); its only write is the chunk indexing it needs. No model or no embedding model: a tool error with the same Czech reason as the failed job
 - **Role check:** every tool needs a valid user in `X-Actor-Id` (as `me`); reads are not scoped by role, like the REST read endpoints.
 - **Not included:** write tools (AI proposes, a human confirms), FHIR tools (agents read the IRIS FHIR server directly).
 - **Done when:** demo step 16: Claude Desktop connected to the deployed `/mcp` answers "which cases at KOC 2 are overdue and what's missing?" with quotes; tests call every tool against the in-memory fake.

@@ -30,6 +30,9 @@ from .clock import AppClock
 
 log = logging.getLogger(__name__)
 
+NO_MODEL = "Není nastaven žádný jazykový model (ONKO_MODELS / ONKO_ACTIVE_MODEL)."
+NO_EMBED_MODEL = "Není nastaven embedding model (ONKO_EMBED_MODEL)."
+
 
 class ImmediateExecutor(Executor):
     """Runs a job inside `submit` (tests: no threads, deterministic order)."""
@@ -97,9 +100,7 @@ def _run(
     repo.save_job(job)
     try:
         if gateway is None:
-            raise RuntimeError(
-                "Není nastaven žádný jazykový model (ONKO_MODELS / ONKO_ACTIVE_MODEL)."
-            )
+            raise RuntimeError(NO_MODEL)
         update = work(job, gateway)
         job = job.model_copy(
             update={"status": JobStatus.DONE, "finished_at": clock.now(), **update}
@@ -170,7 +171,17 @@ def _ingest(job: Job, repo: CaseRepository, clock: AppClock, gateway: Gateway) -
 
 
 def _ask(job: Job, repo: CaseRepository, clock: AppClock, gateway: Gateway) -> CaseAnswer:
+    assert job.case_id is not None
+    return answer(repo, job.case_id, str(job.params["question"]), clock.now(), gateway)
+
+
+def answer(
+    repo: CaseRepository, case_id: str, question: str, now: dt.datetime, gateway: Gateway | None
+) -> CaseAnswer:
+    """'Ask the case' over the documents received by `now`, run here and now (the job and the MCP
+    tool). RuntimeError with a Czech reason without a model or an embedding model."""
+    if gateway is None:
+        raise RuntimeError(NO_MODEL)
     if not gateway.can_embed:
-        raise RuntimeError("Není nastaven embedding model (ONKO_EMBED_MODEL).")
-    question = str(job.params["question"])
-    return ask_case(job.case_id, question, _snapshot(repo, job.case_id, clock.now()), repo, gateway)
+        raise RuntimeError(NO_EMBED_MODEL)
+    return ask_case(case_id, question, _snapshot(repo, case_id, now), repo, gateway)
