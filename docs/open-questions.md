@@ -102,7 +102,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 
 ## K: Code conventions
 
-Asked and decided on 16. 10. 2026. The rules are in [docs/conventions](conventions).
+Asked and decided on 16. 10. 2026 (Q-K8 to Q-K11 later the same day). The rules are in [docs/conventions](conventions).
 
 | ID | Question | Decision | Lands in |
 |---|---|---|---|
@@ -113,6 +113,10 @@ Asked and decided on 16. 10. 2026. The rules are in [docs/conventions](conventio
 | Q-K5 | How are conventions enforced on AI? | `AGENTS.md` (root + per module) with `CLAUDE.md` importing it. No architecture tests or hooks | AGENTS.md |
 | Q-K6 | Branch naming? | `<type>/<short-topic>`; commits stay Conventional Commits | GIT-1, GIT-2 |
 | Q-K7 | Error model? | None: `{"detail": …}` with the codes in api.md | APIM-6 |
+| Q-K8 | Test time limit? | **The whole suite (each CI job) under 5 minutes**, enforced by `timeout-minutes: 5`. No per-test timeout, so no `pytest-timeout` | testing.md TEST-6 |
+| Q-K9 | What do devs run locally? | **Only new or changed tests** and that module's tests; CI runs everything | TEST-7 |
+| Q-K10 | CI? | GitHub Actions on every PR and push to `main`: ruff, full pytest, web client drift check, build and lint. No web test runner yet. **No CD**: the Azure deploy stays manual | `.github/workflows/ci.yml`, TEST-10 |
+| Q-K11 | IRIS tests in CI? | **A separate, manually started workflow** with the connection in repository secrets | `.github/workflows/iris.yml`, TEST-12 |
 
 ## W: Web
 

@@ -20,6 +20,8 @@ The repository contract tests and the FHIR round trip run against the IRIS in yo
 ONKO_TEST_IRIS=1 uv run pytest packages/repository
 ```
 
+In GitHub, the same tests run from the manual *IRIS tests* workflow (Actions → IRIS tests → Run workflow, `.github/workflows/iris.yml`). It needs the repository secrets `ONKO_IRIS_CONNECTION_STRING`, `ONKO_FHIR_BASE_URL`, `ONKO_FHIR_USERNAME` and `ONKO_FHIR_PASSWORD`, and the IRIS firewall must let GitHub-hosted runners in (TEST-12).
+
 The contract tests write to a throwaway schema `test_<user>_<random>` and drop it afterwards. The FHIR round trip writes ids prefixed `test-` (PER-10).
 
 ## IG packages (Q-I6)
