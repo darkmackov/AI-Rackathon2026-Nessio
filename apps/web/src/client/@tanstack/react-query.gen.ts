@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { addExamination, clearHold, confirmMdtConclusion, confirmReceipt, createDraft, createMdtSnapshot, createPatientNotice, createReferral, createReferralFromBundle, createTask, createTaskSet, documentText, getCase, getDemoClock, getDocumentFile, getHandover, getJob, getMdtBoard, getMdtConclusion, getMdtConclusionPdf, getMdtRecord, getMdtRecordPdf, getTimeToTreatment, health, listActors, listAudit, listCaseJobs, listCaseMessages, listCaseReceipts, listCases, listDocuments, listFindings, listInbox, listMdtBoards, listNotifications, listOrganizations, listTasks, listTaskSets, me, type Options, reextractCase, requestFromFinding, resetDemo, resolveFinding, returnCase, sendFeedback, sendReferral, setDemoClock, setHold, startTaskSet, suggestTasks, takeOverCase, transitionCase, updateCase, updateDocument, updateHandoverField, updateMdtBoardMembers, updateMdtRecord, updateMilestones, updateTask, updateTaskSet, uploadDocument, uploadMdtConclusion, upsertMdtConclusion, validateHandover } from '../sdk.gen';
-import type { AddExaminationData, AddExaminationError, AddExaminationResponse, ClearHoldData, ClearHoldError, ClearHoldResponse, ConfirmMdtConclusionData, ConfirmMdtConclusionError, ConfirmMdtConclusionResponse, ConfirmReceiptData, ConfirmReceiptError, ConfirmReceiptResponse, CreateDraftData, CreateDraftError, CreateDraftResponse, CreateMdtSnapshotData, CreateMdtSnapshotError, CreateMdtSnapshotResponse, CreatePatientNoticeData, CreatePatientNoticeError, CreatePatientNoticeResponse, CreateReferralData, CreateReferralError, CreateReferralFromBundleData, CreateReferralFromBundleError, CreateReferralFromBundleResponse, CreateReferralResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, CreateTaskSetData, CreateTaskSetError, CreateTaskSetResponse, DocumentTextData, DocumentTextError, DocumentTextResponse, GetCaseData, GetCaseError, GetCaseResponse, GetDemoClockData, GetDemoClockResponse, GetDocumentFileData, GetDocumentFileError, GetDocumentFileResponse, GetHandoverData, GetHandoverError, GetHandoverResponse, GetJobData, GetJobError, GetJobResponse, GetMdtBoardData, GetMdtBoardError, GetMdtBoardResponse, GetMdtConclusionData, GetMdtConclusionError, GetMdtConclusionPdfData, GetMdtConclusionPdfError, GetMdtConclusionPdfResponse, GetMdtConclusionResponse, GetMdtRecordData, GetMdtRecordError, GetMdtRecordPdfData, GetMdtRecordPdfError, GetMdtRecordPdfResponse, GetMdtRecordResponse, GetTimeToTreatmentData, GetTimeToTreatmentError, GetTimeToTreatmentResponse, HealthData, HealthResponse, ListActorsData, ListActorsError, ListActorsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListCaseJobsData, ListCaseJobsError, ListCaseJobsResponse, ListCaseMessagesData, ListCaseMessagesError, ListCaseMessagesResponse, ListCaseReceiptsData, ListCaseReceiptsError, ListCaseReceiptsResponse, ListCasesData, ListCasesError, ListCasesResponse, ListDocumentsData, ListDocumentsError, ListDocumentsResponse, ListFindingsData, ListFindingsError, ListFindingsResponse, ListInboxData, ListInboxError, ListInboxResponse, ListMdtBoardsData, ListMdtBoardsResponse, ListNotificationsData, ListNotificationsError, ListNotificationsResponse, ListOrganizationsData, ListOrganizationsError, ListOrganizationsResponse, ListTasksData, ListTasksError, ListTaskSetsData, ListTaskSetsError, ListTaskSetsResponse, ListTasksResponse, MeData, MeError, MeResponse, ReextractCaseData, ReextractCaseError, ReextractCaseResponse, RequestFromFindingData, RequestFromFindingError, RequestFromFindingResponse, ResetDemoData, ResetDemoError, ResetDemoResponse, ResolveFindingData, ResolveFindingError, ResolveFindingResponse, ReturnCaseData, ReturnCaseError, ReturnCaseResponse, SendFeedbackData, SendFeedbackError, SendFeedbackResponse, SendReferralData, SendReferralError, SendReferralResponse, SetDemoClockData, SetDemoClockError, SetDemoClockResponse, SetHoldData, SetHoldError, SetHoldResponse, StartTaskSetData, StartTaskSetError, StartTaskSetResponse, SuggestTasksData, SuggestTasksError, SuggestTasksResponse, TakeOverCaseData, TakeOverCaseError, TakeOverCaseResponse, TransitionCaseData, TransitionCaseError, TransitionCaseResponse, UpdateCaseData, UpdateCaseError, UpdateCaseResponse, UpdateDocumentData, UpdateDocumentError, UpdateDocumentResponse, UpdateHandoverFieldData, UpdateHandoverFieldError, UpdateHandoverFieldResponse, UpdateMdtBoardMembersData, UpdateMdtBoardMembersError, UpdateMdtBoardMembersResponse, UpdateMdtRecordData, UpdateMdtRecordError, UpdateMdtRecordResponse, UpdateMilestonesData, UpdateMilestonesError, UpdateMilestonesResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpdateTaskSetData, UpdateTaskSetError, UpdateTaskSetResponse, UploadDocumentData, UploadDocumentError, UploadDocumentResponse, UploadMdtConclusionData, UploadMdtConclusionError, UploadMdtConclusionResponse, UpsertMdtConclusionData, UpsertMdtConclusionError, UpsertMdtConclusionResponse, ValidateHandoverData, ValidateHandoverError, ValidateHandoverResponse } from '../types.gen';
+import { addExamination, askCase, clearHold, confirmMdtConclusion, confirmReceipt, createDraft, createMdtSnapshot, createPatientNotice, createReferral, createReferralFromBundle, createTask, createTaskSet, documentText, getCase, getDemoClock, getDocumentFile, getHandover, getJob, getMdtBoard, getMdtConclusion, getMdtConclusionPdf, getMdtRecord, getMdtRecordPdf, getTimeToTreatment, health, listActors, listAudit, listCaseJobs, listCaseMessages, listCaseReceipts, listCases, listCodeCandidates, listDocuments, listFindings, listInbox, listMdtBoards, listNotifications, listOrganizations, listTasks, listTaskSets, me, type Options, pickDiagnosisCode, reextractCase, requestFromFinding, resetDemo, resolveFinding, returnCase, sendFeedback, sendReferral, setDemoClock, setHold, startTaskSet, suggestTasks, takeOverCase, transitionCase, updateCase, updateDocument, updateHandoverField, updateMdtBoardMembers, updateMdtRecord, updateMilestones, updateTask, updateTaskSet, uploadDocument, uploadMdtConclusion, upsertMdtConclusion, validateHandover } from '../sdk.gen';
+import type { AddExaminationData, AddExaminationError, AddExaminationResponse, AskCaseData, AskCaseError, AskCaseResponse, ClearHoldData, ClearHoldError, ClearHoldResponse, ConfirmMdtConclusionData, ConfirmMdtConclusionError, ConfirmMdtConclusionResponse, ConfirmReceiptData, ConfirmReceiptError, ConfirmReceiptResponse, CreateDraftData, CreateDraftError, CreateDraftResponse, CreateMdtSnapshotData, CreateMdtSnapshotError, CreateMdtSnapshotResponse, CreatePatientNoticeData, CreatePatientNoticeError, CreatePatientNoticeResponse, CreateReferralData, CreateReferralError, CreateReferralFromBundleData, CreateReferralFromBundleError, CreateReferralFromBundleResponse, CreateReferralResponse, CreateTaskData, CreateTaskError, CreateTaskResponse, CreateTaskSetData, CreateTaskSetError, CreateTaskSetResponse, DocumentTextData, DocumentTextError, DocumentTextResponse, GetCaseData, GetCaseError, GetCaseResponse, GetDemoClockData, GetDemoClockResponse, GetDocumentFileData, GetDocumentFileError, GetDocumentFileResponse, GetHandoverData, GetHandoverError, GetHandoverResponse, GetJobData, GetJobError, GetJobResponse, GetMdtBoardData, GetMdtBoardError, GetMdtBoardResponse, GetMdtConclusionData, GetMdtConclusionError, GetMdtConclusionPdfData, GetMdtConclusionPdfError, GetMdtConclusionPdfResponse, GetMdtConclusionResponse, GetMdtRecordData, GetMdtRecordError, GetMdtRecordPdfData, GetMdtRecordPdfError, GetMdtRecordPdfResponse, GetMdtRecordResponse, GetTimeToTreatmentData, GetTimeToTreatmentError, GetTimeToTreatmentResponse, HealthData, HealthResponse, ListActorsData, ListActorsError, ListActorsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListCaseJobsData, ListCaseJobsError, ListCaseJobsResponse, ListCaseMessagesData, ListCaseMessagesError, ListCaseMessagesResponse, ListCaseReceiptsData, ListCaseReceiptsError, ListCaseReceiptsResponse, ListCasesData, ListCasesError, ListCasesResponse, ListCodeCandidatesData, ListCodeCandidatesError, ListCodeCandidatesResponse, ListDocumentsData, ListDocumentsError, ListDocumentsResponse, ListFindingsData, ListFindingsError, ListFindingsResponse, ListInboxData, ListInboxError, ListInboxResponse, ListMdtBoardsData, ListMdtBoardsResponse, ListNotificationsData, ListNotificationsError, ListNotificationsResponse, ListOrganizationsData, ListOrganizationsError, ListOrganizationsResponse, ListTasksData, ListTasksError, ListTaskSetsData, ListTaskSetsError, ListTaskSetsResponse, ListTasksResponse, MeData, MeError, MeResponse, PickDiagnosisCodeData, PickDiagnosisCodeError, PickDiagnosisCodeResponse, ReextractCaseData, ReextractCaseError, ReextractCaseResponse, RequestFromFindingData, RequestFromFindingError, RequestFromFindingResponse, ResetDemoData, ResetDemoError, ResetDemoResponse, ResolveFindingData, ResolveFindingError, ResolveFindingResponse, ReturnCaseData, ReturnCaseError, ReturnCaseResponse, SendFeedbackData, SendFeedbackError, SendFeedbackResponse, SendReferralData, SendReferralError, SendReferralResponse, SetDemoClockData, SetDemoClockError, SetDemoClockResponse, SetHoldData, SetHoldError, SetHoldResponse, StartTaskSetData, StartTaskSetError, StartTaskSetResponse, SuggestTasksData, SuggestTasksError, SuggestTasksResponse, TakeOverCaseData, TakeOverCaseError, TakeOverCaseResponse, TransitionCaseData, TransitionCaseError, TransitionCaseResponse, UpdateCaseData, UpdateCaseError, UpdateCaseResponse, UpdateDocumentData, UpdateDocumentError, UpdateDocumentResponse, UpdateHandoverFieldData, UpdateHandoverFieldError, UpdateHandoverFieldResponse, UpdateMdtBoardMembersData, UpdateMdtBoardMembersError, UpdateMdtBoardMembersResponse, UpdateMdtRecordData, UpdateMdtRecordError, UpdateMdtRecordResponse, UpdateMilestonesData, UpdateMilestonesError, UpdateMilestonesResponse, UpdateTaskData, UpdateTaskError, UpdateTaskResponse, UpdateTaskSetData, UpdateTaskSetError, UpdateTaskSetResponse, UploadDocumentData, UploadDocumentError, UploadDocumentResponse, UploadMdtConclusionData, UploadMdtConclusionError, UploadMdtConclusionResponse, UpsertMdtConclusionData, UpsertMdtConclusionError, UpsertMdtConclusionResponse, ValidateHandoverData, ValidateHandoverError, ValidateHandoverResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -331,6 +331,49 @@ export const addExaminationMutation = (options?: Partial<Options<AddExaminationD
     return mutationOptions;
 };
 
+export const listCodeCandidatesQueryKey = (options: Options<ListCodeCandidatesData>) => createQueryKey('listCodeCandidates', options);
+
+/**
+ * List Code Candidates
+ *
+ * MKN-10 candidates for a diagnosis without a code (S8, Q-C11), best first, from vector search
+ * over the code list. AI proposals only: nothing is filled in. 409 if the handover has no
+ * diagnosis or its code is already set, or no embedding model or code list is set up.
+ */
+export const listCodeCandidatesOptions = (options: Options<ListCodeCandidatesData>) => queryOptions<ListCodeCandidatesResponse, ListCodeCandidatesError, ListCodeCandidatesResponse, ReturnType<typeof listCodeCandidatesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listCodeCandidates({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listCodeCandidatesQueryKey(options)
+});
+
+/**
+ * Pick Diagnosis Code
+ *
+ * Store the picked candidate as `diagnosis_code` (origin=manual) and keep the AI suggestion in
+ * the audit log (Q-C11, until Q-I21 adds it to the contract). 400 if the code is not a current
+ * candidate.
+ */
+export const pickDiagnosisCodeMutation = (options?: Partial<Options<PickDiagnosisCodeData>>): UseMutationOptions<PickDiagnosisCodeResponse, PickDiagnosisCodeError, Options<PickDiagnosisCodeData>> => {
+    const mutationOptions: UseMutationOptions<PickDiagnosisCodeResponse, PickDiagnosisCodeError, Options<PickDiagnosisCodeData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await pickDiagnosisCode({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 /**
  * Validate Handover
  *
@@ -456,6 +499,27 @@ export const suggestTasksMutation = (options?: Partial<Options<SuggestTasksData>
     const mutationOptions: UseMutationOptions<SuggestTasksResponse, SuggestTasksError, Options<SuggestTasksData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await suggestTasks({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Ask Case
+ *
+ * 'Ask the case' (S8, Q-I19): the nearest document chunks go to the model, which may answer
+ * only with quotes; each is checked verbatim. The `CaseAnswer` arrives in `job.answer`
+ * (`found=false`, 'nenalezeno', when no quote passes).
+ */
+export const askCaseMutation = (options?: Partial<Options<AskCaseData>>): UseMutationOptions<AskCaseResponse, AskCaseError, Options<AskCaseData>> => {
+    const mutationOptions: UseMutationOptions<AskCaseResponse, AskCaseError, Options<AskCaseData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await askCase({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
