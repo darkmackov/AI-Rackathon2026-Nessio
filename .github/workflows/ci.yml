@@ -1,0 +1,51 @@
+# Full test suite, lint and web build on every PR and push to main (docs/conventions/testing.md, TEST-10).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # TEST-6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.20"  # same as the Dockerfile (TEST-11)
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - run: uv run ruff check .
+      - run: uv run pytest
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # TEST-6
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - name: Generated client matches openapi.json
+        run: |
+          npm run gen:api
+          git diff --exit-code -- src/client || {
+            echo "::error::src/client is stale: run npm --prefix apps/web run gen:api and commit it"; exit 1; }
+      - run: npm run build
+      - run: npm run lint

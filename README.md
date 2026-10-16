@@ -17,7 +17,7 @@ A tool for the KOC coordinator and the referring doctor: GP referral without for
 | [docs/demo-script.md](docs/demo-script.md) | The demo, click by click |
 | [docs/open-questions.md](docs/open-questions.md) | Every decision (Q-…) and what is still open |
 | [docs/deploy.md](docs/deploy.md) | IRIS vs in-memory, testing against IRIS, FHIR server, IG packages, Azure deploy |
-| [docs/conventions/](docs/conventions) | Binding conventions: [data](docs/conventions/data.md) (domain, API models, persistence), [implementation](docs/conventions/implementation.md) (modules, API, Python, git), [web](docs/conventions/web.md), [UI/UX](docs/conventions/ui-ux.md) |
+| [docs/conventions/](docs/conventions) | Binding conventions: [data](docs/conventions/data.md) (domain, API models, persistence), [implementation](docs/conventions/implementation.md) (modules, API, Python, git), [web](docs/conventions/web.md), [UI/UX](docs/conventions/ui-ux.md), [testing and CI](docs/conventions/testing.md) |
 | [AGENTS.md](AGENTS.md) | Mandatory rules for AI agents (Claude Code loads them via `CLAUDE.md`); every module has its own |
 
 ## Repo layout

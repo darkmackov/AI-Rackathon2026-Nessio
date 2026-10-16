@@ -8,6 +8,7 @@ Each module also has its own `AGENTS.md` with its boundaries. Read it before edi
 
 1. Read the docs for the area you touch:
    - **Any Python:** [implementation.md](docs/conventions/implementation.md)
+   - **Tests and CI:** [testing.md](docs/conventions/testing.md)
    - **Domain models, API models, persistence:** [data.md](docs/conventions/data.md), and the endpoints in [api.md](docs/api.md)
    - **Web app:** [web.md](docs/conventions/web.md) and [ui-ux.md](docs/conventions/ui-ux.md)
    - **What the product does and why:** [product.md](docs/product.md), [architecture.md](docs/architecture.md), [slices.md](docs/slices.md), [open-questions.md](docs/open-questions.md)
@@ -43,12 +44,21 @@ Each module also has its own `AGENTS.md` with its boundaries. Read it before edi
 - No logic specific to the reference case.
 - Never commit `.env` or secrets.
 
+**Tests** (TEST-*)
+- New behaviour and bug fixes ship with tests. Tests run offline: in-memory repository, mocked HTTP, a fixed `now`.
+- The whole suite stays under 5 minutes; CI fails a slower one. Don't raise the limit, make the test faster.
+- IRIS/FHIR tests are opt-in (`ONKO_TEST_IRIS=1`) and run only in the manual *IRIS tests* workflow.
+
 ## Before you finish
 
-Run what applies and report the real results. Run Python commands with `uv run`:
+Run what applies and report the real results. Run Python commands with `uv run`. Run only the tests you added or changed and the rest of that module's tests (TEST-7); CI runs the full suite:
 
 ```bash
-uv run pytest
+uv run pytest packages/<module>
+```
+After an API or contract change, also run the API tests (they hold the OpenAPI drift check, TEST-8):
+```bash
+uv run pytest apps/api
 ```
 ```bash
 uv run ruff check .
