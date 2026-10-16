@@ -21,7 +21,7 @@ import FindingsPanel from '../../components/handover/FindingsPanel'
 import SourcePanel, { SourcePlaceholder } from '../../components/handover/SourcePanel'
 import { useSession } from '../../session'
 import ExaminationForm from './ExaminationForm'
-import HandoverFieldForm from './HandoverFieldForm'
+import HandoverFieldForm from '../../components/handover/HandoverFieldForm'
 import ReturnedNote from './ReturnedNote'
 import SendReferral from './SendReferral'
 
@@ -100,11 +100,11 @@ function ReferralContent({ caseId }: { caseId: string }) {
             <HandoverTab handover={handover.data} names={names} sources={sources} findings={findings.data?.filter((finding) => !finding.resolved) ?? []} showFinding={showFinding} open={openSections} setOpen={(sections) => { setOpenSections(sections); setFocusPath(null) }} focusPath={focusPath}
               fieldActions={(path) => !editable || path === 'epicrisis' || path === 'mdt_question' ? null : <Group gap="xs">
                 <Button size="compact-sm" variant="subtle" disabled={busy || processing} onClick={() => setEditing({ path, unavailable: false })}>{t(fields[path]?.status === 'found' ? 'referral.edit' : 'referral.fill')}</Button>
-                <Button size="compact-sm" variant="subtle" color="gray" disabled={busy || processing} onClick={() => setEditing({ path, unavailable: true })}>{t('referral.notAvailable')}</Button>
+                <Button size="compact-sm" variant="subtle" color="gray" disabled={busy || processing} onClick={() => setEditing({ path, unavailable: true })}>{t('handoverEdit.notAvailable')}</Button>
               </Group>}
               examinationAction={editable && <Button variant="outline" size="compact-sm" disabled={busy || processing} onClick={() => setAddExam(true)}>{t('referral.addExam')}</Button>} />
           </>}
-          <FindingsPanel caseId={caseId} names={names} sources={sources} handover={handover.data} showField={showField} hideSuggestedActions />
+          <FindingsPanel caseId={caseId} names={names} sources={sources} handover={handover.data} showField={showField} />
           {jobs.isError && <QueryError error={jobs.error} retry={() => { void jobs.refetch() }} pending={jobs.isFetching} />}
           {editable && <><Text size="sm" c="dimmed">{t('referral.reviewHelp')}</Text>{processing && <Alert color="blue" role="status">{t('referral.processing')}</Alert>}
             <SendReferral caseId={caseId} actorId={actor} koc={koc} disabled={!handover.isSuccess || !jobs.isSuccess || processing || busy} sent={(returned) => setFeedback(returned ? 'referral.resend' : 'referral.sent')} />

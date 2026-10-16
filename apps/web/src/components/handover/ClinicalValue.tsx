@@ -112,7 +112,7 @@ export default function ClinicalValue({ label, path, value, names, sources, find
         {value?.note && <Alert color={status === 'conflict' ? 'red' : 'gray'} p="xs"><Text size="sm">{value.note}</Text></Alert>}
         <EvidenceLinks evidence={value?.evidence} select={(index) => ({ kind: 'field', path, index })} sources={sources} quotes={status === 'conflict'} />
         <InlineFindings findings={findings} showFinding={showFinding} />
-        {actions !== undefined ? actions : status !== 'found' && <Group gap="xs"><Button size="compact-sm" disabled>{t('caseDetail.fill')}</Button><Button size="compact-sm" variant="outline" disabled>{t('caseDetail.request')}</Button></Group>}
+        {actions}
       </Stack></Grid.Col>
     </Grid>
   </Box>

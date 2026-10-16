@@ -2,6 +2,7 @@ import { delay, http, HttpResponse } from 'msw'
 import type { Case, DemoClock, DocumentMeta, DocumentMetaUpdate, Finding, Handover, Job, UploadResult } from '../client/types.gen'
 import { documentType, supportedFile, validDocumentDate } from '../components/documents/document-utils'
 import { actors } from './directory'
+import { s4CaseId, type createCoordinatorState } from './coordinator-state'
 import { referenceDocuments, referenceFindings, referenceHandover, referenceTexts } from './reference-data'
 import { extraFields, isApiDateTime, objectBody, queryValue, validationResponse } from './validation'
 
@@ -71,9 +72,18 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
   }
 
   return {
+    saveResult: (caseId: string, value: ReturnType<typeof demoExtraction>) => results.set(caseId, structuredClone(value)),
     reset: (withReference: boolean) => {
       documents.clear(); originals.clear(); jobs.clear(); results.clear(); texts.clear(); extracted.clear()
       if (!withReference) return
+      const sampleId = `${s4CaseId}-document`
+      documents.set(sampleId, { id: sampleId, case_id: s4CaseId, filename: 'fiktivni-zprava-s4.txt', title: 'Fiktivní podklad S4', doc_type: 'other', received_at: '2026-10-21T08:00:00', uploaded_by: 'pl-reznicek', mime_type: 'text/plain' })
+      texts.set(sampleId, demoDocumentText)
+      originals.set(sampleId, new File([demoDocumentText], 'fiktivni-zprava-s4.txt', { type: 'text/plain' }))
+      const sample = demoExtraction(s4CaseId, sampleId, '2026-10-21T08:00:00')
+      sample.findings.push({ id: `${s4CaseId}-request`, kind: 'unattached_reference', severity: 'warning', message_cs: 'Fiktivní ukázka: vyžádejte chybějící zprávu.', suggested_action: 'request', resolved: false })
+      results.set(s4CaseId, sample)
+      extracted.add(s4CaseId)
       for (const document of referenceDocuments) {
         documents.set(document.id, structuredClone(document))
         texts.set(document.id, referenceTexts[document.id])
@@ -113,7 +123,7 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
   }
 }
 
-type DemoState = { getCases: () => Case[]; clock: () => DemoClock; documents: ReturnType<typeof createDocumentDemoState> }
+type DemoState = { getCases: () => Case[]; clock: () => DemoClock; documents: ReturnType<typeof createDocumentDemoState>; coordinator: ReturnType<typeof createCoordinatorState> }
 
 function access(request: Request, item: Case | undefined, write = false) {
   if (!item) return HttpResponse.json({ detail: 'case not found' }, { status: 404 })
@@ -149,7 +159,9 @@ export function createDocumentHandlers(state: DemoState) {
       if (receivedAt !== null && (typeof receivedAt !== 'string' || !isApiDateTime(receivedAt))) return validationResponse([{ loc: ['body', 'received_at'], type: 'datetime_parsing', msg: 'Invalid datetime' }])
       await delay(150)
       const now = state.clock().now
-      return HttpResponse.json<UploadResult>(state.documents.upload(id, file, request.headers.get('X-Actor-Id') ?? '', typeof receivedAt === 'string' ? receivedAt : now, now), { status: 201 })
+      const uploaded = state.documents.upload(id, file, request.headers.get('X-Actor-Id') ?? '', typeof receivedAt === 'string' ? receivedAt : now, now)
+      state.coordinator.record(id, request.headers.get('X-Actor-Id') ?? '', now, 'upload_document', file.name)
+      return HttpResponse.json<UploadResult>(uploaded, { status: 201 })
     }),
     http.get('*/api/cases/:caseId/jobs', ({ request, params }) => {
       const id = String(params.caseId)
@@ -164,7 +176,9 @@ export function createDocumentHandlers(state: DemoState) {
       const error = access(request, findCase(id), true)
       if (error) return error
       if (!state.documents.list(id).length) return HttpResponse.json({ detail: 'no documents' }, { status: 409 })
-      return HttpResponse.json<Job>(state.documents.createJob(id, state.clock().now), { status: 202 })
+      const job = state.documents.createJob(id, state.clock().now)
+      state.coordinator.record(id, request.headers.get('X-Actor-Id') ?? '', state.clock().now, 'reextract')
+      return HttpResponse.json<Job>(job, { status: 202 })
     }),
     http.patch('*/api/documents/:documentId', async ({ request, params }) => {
       const id = String(params.documentId)
@@ -189,7 +203,9 @@ export function createDocumentHandlers(state: DemoState) {
         else errors.push({ loc: ['body', 'doc_type'], type: 'enum', msg: 'Invalid document type' })
       }
       if (errors.length) return validationResponse(errors)
-      return HttpResponse.json<DocumentMeta>(state.documents.update(id, body)!)
+      const updated = state.documents.update(id, body)!
+      if (updated.case_id) state.coordinator.record(updated.case_id, request.headers.get('X-Actor-Id') ?? '', state.clock().now, 'update_document', updated.filename)
+      return HttpResponse.json<DocumentMeta>(updated)
     }),
     http.get('*/api/documents/:documentId/text', ({ request, params }) => {
       const id = String(params.documentId)

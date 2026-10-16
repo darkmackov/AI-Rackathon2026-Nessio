@@ -26,7 +26,7 @@ describe('findings worklist', () => {
     expect(within(blocker).queryByText('F01')).not.toBeInTheDocument()
     expect(within(blocker).getByText('Chybějící údaj')).toBeVisible()
     expect(within(blocker).getByText('Lze překonat s poznámkou')).toBeVisible()
-    expect(within(blocker).getByRole('button', { name: 'Vyžádat' })).toBeDisabled()
+    expect(within(blocker).getByRole('button', { name: 'Vyžádat' })).toBeEnabled()
     expect(within(panel).getByText('Poradní upozornění')).toBeVisible()
     expect(within(panel).getByRole('button', { name: /^Vyřešené nálezy/ })).toHaveAttribute('aria-expanded', 'false')
   })

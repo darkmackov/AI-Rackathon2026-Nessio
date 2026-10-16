@@ -6,14 +6,15 @@ import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { getHandoverQueryKey, updateHandoverFieldMutation } from '../../client/@tanstack/react-query.gen'
 import type { HandoverFieldUpdate } from '../../client/types.gen'
-import { QueryError } from '../../components/DataState'
-import FormErrorSummary from '../../components/FormErrorSummary'
-import { validDocumentDate } from '../../components/documents/document-utils'
-import { refreshCaseResults } from '../../components/documents/use-document-ingest'
-import { displayValue, type SourcedValue } from '../../components/handover/clinical'
+import { QueryError } from '../DataState'
+import FormErrorSummary from '../FormErrorSummary'
+import { validDocumentDate } from '../documents/document-utils'
+import { refreshCaseResults } from '../documents/use-document-ingest'
+import { displayValue, type SourcedValue } from './clinical'
 
-export default function HandoverFieldForm({ caseId, actorId, path, value, unavailable, close, saved }: {
-  caseId: string; actorId: string; path: string; value?: SourcedValue; unavailable: boolean; close: () => void; saved: () => void;
+/** Manual entry of one Sourced handover field, shared by the referring doctor and the coordinator. */
+export default function HandoverFieldForm({ caseId, actorId, path, value, unavailable = false, help, close, saved }: {
+  caseId: string; actorId: string; path: string; value?: SourcedValue; unavailable?: boolean; help?: string; close: () => void; saved: () => void;
 }) {
   const { t } = useTranslation()
   const client = useQueryClient()
@@ -25,9 +26,9 @@ export default function HandoverFieldForm({ caseId, actorId, path, value, unavai
   const form = useForm({ initialValues: { value: displayValue(value?.value), notAvailable: unavailable, note: value?.note ?? '' }, validateInputOnBlur: true,
     validate: { value: (input, values) => {
       if (values.notAvailable) return null
-      if (!input.trim()) return 'referral.required'
-      if (date && !validDocumentDate(input)) return 'referral.invalidDate'
-      if (number && (!Number.isFinite(Number(input.replace(',', '.'))) || (path === 'patient.age' && !Number.isInteger(Number(input.replace(',', '.')))))) return 'referral.invalidNumber'
+      if (!input.trim()) return 'handoverEdit.required'
+      if (date && !validDocumentDate(input)) return 'handoverEdit.invalidDate'
+      if (number && (!Number.isFinite(Number(input.replace(',', '.'))) || (path === 'patient.age' && !Number.isInteger(Number(input.replace(',', '.')))))) return 'handoverEdit.invalidNumber'
       return null
     } } })
   const save = useMutation({ ...updateHandoverFieldMutation(), onSuccess: async (handover) => {
@@ -44,13 +45,14 @@ export default function HandoverFieldForm({ caseId, actorId, path, value, unavai
       save.mutate({ path: { case_id: caseId }, headers: actorHeaders(actorId), body })
     })(event)
   }}><Stack>
+    {help && <Text size="sm" c="dimmed">{help}</Text>}
     {submitted && Object.keys(form.errors).length > 0 && <FormErrorSummary errors={Object.values(form.errors).map((error) => t(String(error)))} />}
-    <Checkbox label={t('referral.notAvailable')} {...form.getInputProps('notAvailable', { type: 'checkbox' })} disabled={busy} />
-    {form.values.notAvailable ? <Text size="sm">{t('referral.unavailableHelp')}</Text> : date || number
-      ? <TextInput type={date ? 'date' : 'text'} inputMode={number ? 'decimal' : undefined} label={t('referral.value')} {...form.getInputProps('value')} error={form.errors.value ? t(String(form.errors.value)) : undefined} disabled={busy} />
-      : <Textarea label={t('referral.value')} description={list ? t('referral.listHelp') : undefined} rows={4} {...form.getInputProps('value')} error={form.errors.value ? t(String(form.errors.value)) : undefined} disabled={busy} />}
-    <Textarea label={t('referral.note')} rows={2} {...form.getInputProps('note')} disabled={busy} />
+    <Checkbox label={t('handoverEdit.notAvailable')} {...form.getInputProps('notAvailable', { type: 'checkbox' })} disabled={busy} />
+    {form.values.notAvailable ? <Text size="sm">{t('handoverEdit.unavailableHelp')}</Text> : date || number
+      ? <TextInput type={date ? 'date' : 'text'} inputMode={number ? 'decimal' : undefined} label={t('handoverEdit.value')} {...form.getInputProps('value')} error={form.errors.value ? t(String(form.errors.value)) : undefined} disabled={busy} />
+      : <Textarea label={t('handoverEdit.value')} description={list ? t('handoverEdit.listHelp') : undefined} rows={4} {...form.getInputProps('value')} error={form.errors.value ? t(String(form.errors.value)) : undefined} disabled={busy} />}
+    <Textarea label={t('handoverEdit.note')} rows={2} {...form.getInputProps('note')} disabled={busy} />
     {save.isError && <QueryError error={save.error} />}
-    <Group><Button type="submit" loading={save.isPending} disabled={busy}>{t('referral.save')}</Button><Button variant="default" onClick={close} disabled={busy}>{t('cancel')}</Button></Group>
+    <Group><Button type="submit" loading={save.isPending} disabled={busy}>{t('handoverEdit.save')}</Button><Button variant="default" onClick={close} disabled={busy}>{t('cancel')}</Button></Group>
   </Stack></form>
 }

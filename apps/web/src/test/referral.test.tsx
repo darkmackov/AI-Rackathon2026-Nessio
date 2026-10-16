@@ -35,7 +35,7 @@ describe('S3 referring doctor workflow', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Nová žádost do KOC' })
     await user.click(await within(dialog).findByRole('button', { name: 'Vytvořit žádost' }))
     expect(await within(dialog).findByRole('alert')).toHaveFocus()
-    expect(demoState.getCases()).toHaveLength(2)
+    expect(demoState.getCases()).toHaveLength(3)
     await user.selectOptions(within(dialog).getByLabelText('Cílové KOC'), 'koc1-severni')
     await user.click(within(dialog).getByRole('button', { name: 'Vytvořit žádost' }))
     await screen.findByRole('heading', { level: 1, name: 'Pacient zatím neuveden' })

@@ -2,7 +2,7 @@ import { Badge, Grid, Stack, Tabs } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { IconChecklist, IconClipboardText, IconFiles, IconLayoutDashboard, IconListSearch, type Icon } from '@tabler/icons-react'
+import { IconHistory, IconChecklist, IconClipboardText, IconFiles, IconLayoutDashboard, IconListSearch, type Icon } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, actorHeaders } from '../../api'
@@ -11,8 +11,11 @@ import { detailTabs, type DetailTab } from '../../case-route'
 import LoadingState, { EmptyState, QueryError } from '../../components/DataState'
 import PageHeading from '../../components/PageHeading'
 import { useSession } from '../../session'
+import AuditTab from './AuditTab'
 import CaseHeader, { BackLink } from './CaseHeader'
-import { problemSections, sectionOf } from '../../components/handover/clinical'
+import FindingActions from './FindingActions'
+import HandoverActions, { FieldActions } from './HandoverActions'
+import { handoverFields, problemSections, sectionOf } from '../../components/handover/clinical'
 import { useDocumentSources } from '../../components/handover/use-document-sources'
 import DocumentsTab from '../../components/documents/DocumentsTab'
 import FindingsPanel from '../../components/handover/FindingsPanel'
@@ -21,7 +24,7 @@ import OverviewTab from './OverviewTab'
 import SourcePanel, { SourcePlaceholder } from '../../components/handover/SourcePanel'
 import TasksTab from './TasksTab'
 
-const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles }
+const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles, audit: IconHistory }
 
 function DetailContent({ caseId }: { caseId: string }) {
   const { t } = useTranslation()
@@ -48,8 +51,8 @@ function DetailContent({ caseId }: { caseId: string }) {
   const { selection, setSelection, openSource, closeSource, evidence, selectedDocument, sources } = useDocumentSources(handover.data, documents.data, findings.data)
   const switchTab = (value: string | null) => {
     const next = detailTabs.find((entry) => entry === value)
-    // The overview has no source column, so an open source closes with it.
-    if (next === 'overview') setSelection(null)
+    // The overview and audit have no source column.
+    if (next === 'overview' || next === 'audit') setSelection(null)
     if (next) void navigate({ search: { tab: next } })
   }
   const showField = (path: string) => {
@@ -65,8 +68,9 @@ function DetailContent({ caseId }: { caseId: string }) {
   const referrer = actors.data?.find((person) => person.id === current.referring_doctor_id)
   const openFindings = findings.data?.filter((finding) => !finding.resolved) ?? []
   const unresolved = openFindings.length
-  // On wide screens every tab except the overview keeps a fixed source column, so opening a source never reflows the page.
-  const split = !!wide && tab !== 'overview'
+  const fields = handover.data ? handoverFields(handover.data) : {}
+  // Clinical tabs keep the existing fixed source column on wide screens.
+  const split = !!wide && tab !== 'overview' && tab !== 'audit'
   const source = selection && <SourcePanel key={JSON.stringify(selection)} document={selectedDocument || undefined} evidence={evidence} close={closeSource}
     fallback={documents.isPending ? <LoadingState rows={3} /> : documents.isError ? <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} /> : undefined} />
   const handoverError = handover.isError && (handover.error instanceof ApiError && handover.error.status === 404
@@ -94,12 +98,15 @@ function DetailContent({ caseId }: { caseId: string }) {
             {handover.isPending && <LoadingState rows={6} />}
             {handoverError}
             {documents.isError && <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} />}
-            {handover.data && <HandoverTab handover={handover.data} names={names} sources={sources} findings={openFindings} showFinding={showFinding} open={openSections} setOpen={setChosenSections} />}
+            {handover.data && <HandoverActions caseId={caseId} handover={handover.data}><HandoverTab handover={handover.data} names={names} sources={sources} findings={openFindings} showFinding={showFinding} open={openSections} setOpen={setChosenSections}
+              fieldActions={(path, label) => fields[path]?.status !== 'found' && <FieldActions path={path} label={label} findings={openFindings.filter((finding) => finding.fields?.includes(path))} showFinding={showFinding} />} /></HandoverActions>}
           </Stack>}</Tabs.Panel>
           <Tabs.Panel value="findings">
-            {seen('findings') && <FindingsPanel caseId={caseId} handover={handover.data} names={names} sources={sources} showField={showField} />}
+            {seen('findings') && <FindingsPanel caseId={caseId} handover={handover.data} names={names} sources={sources} showField={showField}
+              findingActions={(finding) => <FindingActions caseId={caseId} finding={finding} handover={handover.data} />} />}
           </Tabs.Panel>
           <Tabs.Panel value="tasks">{seen('tasks') && <TasksTab caseId={caseId} openSource={openSource} showFinding={showFinding} />}</Tabs.Panel>
+          <Tabs.Panel value="audit">{seen('audit') && <AuditTab caseId={caseId} />}</Tabs.Panel>
           <Tabs.Panel value="documents">{seen('documents') && <DocumentsTab item={current} names={names} openSource={openSource} />}</Tabs.Panel>
         </Grid.Col>
         {split && <Grid.Col span={5}>{source || <SourcePlaceholder />}</Grid.Col>}

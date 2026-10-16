@@ -18,7 +18,7 @@ export default function ExaminationForm({ caseId, actorId, close, saved }: { cas
   const [submitted, setSubmitted] = useState(false)
   const required = (input: string) => input.trim() ? null : 'referral.requiredExam'
   const form = useForm<ExaminationCreate>({ initialValues: { date: '', place: '', type: '', result_full_text: '' }, validateInputOnBlur: true,
-    validate: { date: (value) => validDocumentDate(value) ? null : 'referral.invalidDate', place: required, type: required, result_full_text: required } })
+    validate: { date: (value) => validDocumentDate(value) ? null : 'handoverEdit.invalidDate', place: required, type: required, result_full_text: required } })
   const save = useMutation({ ...addExaminationMutation(), onSuccess: async (handover) => {
     client.setQueryData(getHandoverQueryKey({ path: { case_id: caseId }, headers: actorHeaders(actorId) }), handover)
     await refreshCaseResults(client, caseId)
@@ -36,6 +36,6 @@ export default function ExaminationForm({ caseId, actorId, close, saved }: { cas
     <TextInput label={t('referral.examType')} {...form.getInputProps('type')} error={error('type')} disabled={busy} />
     <Textarea rows={6} label={t('referral.examResult')} {...form.getInputProps('result_full_text')} error={error('result_full_text')} disabled={busy} />
     {save.isError && <QueryError error={save.error} />}
-    <Group><Button type="submit" disabled={busy} loading={save.isPending}>{t('referral.save')}</Button><Button variant="default" disabled={busy} onClick={close}>{t('cancel')}</Button></Group>
+    <Group><Button type="submit" disabled={busy} loading={save.isPending}>{t('handoverEdit.save')}</Button><Button variant="default" disabled={busy} onClick={close}>{t('cancel')}</Button></Group>
   </Stack></form>
 }

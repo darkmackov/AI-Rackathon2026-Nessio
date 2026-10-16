@@ -1,4 +1,4 @@
-import { Accordion, Anchor, Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core'
+import { Accordion, Anchor, Badge, Group, Paper, Stack, Text, Title } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { IconArrowRight } from '@tabler/icons-react'
 import { useId, type ReactNode } from 'react'
@@ -14,7 +14,7 @@ import { EvidenceLinks, StampView, type Sources } from './ClinicalValue'
 
 const severities: Severity[] = ['blocker', 'warning', 'info']
 
-function FindingItem({ finding, names, fieldLink, sources, hideSuggestedActions }: { finding: Finding; names: Record<string, string>; fieldLink: (path: string) => ReactNode; sources: Sources; hideSuggestedActions: boolean }) {
+function FindingItem({ finding, names, fieldLink, sources, actions }: { finding: Finding; names: Record<string, string>; fieldLink: (path: string) => ReactNode; sources: Sources; actions?: ReactNode }) {
   const { t } = useTranslation()
   const message = useId()
   const links = finding.fields?.map(fieldLink).filter(Boolean) ?? []
@@ -33,18 +33,14 @@ function FindingItem({ finding, names, fieldLink, sources, hideSuggestedActions 
         {finding.resolution.note && <Text size="sm" c="dimmed">{finding.resolution.note}</Text>}
         <StampView stamp={finding.resolution} names={names} size="xs" />
       </Stack>}
-      {!hideSuggestedActions && !finding.resolved && finding.suggested_action && <Group gap="xs">
-        {finding.suggested_action === 'request' && <Button disabled size="compact-sm">{t('caseDetail.request')}</Button>}
-        {finding.suggested_action === 'fill_in' && <Button disabled size="compact-sm">{t('caseDetail.fill')}</Button>}
-        {finding.suggested_action === 'review' && <Text size="sm" c="dimmed">{t('caseDetail.review')}</Text>}
-      </Group>}
+      {!finding.resolved && actions}
     </Stack>
   </Paper>
 }
 
-export default function FindingsPanel({ caseId, names, sources, handover, showField, hideSuggestedActions = false }: {
+export default function FindingsPanel({ caseId, names, sources, handover, showField, findingActions }: {
   caseId: string; names: Record<string, string>; sources: Sources; handover?: Handover; showField: (path: string) => void;
-  hideSuggestedActions?: boolean;
+  findingActions?: (finding: Finding) => ReactNode;
 }) {
   const { t } = useTranslation()
   const { actorId } = useSession()
@@ -59,7 +55,7 @@ export default function FindingsPanel({ caseId, names, sources, handover, showFi
     return <Anchor key={path} href={`#field-${path}`} size="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
       onClick={(event) => { event.preventDefault(); showField(path) }}><IconArrowRight size={14} aria-hidden />{t(`caseDetail.${label}`)}</Anchor>
   }
-  const item = (finding: Finding) => <FindingItem key={finding.id} finding={finding} names={names} fieldLink={fieldLink} sources={sources} hideSuggestedActions={hideSuggestedActions} />
+  const item = (finding: Finding) => <FindingItem key={finding.id} finding={finding} names={names} fieldLink={fieldLink} sources={sources} actions={findingActions?.(finding)} />
   return <Stack component="section" aria-labelledby="findings-heading" gap="md">
     <Title order={2} size="h4" id="findings-heading">{t('caseDetail.findings')}</Title>
     {findings.isPending && <LoadingState rows={4} />}

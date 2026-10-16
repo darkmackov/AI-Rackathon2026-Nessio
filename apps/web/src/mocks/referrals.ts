@@ -50,23 +50,27 @@ export function createReferralHandlers(state: DemoState) {
     if (actor.role !== 'referring_doctor' && actor.role !== 'coordinator') return { error: fail('wrong role', 403) }
     return { actor, error: null }
   }
-  const context = (request: Request, id: string) => {
+  // The backend's `_require_editor`: the case's GP or a coordinator of its KOC, each only in their own states.
+  const editableStates: Record<string, string[]> = { referring_doctor: ['koncept', 'vraceno_lekari'], coordinator: ['v_triage', 'ceka_na_podklady', 'kompletni'] }
+  const context = (request: Request, id: string, referrerOnly = false) => {
     const user = currentUser(request)
     if (user.error) return { error: user.error }
     const item = state.getCases().find((item) => item.id === id)
     const actor = user.actor
     if (!item) return { error: fail('case not found', 404) }
-    if (!actor || actor.role !== 'referring_doctor' || actor.id !== item.referring_doctor_id) return { error: fail('only the referring doctor of this case', 403) }
-    if (item.state !== 'koncept' && item.state !== 'vraceno_lekari') return { error: fail('referral is not editable', 409) }
+    if (actor.role === 'referring_doctor' ? actor.id !== item.referring_doctor_id : referrerOnly || actor.organization_id !== item.koc_id) {
+      return { error: fail(referrerOnly ? 'only the referring doctor of this case' : 'only the referring doctor or a coordinator of the case\'s KOC', 403) }
+    }
+    if (!editableStates[actor.role]?.includes(item.state ?? '')) return { error: fail(actor.role === 'coordinator' ? 'case is not editable before MDT' : 'referral is not editable', 409) }
     const handover = state.documents.result(id)?.handover
     if (!handover) return { error: fail('no handover yet', 404) }
     return { item, actor, handover, error: null }
   }
-  const saveHandover = (item: Case, handover: Handover) => {
+  const saveHandover = (item: Case, handover: Handover, actorId: string, action: string, detail?: string) => {
     state.documents.saveHandover(handover)
     const name = [handover.patient?.first_name?.value, handover.patient?.last_name?.value].filter(Boolean).join(' ')
     state.saveCase({ ...item, patient_name: name || item.patient_name, diagnosis_label: handover.diagnosis?.value || item.diagnosis_label })
-    return HttpResponse.json<Handover>(handover)
+    state.coordinator.record(item.id, actorId, state.clock().now, action, detail)
   }
   return [
     http.post('*/api/referrals', async ({ request }) => {
@@ -87,6 +91,7 @@ export function createReferralHandlers(state: DemoState) {
       const item: Case = { id, patient_name: '', koc_id: koc.id, referring_doctor_id: actor.id, state: 'koncept', queue: 'novy', priority: 'normal', created_at: now }
       state.saveCase(item)
       state.documents.saveHandover({ case_id: id, as_of: now.slice(0, 10) })
+      state.coordinator.record(id, actor.id, now, 'create_referral')
       return HttpResponse.json<Case>(item, { status: 201 })
     }),
     http.patch('*/api/cases/:caseId/handover', async ({ request, params }) => {
@@ -103,7 +108,9 @@ export function createReferralHandlers(state: DemoState) {
       if (![...patientStrings.map((key) => `patient.${key}`), ...contactStrings.map((key) => `contacts.${key}`), ...handoverStrings, 'patient.birth_date', 'patient.age', 'comorbidities', 'medications', 'weight_kg', 'height_cm'].includes(body.path)) return fail('not an editable handover field', 400)
       if (body.not_available !== true && body.value == null) return fail('give a value or not_available', 400)
       const handover = updateField(found.handover, body.path, body.value, body.not_available === true, typeof body.note === 'string' ? body.note : null, { by: found.actor.id, at: state.clock().now })
-      return handover ? saveHandover(found.item, handover) : badValue()
+      if (!handover) return badValue()
+      saveHandover(found.item, handover, found.actor.id, 'handover_field', body.not_available === true ? `: není k dispozici` : body.path)
+      return HttpResponse.json<Handover>(handover)
     }),
     http.post('*/api/cases/:caseId/handover/examinations', async ({ request, params }) => {
       const found = context(request, String(params.caseId))
@@ -115,27 +122,29 @@ export function createReferralHandlers(state: DemoState) {
       if (errors.length) return validationResponse(errors)
       if (typeof date !== 'string' || !validDocumentDate(date) || typeof place !== 'string' || typeof type !== 'string' || typeof result_full_text !== 'string') return badValue()
       const handover: Handover = { ...found.handover, examinations: [...(found.handover.examinations ?? []), { date, place, type, result_full_text, origin: 'manual', entered: { by: found.actor.id, at: state.clock().now } }] }
-      state.documents.saveHandover(handover)
+      saveHandover(found.item, handover, found.actor.id, 'add_examination', ` `)
       return HttpResponse.json<Handover>(handover, { status: 201 })
     }),
     http.post('*/api/cases/:caseId/handover/validate', ({ request, params }) => {
-      const found = context(request, String(params.caseId))
+      const found = context(request, String(params.caseId), true)
       if (found.error) return found.error
       const handover: Handover = { ...found.handover, validated_by_referrer: { by: found.actor.id, at: state.clock().now } }
-      state.documents.saveHandover(handover)
+      saveHandover(found.item, handover, found.actor.id, 'validate_handover')
       return HttpResponse.json<Handover>(handover)
     }),
     http.post('*/api/cases/:caseId/send', ({ request, params }) => {
-      const found = context(request, String(params.caseId))
+      const found = context(request, String(params.caseId), true)
       if (found.error) return found.error
       if (!found.handover.validated_by_referrer) return fail('validate the handover first', 409)
       const returnedAt = state.getMessages().filter((message) => message.case_id === found.item.id && message.kind === 'case_returned').map((message) => message.sent_at ?? '').sort().at(-1)
       if (found.item.state === 'vraceno_lekari' && returnedAt && found.handover.validated_by_referrer.at <= returnedAt) return fail('validate the handover again after the return', 409)
       const item: Case = { ...found.item, state: found.item.state === 'vraceno_lekari' ? 'v_triage' : 'odeslano',
-        queue: found.item.on_hold ? 'odlozeny' : found.item.coordinator_id ? 'aktivni' : 'novy',
         milestones: { ...found.item.milestones, referred_at: found.item.milestones?.referred_at ?? state.clock().now } }
       state.saveCase(item)
-      return HttpResponse.json<Case>(item)
+      // Queue, owner and next step are recomputed like after any other workflow change.
+      state.coordinator.sync(item.id)
+      state.coordinator.record(item.id, found.actor.id, state.clock().now, 'send_referral')
+      return HttpResponse.json<Case>(state.getCases().find((entry) => entry.id === item.id) ?? item)
     }),
     http.get('*/api/inbox', ({ request }) => {
       const user = currentUser(request)

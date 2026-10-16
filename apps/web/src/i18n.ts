@@ -1,14 +1,18 @@
 import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { documentsCs, documentsEn } from './components/documents/translations'
+import { handoverEditCs, handoverEditEn } from './components/handover/translations'
+import { workflowCs, workflowEn } from './components/workflow/translations'
 import { caseDetailCs, caseDetailEn } from './screens/CaseDetail/translations'
 import { referralCs, referralEn } from './screens/Referral/translations'
 
 export const resources = {
   cs: { translation: {
+    workflow: workflowCs,
     caseDetail: caseDetailCs,
     referral: referralCs,
     documents: documentsCs,
+    handoverEdit: handoverEditCs,
     appName: 'Onko-koordinace', skip: 'Přejít k obsahu', navigation: 'Hlavní navigace',
     language: 'Jazyk', demoData: 'Demo s fiktivními daty', realApi: 'Režim skutečného API', userMenu: 'Uživatel {{name}}', contactsOf: 'Kontakty: {{name}}', address: 'Adresa', changeLanguage: 'Změnit jazyk', referrerWelcome: 'Vítejte, {{name}}',
     selectTitle: 'Vyberte svou identitu', selectIntro: 'Zvolte roli a osobu, za kterou chcete pracovat.',
@@ -46,9 +50,11 @@ export const resources = {
     notFound: 'Stránka nebyla nalezena', notFoundDescription: 'Tato adresa v aplikaci neexistuje.', home: 'Přejít na úvod',
   } },
   en: { translation: {
+    workflow: workflowEn,
     caseDetail: caseDetailEn,
     referral: referralEn,
     documents: documentsEn,
+    handoverEdit: handoverEditEn,
     appName: 'Oncology coordination', skip: 'Skip to content', navigation: 'Main navigation',
     language: 'Language', demoData: 'Demo with fictional data', realApi: 'Real API mode', userMenu: 'User {{name}}', contactsOf: 'Contacts: {{name}}', address: 'Address', changeLanguage: 'Change language', referrerWelcome: 'Welcome, {{name}}',
     selectTitle: 'Choose your identity', selectIntro: 'Choose the role and person you want to work as.',

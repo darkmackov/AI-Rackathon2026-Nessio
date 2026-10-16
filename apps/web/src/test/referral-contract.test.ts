@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { actorHeaders, createQueryClient } from '../api'
-import { addExaminationMutation, createReferralMutation, getHandoverOptions, listCasesOptions, listInboxOptions, sendReferralMutation, updateHandoverFieldMutation, validateHandoverMutation } from '../client/@tanstack/react-query.gen'
+import { addExaminationMutation, createReferralMutation, getHandoverOptions, listAuditOptions, listCasesOptions, listInboxOptions, returnCaseMutation, sendReferralMutation, takeOverCaseMutation, updateHandoverFieldMutation, validateHandoverMutation } from '../client/@tanstack/react-query.gen'
 import type { HandoverFieldUpdate } from '../client/types.gen'
 import { expectApiResponse } from './api-contract'
+import { s4CaseId } from '../mocks/coordinator-state'
 import { seedReferral, seedReturnedReferral } from './referral-fixtures'
 import { demoState } from './setup'
 
@@ -55,7 +56,7 @@ describe('S3 HTTP demo contracts', () => {
     await expect(send.execute(options)).rejects.toMatchObject({ status: 409 })
     const validate = query.getMutationCache().build(query, validateHandoverMutation())
     await validate.execute(options)
-    expect(await send.execute(options)).toMatchObject({ state: 'v_triage', queue: 'aktivni', coordinator_id: 'koordinator' })
+    expect(await send.execute(options)).toMatchObject({ state: 'v_triage', queue: 'novy', coordinator_id: 'koordinator', on_move: 'koordinator' })
   })
 
   it('rejects wrong doctors, wrong roles, unvalidated sends and invalid typed values', async () => {
@@ -70,5 +71,22 @@ describe('S3 HTTP demo contracts', () => {
     const send = query.getMutationCache().build(query, sendReferralMutation())
     await expect(send.execute(options)).rejects.toMatchObject({ status: 409 })
     expect(demoState.getCases().find((entry) => entry.id === item.id)?.state).toBe('koncept')
+  })
+  it('shares one handover editor rule, message store and audit with the coordinator workflow', async () => {
+    const query = createQueryClient()
+    const coordinator = { headers: actorHeaders('koordinator'), path: { case_id: s4CaseId } }
+    const doctor = { headers: actorHeaders('pl-reznicek'), path: { case_id: s4CaseId } }
+    const patch = query.getMutationCache().build(query, updateHandoverFieldMutation())
+    await expect(patch.execute({ ...coordinator, body: { path: 'diagnosis', value: 'Před převzetím' } })).rejects.toMatchObject({ status: 409 })
+    await query.getMutationCache().build(query, takeOverCaseMutation()).execute(coordinator)
+    await expect(patch.execute({ ...doctor, body: { path: 'diagnosis', value: 'Po odeslání' } })).rejects.toMatchObject({ status: 409 })
+    await expect(patch.execute({ ...coordinator, headers: actorHeaders('koord-severni'), body: { path: 'diagnosis', value: 'Cizí KOC' } })).rejects.toMatchObject({ status: 403 })
+    expectApiResponse('update_handover_field', 200, await patch.execute({ ...coordinator, body: { path: 'diagnosis', value: 'Doplněno koordinátorem' } }))
+    await query.getMutationCache().build(query, returnCaseMutation()).execute({ ...coordinator, body: { note: 'Fiktivní: doplňte kontakt.' } })
+    const inbox = await query.fetchQuery(listInboxOptions({ headers: doctor.headers }))
+    expect(inbox.find((message) => message.case_id === s4CaseId)).toMatchObject({ kind: 'case_returned', body: 'Fiktivní: doplňte kontakt.' })
+    expectApiResponse('update_handover_field', 200, await patch.execute({ ...doctor, body: { path: 'contacts.patient_phone', value: '+420 777 000 000' } }))
+    const audit = await query.fetchQuery(listAuditOptions(coordinator))
+    expect(audit.filter((event) => event.action === 'handover_field').map((event) => event.actor_id)).toEqual(['koordinator', 'pl-reznicek'])
   })
 })

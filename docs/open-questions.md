@@ -140,7 +140,7 @@ Asked and decided on 16. 10. 2026 (Q-K8 to Q-K11 later the same day). The rules 
 | Q-K7 | Error model? | None: `{"detail": …}` with the codes in api.md | APIM-6 |
 | Q-K8 | Test time limit? | **The whole suite (each CI job) under 5 minutes**, enforced by `timeout-minutes: 5`. No per-test timeout, so no `pytest-timeout` | testing.md TEST-6 |
 | Q-K9 | What do devs run locally? | **Only new or changed tests** and that module's tests; CI runs everything | TEST-7 |
-| Q-K10 | CI? | GitHub Actions on every PR and push to `main`: ruff, full pytest, web client drift check, build and lint. No web test runner yet. **Partial CD** (16. 10.): after CI passes on `main` (or by hand), `cd.yml` builds the image and pushes it to the app's ACR; a dev rolls it out with `scripts/rollout_azure.sh`. Full CD needs a role assignment team accounts can't make; settings stay on the Container App | `.github/workflows/ci.yml`, `.github/workflows/cd.yml`, TEST-10 |
+| Q-K10 | CI? | GitHub Actions on every PR and push to `main`: ruff, full pytest, web client drift check, build and lint. Web behavior tests use Vitest, Testing Library and MSW (Q-W11). **Partial CD** (16. 10.): after CI passes on `main` (or by hand), `cd.yml` builds the image and pushes it to the app's ACR; a dev rolls it out with `scripts/rollout_azure.sh`. Full CD needs a role assignment team accounts can't make; settings stay on the Container App | `.github/workflows/ci.yml`, `.github/workflows/cd.yml`, TEST-10 |
 | Q-K11 | IRIS tests in CI? | **A separate, manually started workflow** with the connection in repository secrets | `.github/workflows/iris.yml`, TEST-12 |
 
 ## W: Web
@@ -160,6 +160,8 @@ Asked and decided on 16. 10. 2026 (Q-K8 to Q-K11 later the same day). The rules 
 | Q-W11 | Web verification? | Vitest + React Testing Library + MSW for targeted behavior tests; manual built-browser check, keyboard and narrow layout | apps/web |
 | Q-W12 | Visual baseline? | Light, compact clinical interface, blue accent, neutral surfaces and system font. No dark mode in S0 | apps/web |
 | Q-W13 | Icon set? | **@tabler/icons-react**, the set Mantine's docs use. Icons replace emoji and text glyphs (arrows, warning signs) in the UI; an icon that carries meaning has a text label or `aria-label` next to it (A11Y-4) | apps/web, web.md WEB-9 |
+
+| Q-W14 | S4 delivery and workflow choices? | **Frontend with a dummy backend only**, authorized by the user on 16. 10. 2026. Extend the contract-shaped MSW exception to S4, preserving S0–S2 styling. Real mode uses the existing generated API with no fallback; backend stubs stay unimplemented. Add a separate fictional sent case alongside the unchanged reference. Task sets are managed in one dialog from Tasks and can be started once per case; dependencies inform the next step but do not block completion. Notifications contain only tasks personally assigned to the current coordinator (default horizon 2 days). Manual field edits and uploads never close findings: resolution is explicit; overrides require a note. Return-to-GP covers only the coordinator action and stored message; the GP UI remains S3. S4 ends at Complete with planned MDT; snapshot and MDT authoring remain S5 | apps/web, slices.md S4 |
 
 These S0 choices were agreed with the user before implementation. No backend implementation or real authentication is implied by the role switcher.
 
