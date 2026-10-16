@@ -2,7 +2,7 @@
 
 Root rules: [AGENTS.md](../../AGENTS.md). Conventions: [docs/conventions/](../../docs/conventions).
 
-**Owns:** State machine, dashboard queue, on-hold flag, tasks and task sets, time to treatment, audit.
+**Owns:** State machine, dashboard queue, on-hold flag, tasks and task sets, time to treatment, audit, and the GP's referral: draft, manual handover edits, validation and sending (S3, `referral.py`).
 
 **May depend on:** contracts, repository (port only). Import other modules only through their package root (MOD-2).
 

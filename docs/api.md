@@ -159,8 +159,8 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `POST` | `/referrals` | `ReferralCreate` | `Case` 201 | ✓ | `createReferral` | defined (501) |
-| `POST` | `/cases/{case_id}/send` | — | `Case` 200 | ✓ | `sendReferral` | defined (501) |
+| `POST` | `/referrals` | `ReferralCreate` | `Case` 201 | ✓ | `createReferral` | **works** (S3) |
+| `POST` | `/cases/{case_id}/send` | — | `Case` 200 | ✓ | `sendReferral` | **works** (S3) |
 
 ### documents
 
@@ -176,10 +176,10 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `PATCH` | `/cases/{case_id}/handover` | `HandoverFieldUpdate` | `Handover` 200 | ✓ | `updateHandoverField` | defined (501) |
+| `PATCH` | `/cases/{case_id}/handover` | `HandoverFieldUpdate` | `Handover` 200 | ✓ | `updateHandoverField` | **works** (S3) |
 | `GET` | `/cases/{case_id}/handover` | — · query `snapshot` | `Handover` 200 |  | `getHandover` | **works** (seeded) |
-| `POST` | `/cases/{case_id}/handover/examinations` | `ExaminationCreate` | `Handover` 201 | ✓ | `addExamination` | defined (501) |
-| `POST` | `/cases/{case_id}/handover/validate` | — | `Handover` 200 | ✓ | `validateHandover` | defined (501) |
+| `POST` | `/cases/{case_id}/handover/examinations` | `ExaminationCreate` | `Handover` 201 | ✓ | `addExamination` | **works** (S3) |
+| `POST` | `/cases/{case_id}/handover/validate` | — | `Handover` 200 | ✓ | `validateHandover` | **works** (S3) |
 
 ### jobs
 

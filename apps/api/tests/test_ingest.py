@@ -5,53 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from api_testkit import FakeGateway
 from fastapi.testclient import TestClient
-from onko_ai import DocExtraction, DocMetaDraft
-from onko_ai.models import Certainty, ClinicalReview, FieldClaim, FieldPath, ReferenceMatches
 from onko_api.jobs import ImmediateExecutor
 from onko_api.main import app
-from onko_contracts import DocumentType
 
 ROOT = Path(__file__).resolve().parents[3]
 REFERRAL = ROOT / "data/cesta-pacienta-data/Pacient/07_PL_zadost_KOC2_2026-10-02.docx"
 CASE = "vzp-prochazkova"
 GP = {"X-Actor-Id": "pl-reznicek"}
-
-
-class FakeGateway:
-    active = "fake"
-
-    def complete(self, messages, schema=None, *, slot=None):
-        return {
-            DocMetaDraft: DocMetaDraft(
-                title="Epikríza a žádost",
-                doc_type=DocumentType.REFERRAL,
-                document_date="2026-10-02",
-                facility="Ordinace PL",
-                department=None,
-                author="MUDr. Tomáš Řezníček",
-                ordered_by=None,
-            ),
-            DocExtraction: DocExtraction(
-                fields=[
-                    FieldClaim(
-                        path=FieldPath.ALLERGIES,
-                        value="neguje",
-                        items=None,
-                        quotes=["AA: neguje"],
-                        certainty=Certainty.UNSPECIFIED,
-                    )
-                ],
-                examinations=[],
-                labs=[],
-                epicrisis_start_quote=None,
-                epicrisis_end_quote=None,
-                events=[],
-                referenced_results=[],
-            ),
-            ReferenceMatches: ReferenceMatches(matches=[]),
-            ClinicalReview: ClinicalReview(notes=[]),
-        }[schema]
 
 
 @pytest.fixture
