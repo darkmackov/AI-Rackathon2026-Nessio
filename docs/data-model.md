@@ -190,11 +190,44 @@ Package ids, versions, profile names and identifier systems below were **checked
 | `hl7.fhir.eu.hdr` | 0.1.0-ballot only | Hospital Discharge Report; too early to depend on |
 | `hl7.fhir.cz.terminology` | **0.2.0 only** | cz.core and cz.lab require 0.3.0, which is not on the registry |
 
+### How the projection is written (S7)
+- `IrisRepository` pushes the projection on every save, as one FHIR transaction (`PUT` by id): `save_document` → `DocumentReference` + `Binary` (Q-I10; the parsed text when the original bytes are missing); `save_handover` → `Patient`, `Condition`, `Observation`, `DiagnosticReport`, `Composition`, `Provenance`. Findings, tasks, cases and messages are not projected yet.
+- FHIR ids derive from the app ids: `{case}-patient`, `{case}-dx`, `{case}-lab-1`, `{case}-handover`, `doc-{document}`. The MDT snapshot gets its own `{case}-mdt-…` resources (PER-9), sharing the case's `Patient`.
+- A failed projection is logged and never loses the app-state save.
+- **MKN-10** is coded with `http://hl7.org/fhir/sid/icd-10`: cz.core 1.0.0 defines no MKN-10 system. The diagnosis `Condition` stays `provisional` (Q-C9).
+- Body weight / height use the base R4 vital-signs profiles with LOINC `29463-7` / `8302-2`. Performance status is an `Observation` only when found (PER-7), without a LOINC code.
+- **Evidence:** each verbatim quote is a `Provenance.entity` (`role=source`) whose `what` references the source `DocumentReference` and carries the quote as `display` (PER-8). Manual values get an `author` Provenance with `entered.by/at`; `validated_by_referrer` / `confirmed_by_coordinator` get a `verifier` Provenance on the `Composition`.
+- Naive datetimes are sent as Europe/Prague local time (D-13).
+
 Two dependency problems with these packages. Decision (Q-I6, Q-I7): try loading them into IRIS; if that fails, declare `meta.profile` without server-side validation, and validate in tests/CI where feasible.
 - `hl7.fhir.cz.terminology` 0.3.0 is missing from the registry.
 - `cz.lab` pins `hl7.fhir.eu.base` 2.0.0-ballot, while `cz.core` pins 2.0.0.
 
 ## Non-FHIR storage (IRIS SQL)
+
+**App state** (Q-A7, PER-4, Q-I14): relational tables in schema `onko` (`ONKO_IRIS_SCHEMA`), namespace from the connection string, owned by `IrisRepository`. The columns are **generated from the contract models** (`adapters/iris_tables.py`):
+- scalar fields become typed columns (`VARCHAR`, `DATE`, `TIMESTAMP`, `BIT`, `BIGINT`, `DOUBLE`; ids and enum values compare case-sensitively, `%EXACT`);
+- nested models are flattened into `<field>__<subfield>` columns, plus `<field>__present` when the nested model is optional (`on_hold`, `resolution`);
+- lists and dicts are JSON text columns (`depends_on`, `recipient_ids`, `evidence`, …).
+
+Tables and columns missing on start are created (`ALTER TABLE … ADD COLUMN`), so a contract that gains a field needs no migration; a column added later reads back as the field's default for old rows. Column names are quoted (`"state"`, `"date"`).
+
+| Table | Model | Key | Indexed | Extra columns |
+|---|---|---|---|---|
+| `app_organization` | `Organization` | `id` | `kind` | |
+| `app_actor` | `Actor` | `id` | `role`, `organization_id` | |
+| `app_mdt_board` | `MdtBoard` | `id` | | |
+| `app_case` | `Case` | `id` | `koc_id`, `referring_doctor_id`, `state`, `queue` | |
+| `app_document` | `DocumentMeta` | `id` | `case_id` | `doc_text` (parsed text, stream), `doc_data` (original bytes, stream) |
+| `app_finding` | `Finding` | `case_id`, `id` | | `case_id`, `seq` (order) |
+| `app_task` | `Task` | `id` | `case_id`, `owner`, `due` | |
+| `app_message` | `Message` | `id` | `case_id` | |
+| `app_receipt` | `Receipt` | `message_id`, `recipient_id` | | |
+| `app_handover` | `Handover` | `case_id`, `is_snapshot` | | `body`: the handover as **one JSON document** (live and the frozen MDT snapshot, PER-9) |
+
+The handover is the one document: 26 `Sourced` values with evidence, read and written whole. It is stored as a plain string, so IRIS SQL can query inside it with `JSON_TABLE`; its clinical content is what the FHIR projection carries.
+
+A new port method that stores a new model adds its table here (PER-11).
+
 - *Phase 2:* `doc_chunk(id, document_id, case_id, ord, text, embedding VECTOR(DOUBLE, n))`, Vector Search for evidence and "ask the case". `n` depends on the embedding model (Q-M2).
 - `llm_call(id, step, model, prompt_hash, tokens_in, tokens_out, latency_ms, ok)`: bench and usage tracking (no limits, Q-M3).
-- Optionally an app-level read model for the dashboard, if FHIR search is too slow for the kanban.

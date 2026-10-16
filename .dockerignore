@@ -1,0 +1,14 @@
+.env
+.git
+.idea
+.venv
+**/__pycache__
+**/node_modules
+**/dist
+.pytest_cache
+.ruff_cache
+bench-results
+presentations
+data/cesta-pacienta-data
+data/Data pro Rakathon_VFN
+fhir-packages

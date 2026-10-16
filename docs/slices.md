@@ -122,7 +122,7 @@ flowchart LR
 ## S7: IRIS persistence + Azure deploy
 - **Goal:** the data lives in IRIS. Demo on Azure (Q-I8), and the InterSystems showcase.
 - **Modules:** `IrisRepository` behind the `CaseRepository` port:
-  - **App state** as JSON documents in an IRIS SQL table.
+  - **App state** in IRIS SQL tables generated from the contracts; the handover as one JSON document (Q-I14).
   - **FHIR projection** of the showcase resources (Patient with the RČ identifier, Condition, DiagnosticReport/Observation, Composition, Provenance) per [data-model.md](data-model.md).
   - IG packages (Q-I6).
   - Deployment of API + web to Azure.

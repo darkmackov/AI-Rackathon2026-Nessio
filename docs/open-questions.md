@@ -52,7 +52,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-A4 | Recording finding resolutions? | `Finding.resolution` {kind resolved / overridden / dismissed, note, by, at}; an override needs a note | `onko_contracts.findings` |
 | Q-A5 | People and places? | Directory of organisations + actors + MDT boards, seeded | `onko_contracts.directory`, `mdt.MdtBoard` |
 | Q-A6 | Multilingual scope? | **UI only**. Data, findings, notes and drafts stay Czech (`message_cs`) | refines Q-F20 |
-| Q-A7 | Where the MVP keeps its state? | **IRIS** (app state as JSON documents), projected to FHIR only where needed | architecture.md, slices.md S7 |
+| Q-A7 | Where the MVP keeps its state? | **IRIS** (app state in IRIS SQL; layout refined by Q-I14), projected to FHIR only where needed | architecture.md, slices.md S7 |
 | Q-A8 | Who sets document metadata (type, date, facility)? | **AI-extracted** by the ingest job; optional in `DocumentMeta` until then | `onko_contracts.documents` |
 
 ## C: Clinical and data interpretation
@@ -86,6 +86,10 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-I10 | File storage? | FHIR `DocumentReference` + `Binary` in IRIS | data-model.md |
 | Q-I11 | Auth? | Role switcher (GP / coordinator) | api |
 | Q-I12 | Send fictional data to our models? | Yes | |
+| Q-I13 | Which repository does the API use? | **IRIS automatically when `ONKO_IRIS_CONNECTION_STRING` is set**, otherwise the in-memory fake. An empty store is seeded with the reference case, so IRIS keeps the demo state across restarts. API tests always use the fake | `onko_api.main.make_repository`, docs/deploy.md |
+| Q-I14 | App-state layout in IRIS SQL? | **Relational tables generated from the contract models** (typed column per field, nested models flattened, lists as JSON), with missing columns added on start so contract changes need no migration. Only the **handover** stays one JSON document (queryable with `JSON_TABLE`); its clinical content goes to FHIR. Plain JSON bodies were dropped: weak use of IRIS for the InterSystems criterion | data-model.md › Non-FHIR storage |
+| Q-I15 | How is the demo deployed? | **One container** (API under `/api`, web at `/`) on **Azure Container Apps**, one replica. `scripts/deploy_azure.sh` is run by a dev with their own `az login`; Claude never touches the Azure account | Dockerfile, docs/deploy.md |
+| Q-I16 | Is a FHIR server set up on the Azure IRIS? | It wasn't (16. 10.): being created with `scripts/fhir_server.py` (not confirmed ready yet), namespace `FHIRSERVER`, endpoint `/fhir/r4` on the web port, base R4 metadata | scripts/fhir_server.py |
 
 ## M: Models
 
@@ -149,4 +153,6 @@ Q-W1 to Q-W3 (UI library, router, i18n) are still open, see the top of this page
 | D-10 | An app clock (`/demo/clock`) and `received_at` on uploads let the 2.–27. 10. story play in minutes; every "now" uses the clock |
 | D-11 | Priority (`normal` / `high` / `urgent`) on cases and tasks (slide 9); the reference case is `high` (the GP asked for urgent handling) |
 | D-12 | The demo directory is fictional apart from the reference-case people and facilities; insurer codes are the real public ones |
+| D-13 | Naive datetimes (Q-K8) are treated as Europe/Prague local time when projected to FHIR, whose instants need a zone |
+| D-14 | FHIR projection is written through on every repository save; a failure is logged, never loses the app-state save |
 | D-7 | Seeded task set "Karcinom pankreatu – diagnostika do MDT": CT → EUS-FNB → histology, labs, MDT, then pain clinic and psychologist; due offsets are ours |

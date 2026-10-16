@@ -3,7 +3,13 @@ name = "onko-repository"
 version = "0.1.0"
 description = "FHIR R4 (EU/CZ) mapping and IRIS access; in-memory fake for tests."
 requires-python = ">=3.11"
-dependencies = ["onko-contracts", "httpx>=0.28.1", "pydantic-settings>=2.16.0", "intersystems-irispython>=5.4.1"]
+dependencies = [
+    "onko-contracts",
+    "httpx>=0.28.1",
+    "pydantic-settings>=2.16.0",
+    "intersystems-irispython>=5.4.1",
+    "tzdata>=2026.5",
+]
 
 [build-system]
 requires = ["hatchling>=1.32.4"]
