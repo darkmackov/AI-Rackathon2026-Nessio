@@ -10,8 +10,8 @@ import { DueDate } from '../../components/CaseTime'
 import PageHeading from '../../components/PageHeading'
 import PersonChip from '../../components/PersonChip'
 import { severityMeta } from '../../components/severity-meta'
-import { fieldStatusCounts } from './clinical'
-import { statusMeta } from './status-meta'
+import { fieldStatusCounts } from '../../components/handover/clinical'
+import { statusMeta } from '../../components/handover/status-meta'
 
 const priorityColor = { normal: 'gray', high: 'orange', urgent: 'red' } as const
 

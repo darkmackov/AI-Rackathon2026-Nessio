@@ -3,7 +3,7 @@ import { useMediaQuery } from '@mantine/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { IconChecklist, IconClipboardText, IconFiles, IconLayoutDashboard, IconListSearch, type Icon } from '@tabler/icons-react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, actorHeaders } from '../../api'
 import { getCaseOptions, getHandoverOptions, listActorsOptions, listDocumentsOptions, listFindingsOptions, listOrganizationsOptions } from '../../client/@tanstack/react-query.gen'
@@ -12,12 +12,13 @@ import LoadingState, { EmptyState, QueryError } from '../../components/DataState
 import PageHeading from '../../components/PageHeading'
 import { useSession } from '../../session'
 import CaseHeader, { BackLink } from './CaseHeader'
-import { handoverFields, problemSections, sectionOf, type SourceSelection } from './clinical'
-import DocumentsTab from './DocumentsTab'
-import FindingsPanel from './FindingsPanel'
-import HandoverTab from './HandoverTab'
+import { problemSections, sectionOf } from '../../components/handover/clinical'
+import { useDocumentSources } from '../../components/handover/use-document-sources'
+import DocumentsTab from '../../components/documents/DocumentsTab'
+import FindingsPanel from '../../components/handover/FindingsPanel'
+import HandoverTab from '../../components/handover/HandoverTab'
 import OverviewTab from './OverviewTab'
-import SourcePanel, { SourcePlaceholder } from './SourcePanel'
+import SourcePanel, { SourcePlaceholder } from '../../components/handover/SourcePanel'
 import TasksTab from './TasksTab'
 
 const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles }
@@ -28,13 +29,11 @@ function DetailContent({ caseId }: { caseId: string }) {
   const navigate = useNavigate({ from: '/coordinator/cases/$caseId' })
   const { tab } = useSearch({ from: '/coordinator/cases/$caseId' })
   const wide = useMediaQuery('(min-width: 75em)')
-  const [selection, setSelection] = useState<SourceSelection | null>(null)
   const [chosenSections, setChosenSections] = useState<string[] | null>(null)
   // A tab renders on its first visit and then stays mounted, so its state survives switching without rendering unseen tabs up front.
   const [visited, setVisited] = useState<DetailTab[]>([tab])
   if (!visited.includes(tab)) setVisited([...visited, tab])
   const seen = (value: DetailTab) => visited.includes(value)
-  const trigger = useRef<HTMLButtonElement | null>(null)
   const item = useQuery(getCaseOptions({ path: { case_id: caseId }, headers: actorHeaders(actorId ?? '') }))
   const allowed = !!item.data && item.data.koc_id === actor?.organization_id
   const options = { path: { case_id: caseId }, headers: actorHeaders(actorId ?? '') }
@@ -46,16 +45,7 @@ function DetailContent({ caseId }: { caseId: string }) {
   // Until the user toggles a section, open exactly those with missing or conflicting values.
   const openSections = chosenSections ?? (handover.data ? problemSections(handover.data) : [])
   const names = Object.fromEntries([...(actors.data ?? []), ...(organizations.data ?? [])].map((entry) => [entry.id, entry.name]))
-  const documentNames = Object.fromEntries((documents.data ?? []).map((document) => [document.id, document.title ?? document.filename]))
-  const openSource = (source: SourceSelection, element: HTMLButtonElement) => { trigger.current = element; setSelection(source) }
-  const closeSource = () => { setSelection(null); if (trigger.current?.isConnected) trigger.current.focus() }
-  const evidence = selection && !('documentId' in selection) ? (
-    selection.kind === 'field' ? handover.data && handoverFields(handover.data)[selection.path]?.evidence?.[selection.index]
-      : selection.kind === 'examination' ? handover.data?.examinations?.[selection.row]?.evidence?.[selection.index]
-        : selection.kind === 'lab' ? handover.data?.labs?.[selection.row]?.evidence?.[selection.index]
-          : findings.data?.find((finding) => finding.id === selection.id)?.evidence?.[selection.index]
-  ) : undefined
-  const selectedDocument = selection && documents.data?.find((document) => document.id === ('documentId' in selection ? selection.documentId : evidence?.document_id))
+  const { selection, setSelection, openSource, closeSource, evidence, selectedDocument, sources } = useDocumentSources(handover.data, documents.data, findings.data)
   const switchTab = (value: string | null) => {
     const next = detailTabs.find((entry) => entry === value)
     // The overview has no source column, so an open source closes with it.
@@ -68,7 +58,6 @@ function DetailContent({ caseId }: { caseId: string }) {
     void navigate({ search: { tab: 'handover' }, hash: `field-${path}` })
   }
   const showFinding = (id: string) => { void navigate({ search: { tab: 'findings' }, hash: `finding-${id}` }) }
-  const sources = { openSource, documentNames, selection }
   if (item.isPending) return <Stack><BackLink /><LoadingState rows={4} /></Stack>
   if (item.isError) return <Stack><BackLink /><PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><QueryError error={item.error} pending={item.isFetching} retry={() => { void item.refetch() }} /></Stack>
   if (!allowed || !item.data) return <Stack><BackLink /><PageHeading>{t('caseDetail.unavailableCase')}</PageHeading><EmptyState title={t('caseDetail.unavailableCase')} /></Stack>

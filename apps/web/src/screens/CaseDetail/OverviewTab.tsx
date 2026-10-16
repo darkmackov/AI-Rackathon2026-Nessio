@@ -6,7 +6,7 @@ import type { Actor, Case, Handover, Stamp } from '../../client/types.gen'
 import CaseTime from '../../components/CaseTime'
 import PersonChip from '../../components/PersonChip'
 import { formatDate } from '../../time'
-import { StampView } from './ClinicalValue'
+import { StampView } from '../../components/handover/ClinicalValue'
 
 function Card({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return <Paper withBorder p="sm" component="section" aria-labelledby={id}><Stack gap="xs">

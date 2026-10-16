@@ -2,13 +2,15 @@ import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { documentsCs, documentsEn } from './components/documents/translations'
 import { caseDetailCs, caseDetailEn } from './screens/CaseDetail/translations'
+import { referralCs, referralEn } from './screens/Referral/translations'
 
 export const resources = {
   cs: { translation: {
     caseDetail: caseDetailCs,
+    referral: referralCs,
     documents: documentsCs,
     appName: 'Onko-koordinace', skip: 'Přejít k obsahu', navigation: 'Hlavní navigace',
-    language: 'Jazyk', demoData: 'Demo s fiktivními daty', realApi: 'Režim skutečného API', userMenu: 'Uživatel {{name}}', contactsOf: 'Kontakty: {{name}}', address: 'Adresa', changeLanguage: 'Změnit jazyk', referrerWelcome: 'Vítejte, {{name}}', referrerEmpty: 'Zatím zde nic není', referrerEmptyHelp: 'Příprava a odesílání žádanek na KOC přibude v další etapě.',
+    language: 'Jazyk', demoData: 'Demo s fiktivními daty', realApi: 'Režim skutečného API', userMenu: 'Uživatel {{name}}', contactsOf: 'Kontakty: {{name}}', address: 'Adresa', changeLanguage: 'Změnit jazyk', referrerWelcome: 'Vítejte, {{name}}',
     selectTitle: 'Vyberte svou identitu', selectIntro: 'Zvolte roli a osobu, za kterou chcete pracovat.',
     role: 'Role', person: 'Osoba', choosePerson: 'Vyberte osobu', continue: 'Pokračovat',
     referring_doctor: 'Odesílající lékař', coordinator: 'Koordinátor KOC',
@@ -45,9 +47,10 @@ export const resources = {
   } },
   en: { translation: {
     caseDetail: caseDetailEn,
+    referral: referralEn,
     documents: documentsEn,
     appName: 'Oncology coordination', skip: 'Skip to content', navigation: 'Main navigation',
-    language: 'Language', demoData: 'Demo with fictional data', realApi: 'Real API mode', userMenu: 'User {{name}}', contactsOf: 'Contacts: {{name}}', address: 'Address', changeLanguage: 'Change language', referrerWelcome: 'Welcome, {{name}}', referrerEmpty: 'Nothing here yet', referrerEmptyHelp: 'Preparing and sending referrals to a KOC will be added in a later stage.',
+    language: 'Language', demoData: 'Demo with fictional data', realApi: 'Real API mode', userMenu: 'User {{name}}', contactsOf: 'Contacts: {{name}}', address: 'Address', changeLanguage: 'Change language', referrerWelcome: 'Welcome, {{name}}',
     selectTitle: 'Choose your identity', selectIntro: 'Choose the role and person you want to work as.',
     role: 'Role', person: 'Person', choosePerson: 'Choose a person', continue: 'Continue',
     referring_doctor: 'Referring doctor', coordinator: 'KOC coordinator',

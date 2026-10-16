@@ -1,10 +1,10 @@
 import { Alert, Anchor, Badge, Box, Button, Grid, Group, HoverCard, Paper, SimpleGrid, Stack, Text, type MantineSize } from '@mantine/core'
 import { IconArrowRight, IconFileText, IconPencil, IconSparkles } from '@tabler/icons-react'
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Evidence, Finding, SourcedStr, Stamp } from '../../client/types.gen'
-import PersonChip from '../../components/PersonChip'
-import { SeverityBadge } from '../../components/Severity'
+import PersonChip from '../PersonChip'
+import { SeverityBadge } from '../Severity'
 import { formatDateTime } from '../../time'
 import { displayValue, sameSelection, type SourceSelection, type SourcedValue } from './clinical'
 import { statusMeta } from './status-meta'
@@ -90,15 +90,18 @@ export function InlineFindings({ findings, showFinding }: { findings: Finding[];
   </Group>)}</Stack>
 }
 
-export default function ClinicalValue({ label, path, value, names, sources, findings, showFinding, formatted }: {
+const focusField = (node: HTMLDivElement | null) => { node?.focus({ preventScroll: true }); node?.scrollIntoView?.({ block: 'center' }) }
+
+export default function ClinicalValue({ label, path, value, names, sources, findings, showFinding, formatted, actions, focused = false }: {
   label: string; path: string; value?: SourcedValue; names: Record<string, string>; sources: Sources; findings: Finding[]; showFinding: (id: string) => void; formatted?: string;
+  actions?: ReactNode; focused?: boolean;
 }) {
   const { t } = useTranslation()
   const labelId = useId()
   const status = value?.status ?? 'missing'
   // A found empty value ('' or []) is shown explicitly, never as a blank (UX-3).
   const shown = value?.value != null ? formatted ?? displayValue(value.value) : null
-  return <Box id={`field-${path}`} role="group" aria-labelledby={labelId} py="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+  return <Box id={`field-${path}`} role="group" aria-labelledby={labelId} tabIndex={-1} ref={focused ? focusField : undefined} py="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
     <Grid gap="xs">
       <Grid.Col span={{ base: 12, sm: 4 }}>
         <Text fw={600} size="sm" id={labelId}>{label}</Text>
@@ -109,7 +112,7 @@ export default function ClinicalValue({ label, path, value, names, sources, find
         {value?.note && <Alert color={status === 'conflict' ? 'red' : 'gray'} p="xs"><Text size="sm">{value.note}</Text></Alert>}
         <EvidenceLinks evidence={value?.evidence} select={(index) => ({ kind: 'field', path, index })} sources={sources} quotes={status === 'conflict'} />
         <InlineFindings findings={findings} showFinding={showFinding} />
-        {status !== 'found' && <Group gap="xs"><Button size="compact-sm" disabled>{t('caseDetail.fill')}</Button><Button size="compact-sm" variant="outline" disabled>{t('caseDetail.request')}</Button></Group>}
+        {actions !== undefined ? actions : status !== 'found' && <Group gap="xs"><Button size="compact-sm" disabled>{t('caseDetail.fill')}</Button><Button size="compact-sm" variant="outline" disabled>{t('caseDetail.request')}</Button></Group>}
       </Stack></Grid.Col>
     </Grid>
   </Box>

@@ -5,13 +5,13 @@ import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { getDocumentFileOptions, listDocumentsOptions } from '../../client/@tanstack/react-query.gen'
 import type { Case, DocumentMeta } from '../../client/types.gen'
-import LoadingState, { EmptyState, QueryError } from '../../components/DataState'
-import DocumentJobs from '../../components/documents/DocumentJobs'
-import DocumentMetadataForm from '../../components/documents/DocumentMetadataForm'
-import DocumentUploader from '../../components/documents/DocumentUploader'
+import LoadingState, { EmptyState, QueryError } from '../DataState'
+import DocumentJobs from '../documents/DocumentJobs'
+import DocumentMetadataForm from '../documents/DocumentMetadataForm'
+import DocumentUploader from '../documents/DocumentUploader'
 import { useSession } from '../../session'
 import { formatDateTime, formatDate } from '../../time'
-import type { OpenSource } from './ClinicalValue'
+import type { OpenSource } from '../handover/ClinicalValue'
 
 export function DownloadOriginal({ document }: { document: DocumentMeta }) {
   const { t } = useTranslation()
@@ -78,7 +78,7 @@ function DocumentTable({ item, documents, names, openSource, onEdit, editDisable
   </Table.Tbody></Table></Table.ScrollContainer>
 }
 
-export default function DocumentsTab({ item, names, openSource }: { item: Case; names: Record<string, string>; openSource: OpenSource }) {
+export default function DocumentsTab({ item, names, openSource, readOnly = false }: { item: Case; names: Record<string, string>; openSource: OpenSource; readOnly?: boolean }) {
   const { t } = useTranslation()
   const { actorId } = useSession()
   const uploadHeading = useId()
@@ -89,21 +89,21 @@ export default function DocumentsTab({ item, names, openSource }: { item: Case; 
   const documents = useQuery(listDocumentsOptions({ path: { case_id: item.id }, headers: actorHeaders(actor) }))
   const editing = documents.data?.find((document) => document.id === editingId)
   return <Stack gap="lg">
-    <Stack component="section" aria-labelledby={uploadHeading} gap="sm">
+    {!readOnly && <Stack component="section" aria-labelledby={uploadHeading} gap="sm">
       <Title order={2} size="h4" id={uploadHeading}>{t('documents.uploadTitle')}</Title>
       <DocumentUploader caseId={item.id} actorId={actor} />
-    </Stack>
-    <DocumentJobs caseId={item.id} actorId={actor} documents={documents.data ?? []} disabled={busy} />
+    </Stack>}
+    <DocumentJobs caseId={item.id} actorId={actor} documents={documents.data ?? []} disabled={busy || readOnly} />
     <Stack component="section" aria-labelledby={listHeading} gap="sm">
       <Title order={2} size="h4" id={listHeading}>{t('documents.list')}</Title>
       {documents.isPending && <LoadingState rows={5} />}
       {documents.isError && <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} />}
       {documents.isSuccess && !documents.data.length && <EmptyState title={t('documents.empty')} description={t('documents.emptyHelp')} />}
-      {documents.isSuccess && documents.data.length > 0 && <DocumentTable item={item} documents={documents.data} names={names} openSource={openSource} onEdit={setEditingId} editDisabled={busy} />}
+      {documents.isSuccess && documents.data.length > 0 && <DocumentTable item={item} documents={documents.data} names={names} openSource={openSource} onEdit={setEditingId} editDisabled={busy || readOnly} />}
     </Stack>
-    <Drawer opened={!!editing} onClose={() => { if (!busy) setEditingId(null) }} title={t('documents.edit')} position="right" size="md"
+    <Drawer opened={!!editing && !readOnly} onClose={() => { if (!busy) setEditingId(null) }} title={t('documents.edit')} position="right" size="md"
       closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
-      {editing && <DocumentMetadataForm key={editing.id} document={editing} caseId={item.id} actorId={actor} onClose={() => setEditingId(null)} />}
+      {editing && !readOnly && <DocumentMetadataForm key={editing.id} document={editing} caseId={item.id} actorId={actor} onClose={() => setEditingId(null)} />}
     </Drawer>
   </Stack>
 }

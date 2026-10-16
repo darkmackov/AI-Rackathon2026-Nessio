@@ -66,7 +66,7 @@ Tests use Vitest, Testing Library and the same MSW handlers in Node, with a new 
 
 The contract tests check every implemented successful response and the validation-error bodies against the committed `openapi.json`, with a bounded checker for the schema constructs used by S0. Required headers, query enums, missing/extra body fields, malformed JSON, optional clock reset and ISO datetime inputs are covered. Mode initialization tests verify that real mode does not activate interception and that mock startup must finish before the app starts.
 
-This is **not a complete clone of all 62 backend operations**: the eight S0 operations plus `/cases` for the provisional S1 queue are simulated. Other operations return 501. The simulation targets documented request/response shapes; it does not promise every undocumented Pydantic coercion or version-specific validation message. Behavioral comparison with a fully implemented S0 backend is still pending because those backend routes are stubs.
+This is **not a complete clone of all 62 backend operations**: the S0 directory/demo operations, S1 reads, the S2 synthetic document workflow and the S3 referral operations are simulated. Unsupported operations return 501. The simulation targets documented request/response shapes; it does not promise every undocumented Pydantic coercion or version-specific validation message. Behavioral comparison with a fully implemented S0 backend is still pending because those backend routes are stubs.
 
 The directory fixture is generated from `data/demo/directory.json`; after changing that source run:
 
@@ -79,3 +79,7 @@ npm --prefix apps/web run sync:demo
 Manual acceptance: test keyboard selection and submission; Tab/Shift+Tab, Escape and focus return for Demo and reset dialogs; form error summary focus; switching languages and persons; both resets; browser reload; and a narrow 320 px layout / 200% zoom. The built preview must work without a backend.
 
 The API client in `src/client` is generated. Do not edit it manually or replace generated Query helpers with custom requests.
+
+## S3 referring doctor workflow
+
+Sign in as a referring doctor: `/referrer` lists that doctor's referrals and **Nová žádost** creates a draft for a chosen KOC (`/referrer/cases/$caseId`). The draft reuses the S2 document controls and the shared handover components in `src/components/handover`: the doctor uploads reports, reviews AI proposals with their sources, fills in or marks fields as not available, adds examinations, then **Validovat a odeslat** validates and sends in one confirmed action. A returned case shows the coordinator's note from the inbox, can be corrected and is resent to triage. Sent cases are read-only. Tests: `referral.test.tsx`, `referral-upload.test.tsx`, `referral-contract.test.ts`.

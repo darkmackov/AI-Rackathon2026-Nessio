@@ -1,16 +1,18 @@
 import { http, HttpResponse } from 'msw'
-import type { Case, DemoClock, DemoScenario, ValidationError } from '../client/types.gen'
+import type { Case, DemoClock, DemoScenario, Message, ValidationError } from '../client/types.gen'
 import { localDateTime } from '../time'
 import { actors, boards, organizations } from './directory'
 import { referenceCases } from './reference'
 import { referenceTasks } from './reference-tasks'
 import { treatmentTime } from './treatment-time'
 import { createDocumentDemoState, createDocumentHandlers } from './documents'
+import { createReferralHandlers } from './referrals'
 import { caseStates, enumError, extraFields, isApiDateTime, objectBody, organizationKinds, queryValue, queueColumns, validateEnumQuery, validationResponse } from './validation'
 
 // Mutable simulated server state is private to this tab (Q-W6, Q-W10).
 export function createDemoState(readNow: () => number = Date.now) {
   let cases: Case[] = []
+  let messages: Message[] = []
   let simulatedAt: number | null = null
   let anchoredAt = readNow()
   const documents = createDocumentDemoState(readNow)
@@ -20,6 +22,7 @@ export function createDemoState(readNow: () => number = Date.now) {
     anchoredAt = readNow()
   }
   const reset = (scenario: DemoScenario) => {
+    messages = []
     documents.reset(scenario !== 'empty')
     cases = scenario === 'empty' ? [] : structuredClone(referenceCases)
     setTime(scenario === 'empty' ? '2026-10-02T14:00:00' : '2026-10-21T09:00:00')
@@ -31,6 +34,9 @@ export function createDemoState(readNow: () => number = Date.now) {
     reset,
     setTime,
     getCases: () => structuredClone(cases),
+    saveCase: (item: Case) => { cases = [...cases.filter((entry) => entry.id !== item.id), structuredClone(item)] },
+    getMessages: () => structuredClone(messages),
+    saveMessage: (message: Message) => { messages = [...messages.filter((entry) => entry.id !== message.id), structuredClone(message)] },
     clock: (): DemoClock => ({
       now: localDateTime(new Date(simulatedAt === null ? readNow() : simulatedAt + readNow() - anchoredAt)),
       simulated: simulatedAt !== null,
@@ -42,6 +48,7 @@ export function createHandlers(state = createDemoState()) {
   const notFound = () => HttpResponse.json({ detail: 'not found' }, { status: 404 })
   return [
     ...createDocumentHandlers(state),
+    ...createReferralHandlers(state),
     http.get('*/api/me', ({ request }) => {
       const id = request.headers.get('X-Actor-Id')
       if (id === null) return validationResponse([{ loc: ['header', 'X-Actor-Id'], type: 'missing', msg: 'Field required', input: null }])

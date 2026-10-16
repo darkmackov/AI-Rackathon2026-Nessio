@@ -7,7 +7,7 @@ import { DueDate } from '../../components/CaseTime'
 import PersonChip from '../../components/PersonChip'
 import LoadingState, { EmptyState, QueryError } from '../../components/DataState'
 import { useSession } from '../../session'
-import type { OpenSource } from './ClinicalValue'
+import type { OpenSource } from '../../components/handover/ClinicalValue'
 
 export default function TasksTab({ caseId, openSource, showFinding }: { caseId: string; openSource: OpenSource; showFinding: (id: string) => void }) {
   const { t, i18n } = useTranslation()

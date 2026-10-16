@@ -39,6 +39,7 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
   const jobs = new Map<string, { job: Job; started: number }>()
   const results = new Map<string, ReturnType<typeof demoExtraction>>()
   const texts = new Map<string, string>()
+  const extracted = new Set<string>()
   let sequence = 0
 
   function createJob(caseId: string, now: string, documentId?: string): Job {
@@ -56,8 +57,12 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
       entry.job = { ...entry.job, status: 'done', finished_at: now }
       const source = entry.job.document_id ?? Array.from(documents.values()).findLast((item) => item.case_id === entry.job.case_id)?.id
       // A synthetic result never replaces one the case already has (such as the reference extraction).
-      if (source && !results.has(entry.job.case_id)) {
-        results.set(entry.job.case_id, demoExtraction(entry.job.case_id, source, now))
+      if (source && !extracted.has(entry.job.case_id)) {
+        const synthetic = demoExtraction(entry.job.case_id, source, now)
+        const draft = results.get(entry.job.case_id)?.handover
+        results.set(entry.job.case_id, { ...synthetic, handover: { ...synthetic.handover, ...draft,
+          patient: { ...synthetic.handover.patient, ...draft?.patient }, contacts: { ...synthetic.handover.contacts, ...draft?.contacts }, as_of: now.slice(0, 10) } })
+        extracted.add(entry.job.case_id)
         const document = documents.get(source)
         if (document && !document.title) documents.set(source, { ...document, title: 'Fiktivní ukázka dokumentu', doc_type: 'other' })
       }
@@ -67,13 +72,14 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
 
   return {
     reset: (withReference: boolean) => {
-      documents.clear(); originals.clear(); jobs.clear(); results.clear(); texts.clear()
+      documents.clear(); originals.clear(); jobs.clear(); results.clear(); texts.clear(); extracted.clear()
       if (!withReference) return
       for (const document of referenceDocuments) {
         documents.set(document.id, structuredClone(document))
         texts.set(document.id, referenceTexts[document.id])
       }
       results.set(referenceHandover.case_id, { handover: structuredClone(referenceHandover), findings: structuredClone(referenceFindings) })
+      extracted.add(referenceHandover.case_id)
     },
     upload: (caseId: string, file: File, actorId: string, receivedAt: string, now: string): UploadResult => {
       const document: DocumentMeta = { id: `demo-document-${++sequence}`, case_id: caseId, filename: file.name, mime_type: file.type, received_at: receivedAt, uploaded_by: actorId }
@@ -103,6 +109,7 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
       return new File([bytes], reference.filename, { type: 'application/octet-stream' })
     },
     result: (caseId: string) => { const value = results.get(caseId); return value ? structuredClone(value) : undefined },
+    saveHandover: (handover: Handover) => results.set(handover.case_id, { handover: structuredClone(handover), findings: results.get(handover.case_id)?.findings ?? [] }),
   }
 }
 
