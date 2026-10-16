@@ -1,0 +1,176 @@
+[
+  {
+    "id": "F01",
+    "kind": "missing",
+    "severity": "warning",
+    "fields": [
+      "height_cm"
+    ],
+    "message_cs": "Výška pacienta chybí ve všech podkladech (potřebná mj. pro výpočet povrchu těla k dávkování). BMI 28,1 z diabetologie (01) k dopočtu nepoužívat.",
+    "evidence": [
+      {
+        "document_id": "01",
+        "quote": "Hmotnost 86 kg, BMI 28,1."
+      }
+    ],
+    "suggested_action": "request",
+    "resolved": false
+  },
+  {
+    "id": "F02",
+    "kind": "conflict",
+    "severity": "warning",
+    "fields": [
+      "allergies"
+    ],
+    "message_cs": "Rozpor v alergiích: PL (06) uvádí 'AA: neguje', diabetologická zpráva (01) alergii na penicilin (exantém v dětství). Ověřit u pacienta / PL.",
+    "evidence": [
+      {
+        "document_id": "06",
+        "quote": "AA: neguje"
+      },
+      {
+        "document_id": "01",
+        "quote": "AA: penicilin – exantém (v dětství)"
+      }
+    ],
+    "suggested_action": "request",
+    "resolved": false
+  },
+  {
+    "id": "F03",
+    "kind": "identity",
+    "severity": "warning",
+    "fields": [
+      "patient.birth_date"
+    ],
+    "message_cs": "Diabetologická zpráva (01) uvádí datum narození 14. 3. 1956, RČ 580314/2477 i ostatní zprávy odpovídají 14. 3. 1958. Pravděpodobně překlep, ověřit totožnost dokumentu.",
+    "evidence": [
+      {
+        "document_id": "01",
+        "quote": "Datum narození: 14. 3. 1956"
+      },
+      {
+        "document_id": "01",
+        "quote": "Rodné číslo: 580314/2477"
+      },
+      {
+        "document_id": "06",
+        "quote": "Datum narození: 14. 3. 1958 (68 let)"
+      }
+    ],
+    "suggested_action": "review",
+    "resolved": false
+  },
+  {
+    "id": "F04",
+    "kind": "temporal",
+    "severity": "warning",
+    "fields": [
+      "histology"
+    ],
+    "message_cs": "Bioptický nález je datován 21. 9. 2026, tedy před koloskopií 24. 9. 2026, z níž materiál pochází. Datum vydání je pravděpodobně chybné, ověřit u patologie.",
+    "evidence": [
+      {
+        "document_id": "05",
+        "quote": "Datum vydání: 21. 9. 2026"
+      },
+      {
+        "document_id": "05",
+        "quote": "(koloskopie 24. 9. 2026)"
+      },
+      {
+        "document_id": "04",
+        "quote": "Datum výkonu: 24. 9. 2026"
+      }
+    ],
+    "suggested_action": "request",
+    "resolved": false
+  },
+  {
+    "id": "F05",
+    "kind": "unattached_reference",
+    "severity": "blocker",
+    "fields": [
+      "examinations"
+    ],
+    "message_cs": "MR jater (16. 10. 2026) je v MR pánve uvedena jako samostatná zpráva, ale k případu není přiložena. CT doporučilo MR jater k dořešení ložiska S7 – výsledek rozhoduje o stadiu (M). Vyžádat od Radiologické kliniky KOC Nemocnice Severní.",
+    "evidence": [
+      {
+        "document_id": "09",
+        "quote": "Současně provedena MR jater s hepatospecifickou kontrastní látkou – popis viz samostatná zpráva."
+      },
+      {
+        "document_id": "07",
+        "quote": "Ložisko S7 jater 9 mm nejasné povahy – k dořešení doporučena MR jater s hepatospecifickou kontrastní látkou."
+      }
+    ],
+    "suggested_action": "request",
+    "overridable": true,
+    "resolved": false
+  },
+  {
+    "id": "F06",
+    "kind": "trend",
+    "severity": "info",
+    "fields": [
+      "labs"
+    ],
+    "message_cs": "Laboratorní vývoj 20. 8. → 14. 10. 2026: Hb 121 → 104 g/l, ferritin 18 → 9 µg/l (prohlubující se sideropenická anémie), CEA 7,9 → 14,6 µg/l (vzestup).",
+    "evidence": [
+      {
+        "document_id": "02",
+        "quote": "| Hemoglobin | 121 L | g/l | 135–175 |"
+      },
+      {
+        "document_id": "08",
+        "quote": "| Hemoglobin | 104 L | g/l | 135–175 |"
+      },
+      {
+        "document_id": "02",
+        "quote": "| CEA | 7,9 H | µg/l | < 5,0 |"
+      },
+      {
+        "document_id": "08",
+        "quote": "| CEA | 14,6 H | µg/l | < 5,0 |"
+      }
+    ],
+    "suggested_action": "review",
+    "resolved": false
+  },
+  {
+    "id": "F07",
+    "kind": "missing",
+    "severity": "warning",
+    "fields": [
+      "mdt_record.members"
+    ],
+    "message_cs": "Členové MDT nejsou v podkladech, doplní koordinátor(ka) před jednáním.",
+    "evidence": [],
+    "suggested_action": "fill_in",
+    "resolved": false
+  },
+  {
+    "id": "F08",
+    "kind": "missing",
+    "severity": "info",
+    "fields": [
+      "medications",
+      "labs"
+    ],
+    "message_cs": "Prohlubující se sideropenická anémie (Hb 104 g/l, ferritin 9 µg/l), substituce železa v medikaci doložena není.",
+    "evidence": [
+      {
+        "document_id": "08",
+        "quote": "| Ferritin | 9 L | µg/l | 30–400 |"
+      },
+      {
+        "document_id": "06",
+        "quote": "FA: metformin 1000 mg 1-0-1, ramipril 5 mg 1-0-0, amlodipin 5 mg 1-0-0, atorvastatin 20 mg 0-0-1, tamsulosin 0,4 mg 0-0-1"
+      }
+    ],
+    "suggested_action": "review",
+    "advisory": true,
+    "resolved": false
+  }
+]
