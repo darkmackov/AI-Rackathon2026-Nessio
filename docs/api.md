@@ -9,6 +9,7 @@ Every endpoint already has its request and response shape in the OpenAPI spec ([
 
 - **Status `defined (501)`:** the endpoint returns `501 Not Implemented` until its slice ([slices.md](slices.md)) implements it.
 - **Status `works (seeded)`:** the endpoint already serves the reference case from the in-memory repository.
+- **Status `works`:** implemented by its slice.
 
 62 operations in total.
 
@@ -135,19 +136,19 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `GET` | `/demo/clock` | — | `DemoClock` 200 |  | `getDemoClock` | defined (501) |
-| `PUT` | `/demo/clock` | `DemoClockSet` | `DemoClock` 200 |  | `setDemoClock` | defined (501) |
-| `POST` | `/demo/reset` | `DemoReset` | `list[Case]` 200 |  | `resetDemo` | defined (501) |
+| `GET` | `/demo/clock` | — | `DemoClock` 200 |  | `getDemoClock` | **works** |
+| `PUT` | `/demo/clock` | `DemoClockSet` | `DemoClock` 200 |  | `setDemoClock` | **works** |
+| `POST` | `/demo/reset` | `DemoReset` | `list[Case]` 200 |  | `resetDemo` | **works** |
 
 ### directory
 
 | Method | Path | Request | Response | Actor | Client fn | Status |
 |---|---|---|---|---|---|---|
-| `GET` | `/me` | — | `Actor` 200 | ✓ | `me` | defined (501) |
-| `GET` | `/directory/organizations` | — · query `kind` | `list[Organization]` 200 |  | `listOrganizations` | defined (501) |
-| `GET` | `/directory/actors` | — · query `role`, `organization_id` | `list[Actor]` 200 |  | `listActors` | defined (501) |
-| `GET` | `/mdt-boards` | — | `list[MdtBoard]` 200 |  | `listMdtBoards` | defined (501) |
-| `GET` | `/mdt-boards/{board_id}` | — | `MdtBoard` 200 |  | `getMdtBoard` | defined (501) |
+| `GET` | `/me` | — | `Actor` 200 | ✓ | `me` | **works** |
+| `GET` | `/directory/organizations` | — · query `kind` | `list[Organization]` 200 |  | `listOrganizations` | **works** |
+| `GET` | `/directory/actors` | — · query `role`, `organization_id` | `list[Actor]` 200 |  | `listActors` | **works** |
+| `GET` | `/mdt-boards` | — | `list[MdtBoard]` 200 |  | `listMdtBoards` | **works** |
+| `GET` | `/mdt-boards/{board_id}` | — | `MdtBoard` 200 |  | `getMdtBoard` | **works** |
 | `PUT` | `/mdt-boards/{board_id}/members` | `MdtBoardMembersUpdate` | `MdtBoard` 200 | ✓ | `updateMdtBoardMembers` | defined (501) |
 
 ### referral

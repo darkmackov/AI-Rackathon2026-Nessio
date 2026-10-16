@@ -72,7 +72,9 @@ apps/api/src/onko_api/
   main.py      app, middleware, router include, the read endpoints that already serve the seed
   routes.py    every other endpoint; a stub returns 501 until its slice implements it
   schemas.py   request bodies (APIM-2)
-  seed.py      reference-case seed for the in-memory repository
+  deps.py      request dependencies: repository, app clock, current user (X-Actor-Id)
+  clock.py     the app clock (D-10); the only code that reads the system clock
+  seed.py      demo directory, reference-case seed and the demo reset scenarios
 ```
 
 | ID | Rule |
