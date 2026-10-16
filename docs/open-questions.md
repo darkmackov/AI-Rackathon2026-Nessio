@@ -92,7 +92,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 
 | ID | Question | Decision | Lands in |
 |---|---|---|---|
-| Q-M1 | Model capability differences? | **Pick one model** after the bench and build on its capabilities | `Gateway` (active model + embed), `.env.example` |
+| Q-M1 | Model capability differences? | **Pick one model** after the bench and build on its capabilities. Candidates are only the **EU Data Zone** deployments (`gpt-6-1-sol-dz-eu`, `gpt-6-luna-dz-eu`), both with strict structured output | `Gateway` (active model + embed), `.env.example` |
 | Q-M2 | Embeddings? | One embedding slot from our endpoints | `ONKO_EMBED_MODEL` |
 | Q-M3 | Rate limits / cost? | No limits | gateway |
 | Q-M4 | Second test case? | **Now, in Phase 1** (synthetic, another diagnosis) | delivery.md |
