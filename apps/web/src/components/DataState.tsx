@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Loader, Stack, Text } from '@mantine/core'
+import { Alert, Button, Group, Loader, Skeleton, Stack, Text, VisuallyHidden } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../api'
 
@@ -34,7 +34,12 @@ export function EmptyState({ title, description, retry }: { title: string; descr
   </Alert>
 }
 
-export default function LoadingState() {
+/** `rows` renders a skeleton of that many rows instead of a spinner, so the layout keeps its height while loading. */
+export default function LoadingState({ rows }: { rows?: number }) {
   const { t } = useTranslation()
+  if (rows) return <Stack role="status" gap="sm">
+    <VisuallyHidden>{t('loading')}</VisuallyHidden>
+    {Array.from({ length: rows }, (_, index) => <Skeleton key={index} height={index === 0 ? 24 : 64} width={index === 0 ? '40%' : '100%'} aria-hidden />)}
+  </Stack>
   return <Group role="status" py="md"><Loader size="sm" /><Text>{t('loading')}</Text></Group>
 }

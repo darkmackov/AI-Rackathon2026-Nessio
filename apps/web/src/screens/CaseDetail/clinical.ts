@@ -4,6 +4,10 @@ export type SourcedValue = SourcedDate | SourcedFloat | SourcedInt | SourcedList
 // UI selection addresses Query data; it never copies a clinical response into local state.
 export type SourceSelection = { documentId: string } | { kind: 'field'; path: string; index: number } | { kind: 'examination'; row: number; index: number } | { kind: 'lab'; row: number; index: number } | { kind: 'finding'; id: string; index: number }
 
+export function sameSelection(a: SourceSelection | null, b: SourceSelection) {
+  return !!a && JSON.stringify(a) === JSON.stringify(b)
+}
+
 export const patientFields = { first_name: 'firstName', last_name: 'lastName', birth_number: 'birthNumber', birth_date: 'birthDate', age: 'age', sex: 'sex', insurance_code: 'insurer', address: 'address' } satisfies Record<keyof NonNullable<Handover['patient']>, string>
 export const contactFields = { patient_phone: 'patientPhone', patient_email: 'patientEmail', contact_person: 'contactPerson', contact_person_phone: 'contactPhone' } satisfies Record<keyof NonNullable<Handover['contacts']>, string>
 export const historyFields = { comorbidities: 'comorbidities', medications: 'medications', allergies: 'allergies', performance_status: 'performance', weight_kg: 'weight', height_cm: 'height', symptoms: 'symptoms' }
@@ -39,6 +43,13 @@ export function sectionOf(path: string) {
 
 export function problemCount(fields: Record<string, SourcedValue | undefined>, section: HandoverSection) {
   return section.fields.filter(([path]) => (fields[path]?.status ?? 'missing') !== 'found').length
+}
+
+// Display counts for the attention strip; the statuses come from the API as they are (WEB-6).
+export function fieldStatusCounts(handover: Handover) {
+  const fields = handoverFields(handover)
+  const statuses = handoverSections.flatMap((section) => section.fields.map(([path]) => fields[path]?.status ?? 'missing'))
+  return { missing: statuses.filter((status) => status === 'missing').length, conflict: statuses.filter((status) => status === 'conflict').length }
 }
 
 export function problemSections(handover: Handover) {

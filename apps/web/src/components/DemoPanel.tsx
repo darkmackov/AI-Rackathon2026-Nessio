@@ -5,6 +5,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../api'
+import { apiMode } from '../config'
 import { getDemoClockQueryKey, listCasesQueryKey, listActorsQueryKey, listOrganizationsQueryKey, listMdtBoardsQueryKey, resetDemoMutation, setDemoClockMutation } from '../client/@tanstack/react-query.gen'
 import type { DemoScenario } from '../client/types.gen'
 import { roleHome, useSession } from '../session'
@@ -94,6 +95,9 @@ export default function DemoPanel({ opened, onClose }: { opened: boolean; onClos
     position="right" size="lg" title={t('demoTitle')} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}
     closeOnEscape={!busy} closeOnClickOutside={!busy}>
     <Stack gap="lg">
+      <Alert role="note" color={apiMode === 'mock' ? 'blue' : 'gray'} title={t(apiMode === 'mock' ? 'demoData' : 'realApi')}>
+        {apiMode === 'mock' && <Text size="sm">{t('documents.demoHelp')}</Text>}
+      </Alert>
       <DemoClock />
       <Text size="sm" c="dimmed">{t('computerTime', { zone: Intl.DateTimeFormat().resolvedOptions().timeZone })}</Text>
       {feedback && <Alert color="green" role="status">{t(feedback)}</Alert>}

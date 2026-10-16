@@ -29,7 +29,7 @@ flowchart LR
 | ID | Rule |
 |---|---|
 | WEB-8 | Build the UI from function components with typed props. One component per concern, composed in JSX. No class components. |
-| WEB-9 | **Use Mantine components for everything it provides** (buttons, inputs, selects, dialogs, tables, cards, badges, layout, …), with its theme and styling APIs. Semantic structural elements such as `header`, `nav`, `form` and `div` remain appropriate. Don't rebuild equivalent controls or add another UI library. |
+| WEB-9 | **Use Mantine components for everything it provides** (buttons, inputs, selects, dialogs, tables, cards, badges, layout, …), with its theme and styling APIs. Semantic structural elements such as `header`, `nav`, `form` and `div` remain appropriate. Don't rebuild equivalent controls or add another UI library. Icons come from `@tabler/icons-react` (Q-W13), never emoji or text glyphs. |
 | WEB-10 | **No `useEffect`**, and no `useLayoutEffect` or `useInsertionEffect` either. Use the replacements in the table below. If you believe an effect is unavoidable, stop and ask. An exception needs a decision recorded in open-questions.md. |
 | WEB-11 | Server state lives only in TanStack Query. Never copy query data into `useState`. Local UI state (an open dialog, a draft input) uses `useState` or `useReducer`. No global store without a recorded decision. |
 | WEB-12 | After a mutation, invalidate the affected queries with the generated keys: `queryClient.invalidateQueries({ queryKey: listCasesQueryKey() })`. |

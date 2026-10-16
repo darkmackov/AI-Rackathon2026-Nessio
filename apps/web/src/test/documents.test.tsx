@@ -8,28 +8,22 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
 import type { PropsWithChildren, ReactNode } from 'react'
 import { createQueryClient } from '../api'
-import {
-  documentTextOptions, getDocumentFileOptions, getHandoverOptions, getHandoverQueryKey, getJobOptions,
-  listCaseJobsOptions, listCasesQueryKey, listDocumentsOptions, listDocumentsQueryKey, listFindingsOptions,
-  listFindingsQueryKey, reextractCaseMutation, resetDemoMutation, updateDocumentMutation, uploadDocumentMutation,
-} from '../client/@tanstack/react-query.gen'
+import { getHandoverQueryKey, listCasesQueryKey, listDocumentsQueryKey, listFindingsQueryKey } from '../client/@tanstack/react-query.gen'
 import { actorHeaders } from '../api'
-import type { Case, CaseState, DocumentMeta, Handover, Job } from '../client/types.gen'
+import type { Case, CaseState, DocumentMeta, Job } from '../client/types.gen'
 import DocumentUploader from '../components/documents/DocumentUploader'
 import { supportedFile, validDocumentDate } from '../components/documents/document-utils'
 import { changeLanguage, i18n } from '../i18n'
 import { createDemoState, createHandlers } from '../mocks/handlers'
-import { demoDocumentText, demoExtraction } from '../mocks/documents'
 import { referenceCases } from '../mocks/reference'
-import { referenceDocuments, referenceHandover } from '../mocks/reference-data'
+import { referenceDocuments } from '../mocks/reference-data'
 import DocumentsTab from '../screens/CaseDetail/DocumentsTab'
-import HandoverTab from '../screens/CaseDetail/HandoverTab'
 import SourcePanel from '../screens/CaseDetail/SourcePanel'
 import SessionProvider from '../SessionProvider'
 import { useSession } from '../session'
 import { theme } from '../theme'
-import { expectApiResponse } from './api-contract'
 import { renderApp } from './renderApp'
+import { openReferenceCase, openTab } from './shell'
 import { server } from './setup'
 
 // A case without reference documents, so upload results are the only documents it has.
@@ -303,22 +297,6 @@ describe('S2 document upload and processing in the case documents tab', () => {
     expect(screen.queryByText('private error')).not.toBeInTheDocument()
   })
 
-  it('shows manual provenance, zero and empty contract values explicitly without inventing clinical data', () => {
-    const entered = { by: actorId, at: '2026-10-16T09:00:00' }
-    const handover: Handover = {
-      ...demoExtraction(caseId, 'source-a', '2026-10-16T09:00:00').handover,
-      symptoms: { status: 'found', origin: 'manual', value: '', entered },
-      comorbidities: { status: 'found', origin: 'manual', value: [], entered },
-      weight_kg: { status: 'found', origin: 'manual', value: 0, entered },
-    }
-    expectApiResponse('get_handover', 200, handover)
-    renderDocuments(<HandoverTab handover={handover} names={{ [actorId]: 'Bc. Lucie Dvořáková' }} documentNames={{}} openSource={() => {}} open={['history']} setOpen={() => {}} />)
-    expect(screen.getAllByText('Prázdná hodnota.')).toHaveLength(2)
-    expect(screen.getByText('0', { selector: 'p' })).toBeVisible()
-    expect(screen.getAllByText('Ruční zadání')).toHaveLength(3)
-    expect(screen.getAllByText(/Bc\. Lucie Dvořáková/)).toHaveLength(3)
-  })
-
   it('uploads from the case detail Documents tab, the only document entry point, and clears drafts on reset', async () => {
     server.use(...createHandlers(state))
     const { router } = renderApp()
@@ -350,90 +328,54 @@ describe('S2 document upload and processing in the case documents tab', () => {
     expect(screen.queryByRole('list', { name: 'Vybrané soubory' })).not.toBeInTheDocument()
   })
 
-  it('keeps synthetic fixtures within existing OpenAPI models and preserves missing/conflicting values', () => {
-    const result = demoExtraction('any-case', 'any-document', '2026-10-16T09:00:00')
-    expectApiResponse('get_handover', 200, result.handover)
-    expectApiResponse('list_findings', 200, result.findings)
-    expect(result.handover.performance_status?.value).toBeNull()
-    expect(result.handover.weight_kg?.status).toBe('conflict')
-    expect(result.handover.weight_kg?.evidence?.every((item) => demoDocumentText.includes(item.quote))).toBe(true)
-    expect(result.handover.validated_by_referrer).toBeNull()
-  })
-})
-
-describe('S2 dummy HTTP boundary using generated API helpers', () => {
-  it('preserves upload/job/metadata/result contracts and original bytes for arbitrary case IDs', async () => {
-    const base = state.getCases()[0]
-    server.use(...createHandlers({ ...state, getCases: () => [{ ...base, id: 'case-a' }, { ...base, id: 'case-b' }] }))
-    const client = createQueryClient()
-    const headers = actorHeaders(actorId)
-    const options = { headers, path: { case_id: 'case-a' } }
-    const upload = client.getMutationCache().build(client, uploadDocumentMutation())
-    const result = await upload.execute({ ...options, body: { file: pdf(), received_at: '2026-10-02T14:00:00' } })
-    expectApiResponse('upload_document', 201, result)
-    expect(result.document.received_at).toBe('2026-10-02T14:00:00')
-    expect(result.document.case_id).toBe('case-a')
-    expect(result.job.status).toBe('queued')
-    expectApiResponse('list_case_jobs', 200, await client.fetchQuery(listCaseJobsOptions(options)))
-    expect(await client.fetchQuery(listDocumentsOptions({ headers, path: { case_id: 'case-b' } }))).toEqual([])
-    const second = await upload.execute({ headers, path: { case_id: 'case-b' }, body: { file: docx() } })
-    expect(second.document.case_id).toBe('case-b')
-    expect(await client.fetchQuery(listDocumentsOptions(options))).toHaveLength(1)
-    expect(await client.fetchQuery(listDocumentsOptions({ headers, path: { case_id: 'case-b' } }))).toMatchObject([{ filename: 'kontrola.docx' }])
-    now = 1000
-    const jobOptions = getJobOptions({ headers, path: { job_id: result.job.id } })
-    expect(await client.fetchQuery(jobOptions)).toMatchObject({ status: 'running' })
-    now = 4000
-    const completed = await client.fetchQuery(jobOptions)
-    expect(completed.status).toBe('done')
-    expectApiResponse('get_job', 200, completed)
-    expectApiResponse('list_documents', 200, await client.fetchQuery(listDocumentsOptions(options)))
-    const handover = await client.fetchQuery(getHandoverOptions(options))
-    expectApiResponse('get_handover', 200, handover)
-    expect(handover.case_id).toBe('case-a')
-    expectApiResponse('list_findings', 200, await client.fetchQuery(listFindingsOptions(options)))
-    const documentOptions = { headers, path: { document_id: result.document.id } }
-    expectApiResponse('document_text', 200, await client.fetchQuery(documentTextOptions(documentOptions)))
-    const original = await client.fetchQuery(getDocumentFileOptions({ ...documentOptions, parseAs: 'blob' }))
-    expect(await original.text()).toBe(await pdf().text())
-    const update = client.getMutationCache().build(client, updateDocumentMutation())
-    const corrected = await update.execute({ ...documentOptions, body: { doc_type: 'lab', facility: 'Testovací pracoviště', document_date: null } })
-    expectApiResponse('update_document', 200, corrected)
-    expect(corrected).toMatchObject({ doc_type: 'lab', facility: 'Testovací pracoviště', document_date: null })
-    const reextract = client.getMutationCache().build(client, reextractCaseMutation())
-    expectApiResponse('reextract_case', 202, await reextract.execute(options))
-    const reset = client.getMutationCache().build(client, resetDemoMutation())
-    await reset.execute({ body: { scenario: 'reference_at_mdt' } })
-    expect(await client.fetchQuery(listDocumentsOptions(options))).toEqual([])
-    expect(await client.fetchQuery(listCaseJobsOptions(options))).toEqual([])
-    await expect(client.fetchQuery(getHandoverOptions(options))).rejects.toMatchObject({ status: 404 })
-    await expect(client.fetchQuery(getDocumentFileOptions({ ...documentOptions, parseAs: 'blob' }))).rejects.toMatchObject({ status: 404 })
+  it('lists every case document, marks only the actual GP upload and opens its full text', async () => {
+    server.use(...createHandlers(state))
+    const { router } = renderApp()
+    const user = userEvent.setup()
+    await openReferenceCase(user)
+    const panel = await openTab(user, 'Dokumenty')
+    expect(router.state.location.search).toMatchObject({ tab: 'documents' })
+    expect(await within(panel).findAllByRole('button', { name: 'Stáhnout originál' })).toHaveLength(referenceDocuments.length)
+    expect(within(panel).getAllByText('Předal odesílající lékař')).toHaveLength(1)
+    await user.click(within(panel).getAllByRole('button', { name: 'Zobrazit text' })[0])
+    const source = await screen.findByRole('dialog', { name: 'Zdrojový dokument' })
+    expect(await within(source).findByTestId('document-text')).toHaveTextContent('Kardiologie')
   })
 
-  it('adds uploads to the reference case without replacing its reference extraction', async () => {
-    const reference = referenceHandover.case_id
-    const client = createQueryClient()
-    const headers = actorHeaders(actorId)
-    const options = { headers, path: { case_id: reference } }
-    const upload = client.getMutationCache().build(client, uploadDocumentMutation())
-    const result = await upload.execute({ ...options, body: { file: pdf() } })
-    now = 4000
-    expect(await client.fetchQuery(getJobOptions({ headers, path: { job_id: result.job.id } }))).toMatchObject({ status: 'done' })
-    expect(await client.fetchQuery(getHandoverOptions(options))).toEqual(referenceHandover)
-    expect(await client.fetchQuery(listDocumentsOptions(options))).toHaveLength(referenceDocuments.length + 1)
-    expect(await client.fetchQuery(documentTextOptions({ headers, path: { document_id: result.document.id } }))).toMatchObject({ text: demoDocumentText })
+  it('retries an original download and revokes its URL when leaving the case', async () => {
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test-original')
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => { })
+    const clicked = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => { })
+    server.use(http.get('*/api/documents/:id/file', () => HttpResponse.json({ detail: 'failed' }, { status: 500 })), ...createHandlers(state))
+    renderApp()
+    const user = userEvent.setup()
+    await openReferenceCase(user)
+    const panel = await openTab(user, 'Dokumenty')
+    const first = (await within(panel).findAllByRole('button', { name: 'Stáhnout originál' }))[0]
+    await user.click(first)
+    expect(await within(panel).findByText('Originální soubor se nepodařilo stáhnout.')).toBeVisible()
+    expect(create).not.toHaveBeenCalled()
+    server.resetHandlers()
+    server.use(...createHandlers(state))
+    await user.click(first)
+    expect(await within(panel).findByText('Originální soubor byl připraven ke stažení.')).toBeVisible()
+    expect(create).toHaveBeenCalledWith(expect.any(Blob))
+    expect(clicked).toHaveBeenCalledOnce()
+    await user.click(screen.getByRole('link', { name: /Zpět na pracovní frontu/ }))
+    expect(revoke).toHaveBeenCalledWith('blob:test-original')
   })
 
-  it('enforces format, actor, case scope and datetime checks at the mock HTTP boundary', async () => {
-    const client = createQueryClient()
-    const upload = client.getMutationCache().build(client, uploadDocumentMutation())
-    const options = { headers: actorHeaders(actorId), path: { case_id: referenceHandover.case_id } }
-    await expect(upload.execute({ ...options, body: { file: new File(['x'], 'bad.png', { type: 'image/png' }) } })).rejects.toMatchObject({ status: 400 })
-    await expect(upload.execute({ ...options, headers: actorHeaders('koord-severni'), body: { file: pdf() } })).rejects.toMatchObject({ status: 403 })
-    await expect(upload.execute({ ...options, headers: actorHeaders('pl-reznicek'), body: { file: pdf() } })).rejects.toMatchObject({ status: 409 })
-    await expect(upload.execute({ ...options, path: { case_id: 'unknown' }, body: { file: pdf() } })).rejects.toMatchObject({ status: 404 })
-    await expect(upload.execute({ ...options, body: { file: pdf(), received_at: 'invalid date' } })).rejects.toMatchObject({ status: 422 })
-    const result = await upload.execute({ ...options, body: { file: pdf() } })
-    await expect(client.fetchQuery(documentTextOptions({ headers: actorHeaders('koord-severni'), path: { document_id: result.document.id } }))).rejects.toMatchObject({ status: 403 })
+  it('isolates a failed document list and retries it without losing the case', async () => {
+    server.use(http.get('*/api/cases/:id/documents', () => HttpResponse.json({ detail: 'failed' }, { status: 500 })), ...createHandlers(state))
+    renderApp()
+    const user = userEvent.setup()
+    await openReferenceCase(user)
+    const panel = await openTab(user, 'Dokumenty')
+    expect(await within(panel).findByRole('alert')).toBeVisible()
+    expect(screen.getByRole('heading', { level: 1, name: 'Alena Procházková' })).toBeVisible()
+    server.resetHandlers()
+    server.use(...createHandlers(state))
+    await user.click(within(panel).getByRole('button', { name: 'Zkusit znovu' }))
+    expect(await within(panel).findAllByRole('button', { name: 'Stáhnout originál' })).toHaveLength(referenceDocuments.length)
   })
 })

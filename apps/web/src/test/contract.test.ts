@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError, actorHeaders, createQueryClient } from '../api'
 import { client } from '../client/client.gen'
-import { getDemoClockOptions, getMdtBoardOptions, listActorsOptions, listCasesOptions, listMdtBoardsOptions, listOrganizationsOptions, meOptions, resetDemoMutation, setDemoClockMutation } from '../client/@tanstack/react-query.gen'
+import {
+  documentTextOptions, getCaseOptions, getDemoClockOptions, getHandoverOptions, getMdtBoardOptions, getTimeToTreatmentOptions, listActorsOptions, listCasesOptions,
+  listDocumentsOptions, listFindingsOptions, listMdtBoardsOptions, listOrganizationsOptions, listTasksOptions, meOptions, resetDemoMutation, setDemoClockMutation,
+} from '../client/@tanstack/react-query.gen'
+import { demoDocumentText, demoExtraction } from '../mocks/documents'
 import { expectApiResponse } from './api-contract'
 
 async function interceptRequest(transform: (request: Request) => Request, action: () => Promise<unknown>) {
@@ -95,15 +99,25 @@ describe('implemented demo responses against backend OpenAPI', () => {
     ] })
   })
 
-  it('uses the last repeated scalar filter, as FastAPI does', async () => {
+  it('serves the case detail read operations with their OpenAPI response models', async () => {
     const query = createQueryClient()
-    const data = await interceptRequest((request) => {
-      const url = new URL(request.url)
-      url.searchParams.append('kind', 'clinic')
-      url.searchParams.append('kind', 'koc')
-      return new Request(url, request)
-    }, () => query.fetchQuery(listOrganizationsOptions()))
-    expect(data).toHaveLength(5)
-    expectApiResponse('list_organizations', 200, data)
+    const options = { path: { case_id: 'vzp-prochazkova' }, headers: actorHeaders('koordinator') }
+    expectApiResponse('get_case', 200, await query.fetchQuery(getCaseOptions(options)))
+    expectApiResponse('get_handover', 200, await query.fetchQuery(getHandoverOptions(options)))
+    expectApiResponse('list_findings', 200, await query.fetchQuery(listFindingsOptions(options)))
+    expectApiResponse('list_tasks', 200, await query.fetchQuery(listTasksOptions(options)))
+    expectApiResponse('list_documents', 200, await query.fetchQuery(listDocumentsOptions(options)))
+    expectApiResponse('get_time_to_treatment', 200, await query.fetchQuery(getTimeToTreatmentOptions(options)))
+    expectApiResponse('document_text', 200, await query.fetchQuery(documentTextOptions({ path: { document_id: '07' } })))
+  })
+
+  it('keeps synthetic extraction fixtures within the OpenAPI models, including missing and conflicting values', () => {
+    const result = demoExtraction('any-case', 'any-document', '2026-10-16T09:00:00')
+    expectApiResponse('get_handover', 200, result.handover)
+    expectApiResponse('list_findings', 200, result.findings)
+    expect(result.handover.performance_status?.value).toBeNull()
+    expect(result.handover.weight_kg?.status).toBe('conflict')
+    expect(result.handover.weight_kg?.evidence?.every((item) => demoDocumentText.includes(item.quote))).toBe(true)
+    expect(result.handover.validated_by_referrer).toBeNull()
   })
 })

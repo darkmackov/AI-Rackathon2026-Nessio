@@ -1,6 +1,7 @@
-import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title, VisuallyHidden } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { IconInbox, IconPlayerPause, IconProgress, type Icon } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../api'
 import { listActorsOptions, listCasesOptions, listOrganizationsOptions } from '../client/@tanstack/react-query.gen'
@@ -9,21 +10,25 @@ import LoadingState, { EmptyState, QueryError } from '../components/DataState'
 import PageHeading from '../components/PageHeading'
 import { useSession } from '../session'
 import CaseTime, { DueDate } from '../components/CaseTime'
+import PersonChip from '../components/PersonChip'
 
-const columns: QueueColumn[] = ['novy', 'aktivni', 'odlozeny']
+const columns: { value: QueueColumn; icon: Icon }[] = [{ value: 'novy', icon: IconInbox }, { value: 'aktivni', icon: IconProgress }, { value: 'odlozeny', icon: IconPlayerPause }]
+const priorityColor = { normal: 'gray', high: 'orange', urgent: 'red' } as const
 
-function CaseCard({ item, owner }: { item: Case; owner: string }) {
+function CaseCard({ item }: { item: Case }) {
   const { t } = useTranslation()
-  return <Paper component="article" withBorder p="md">
-    <Stack gap="sm">
-      <div><Anchor renderRoot={(props) => <Link {...props} to="/coordinator/cases/$caseId" params={{ caseId: item.id }} search={{ tab: 'overview' }} />} fw={650}>{item.patient_name}</Anchor><Text size="sm" mt={4}>{item.diagnosis_label ?? t('unavailable')}</Text></div>
-      <Group gap="xs">
-        <Badge variant="light">{t('state')}: {item.state ? t(`states.${item.state}`) : t('unavailable')}</Badge>
-        <Badge variant="outline" color={item.priority === 'urgent' ? 'red' : 'gray'}>{t('priority')}: {item.priority ? t(`priorities.${item.priority}`) : t('unavailable')}</Badge>
+  return <Paper component="article" withBorder p="sm">
+    <Stack gap="xs">
+      <div><Anchor renderRoot={(props) => <Link {...props} to="/coordinator/cases/$caseId" params={{ caseId: item.id }} search={{ tab: 'overview' }} />} fw={650}>{item.patient_name}</Anchor><Text size="sm" c="dimmed">{item.diagnosis_label ?? t('unavailable')}</Text></div>
+      <Group gap={6}>
+        <Badge variant="light"><VisuallyHidden>{t('state')}: </VisuallyHidden>{item.state ? t(`states.${item.state}`) : t('unavailable')}</Badge>
+        <Badge variant="outline" color={item.priority ? priorityColor[item.priority] : 'gray'} c="dark.9"><VisuallyHidden>{t('priority')}: </VisuallyHidden>{item.priority ? t(`priorities.${item.priority}`) : t('unavailable')}</Badge>
       </Group>
       <div><Text size="xs" c="dimmed">{t('nextStep')}</Text><Text size="sm">{item.next_step ?? t('unavailable')}</Text></div>
-      <div><Text size="xs" c="dimmed">{t('owner')}</Text><Text size="sm">{owner}</Text></div>
-      <div><Text size="xs" c="dimmed">{t('nextDue')}</Text><DueDate value={item.next_due} /></div>
+      <Group gap="md" align="flex-start">
+        <div><Text size="xs" c="dimmed" mb={4}>{t('owner')}</Text><PersonChip id={item.on_move} size="xs" /></div>
+        <div><Text size="xs" c="dimmed">{t('nextDue')}</Text><DueDate value={item.next_due} /></div>
+      </Group>
       <CaseTime item={item} compact />
     </Stack>
   </Paper>
@@ -49,10 +54,13 @@ export default function CoordinatorDashboard() {
     {cases.isSuccess && (cases.data.length === 0
       ? <EmptyState title={t('emptyCases')} description={t('emptyCasesHint')} retry={() => { void cases.refetch() }} />
       : <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-        {columns.map((column) => <Stack component="section" key={column} gap="sm" aria-labelledby={`queue-${column}`}>
-          <Group justify="space-between"><Title order={2} size="h4" id={`queue-${column}`}>{t(`queue.${column}`)}</Title><Badge variant="light" color="gray">{cases.data.filter((item) => item.queue === column).length}</Badge></Group>
-          {cases.data.filter((item) => item.queue === column).map((item) => <CaseCard key={item.id} item={item}
-            owner={actors.data?.find((person) => person.id === item.on_move)?.name ?? organizations.data?.find((org) => org.id === item.on_move)?.name ?? t('unavailable')} />)}
+        {columns.map(({ value: column, icon: ColumnIcon }) => <Stack component="section" key={column} gap="sm" aria-labelledby={`queue-${column}`}>
+          <Group gap="xs">
+            <ColumnIcon size={18} aria-hidden />
+            <Title order={2} size="h4" id={`queue-${column}`}>{t(`queue.${column}`)}</Title>
+            <Badge variant="light" color="gray" c="dark.9">{cases.data.filter((item) => item.queue === column).length}</Badge>
+          </Group>
+          {cases.data.filter((item) => item.queue === column).map((item) => <CaseCard key={item.id} item={item} />)}
           {!cases.data.some((item) => item.queue === column) && <Text size="sm" c="dimmed">{t('emptyColumn')}</Text>}
         </Stack>)}
       </SimpleGrid>)}

@@ -1,61 +1,66 @@
-import { Anchor, AppShell as MantineAppShell, Badge, Button, Container, Group, NativeSelect, Stack, Text } from '@mantine/core'
-import { useIsMutating, useQuery } from '@tanstack/react-query'
-import { Link, Outlet, useNavigate } from '@tanstack/react-router'
+import { Anchor, AppShell as MantineAppShell, Badge, Box, Button, Container, Group, Menu, Tooltip } from '@mantine/core'
+import { Link, Outlet } from '@tanstack/react-router'
+import { IconCheck, IconFlask, IconLanguage } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { listOrganizationsOptions } from '../client/@tanstack/react-query.gen'
 import { apiMode } from '../config'
 import { changeLanguage } from '../i18n'
 import { roleHome, useSession } from '../session'
 import DemoClock from './DemoClock'
 import DemoPanel from './DemoPanel'
-import { QueryError } from './DataState'
+import UserMenu from './UserMenu'
+
+const languages = [{ value: 'cs', label: 'Čeština' }, { value: 'en', label: 'English' }] as const
+
+function LanguageMenu() {
+  const { t, i18n } = useTranslation()
+  return <Menu position="bottom-end">
+    <Menu.Target>
+      <Button variant="subtle" color="gray" size="compact-md" leftSection={<IconLanguage size={18} aria-hidden />} aria-label={t('changeLanguage')}>
+        {i18n.language.toUpperCase()}
+      </Button>
+    </Menu.Target>
+    <Menu.Dropdown>
+      {languages.map((language) => <Menu.Item key={language.value} lang={language.value} onClick={() => { void changeLanguage(language.value) }}
+        rightSection={i18n.language === language.value ? <IconCheck size={16} aria-hidden /> : undefined} aria-current={i18n.language === language.value || undefined}>
+        {language.label}
+      </Menu.Item>)}
+    </Menu.Dropdown>
+  </Menu>
+}
 
 export default function AppShell() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const session = useSession()
-  const navigate = useNavigate()
-  const busy = useIsMutating() > 0
   const [demoOpen, setDemoOpen] = useState(false)
-  const organizations = useQuery({ ...listOrganizationsOptions(), enabled: !!session.actor })
-  const organization = organizations.data?.find((item) => item.id === session.actor?.organization_id)
+  const mode = t(apiMode === 'mock' ? 'demoData' : 'realApi')
 
   return <MantineAppShell padding={0}>
     <Anchor href="#main-content" className="skip-link">{t('skip')}</Anchor>
     <header className="app-header">
-      <Container size="xl" py="md">
-        <Group justify="space-between" align="flex-start" gap="md">
-          <Stack gap={4}>
-            <Anchor component={Link} to={session.actor ? roleHome(session.actor.role) : '/'} fw={750} size="lg" underline="never">{t('appName')}</Anchor>
-            <Badge color={apiMode === 'mock' ? 'blue' : 'gray'} variant="light">{t(apiMode === 'mock' ? 'demoData' : 'realApi')}</Badge>
-          </Stack>
-          <Group gap="md" align="flex-end">
-            <NativeSelect label={t('language')} value={i18n.language} data={[{ value: 'cs', label: 'Čeština' }, { value: 'en', label: 'English' }]}
-              onChange={(event) => { void changeLanguage(event.currentTarget.value === 'en' ? 'en' : 'cs') }} />
-            {session.actor && <Button variant="outline" onClick={() => setDemoOpen(true)}>{t('demo')}</Button>}
+      <Container size="xl" py={8}>
+        <Group justify="space-between" wrap="nowrap" gap="sm" mih={44}>
+          <nav aria-label={t('navigation')}>
+            <Anchor component={Link} to={session.actor ? roleHome(session.actor.role) : '/'} fw={700} size="lg" c="var(--mantine-color-text)" underline="never" style={{ whiteSpace: "nowrap", overflowWrap: "normal" }}>{t('appName')}</Anchor>
+          </nav>
+          <Group gap="xs" wrap="nowrap">
+            {session.actor
+              ? <>
+                <Group gap="xs" visibleFrom="sm"><DemoClock compact /></Group>
+                <Tooltip label={mode}>
+                  <Button variant="light" size="compact-md" aria-label={t('demo')} leftSection={<IconFlask size={16} aria-hidden />} onClick={() => setDemoOpen(true)}
+                    styles={{ section: { marginInlineEnd: 0 } }}><Box component="span" visibleFrom="sm" ml={6}>{t('demo')}</Box></Button>
+                </Tooltip>
+              </>
+              : <Badge variant="light" color={apiMode === 'mock' ? 'blue' : 'gray'} leftSection={<IconFlask size={12} aria-hidden />}>{mode}</Badge>}
+            <LanguageMenu />
+            {session.actor && <UserMenu actor={session.actor} onLeave={() => setDemoOpen(false)} />}
           </Group>
         </Group>
-        {session.actor && <Stack mt="md" gap="sm">
-          <Group justify="space-between" align="flex-start">
-            <div><Text fw={600}>{session.actor.name}</Text><Text size="sm" c="dimmed">{t(session.actor.role)} · {organization?.name ?? t('unavailable')}</Text></div>
-            <Button size="compact-sm" variant="outline" disabled={busy} onClick={async () => {
-              setDemoOpen(false)
-              await session.leaveIdentity()
-              await navigate({ to: '/', replace: true })
-            }}>{t('changeIdentity')}</Button>
-          </Group>
-          {organizations.isError && <QueryError error={organizations.error} pending={organizations.isFetching} retry={() => { void organizations.refetch() }} />}
-          <Group justify="space-between" align="center">
-            <nav aria-label={t('navigation')}><Anchor component={Link} to={roleHome(session.actor.role)} fw={600}>
-              {t(session.actor.role === 'coordinator' ? 'dashboardTitle' : 'identityTitle')}
-            </Anchor></nav>
-            <DemoClock compact />
-          </Group>
-        </Stack>}
       </Container>
     </header>
     <MantineAppShell.Main id="main-content" tabIndex={-1} mih={0}>
-      <Container size="xl" py="xl"><Outlet key={session.actorId ?? 'entry'} /></Container>
+      <Container size="xl" py="lg"><Outlet key={session.actorId ?? 'entry'} /></Container>
     </MantineAppShell.Main>
     {session.actor && <DemoPanel key={session.actor.id} opened={demoOpen} onClose={() => setDemoOpen(false)} />}
   </MantineAppShell>
