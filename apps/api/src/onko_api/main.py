@@ -35,7 +35,9 @@ def make_repository() -> CaseRepository:
 async def lifespan(_: FastAPI):
     global repo
     repo = make_repository()
-    # Seed only an empty store: IRIS keeps the demo state across restarts.
+    # Seed only an empty store: IRIS keeps the demo state (and roster edits) across restarts.
+    if not repo.list_organizations():
+        load_directory(repo)
     if os.environ.get("ONKO_SEED_REFERENCE", "1") == "1" and not repo.list_cases():
         seed_reference_case(repo)
     app.state.repo = repo

@@ -16,7 +16,18 @@ from contextlib import contextmanager
 from typing import Any, TypeVar
 
 import iris.dbapi
-from onko_contracts import Case, DocumentMeta, Finding, Handover, Message, Receipt, Task
+from onko_contracts import (
+    Actor,
+    Case,
+    DocumentMeta,
+    Finding,
+    Handover,
+    MdtBoard,
+    Message,
+    Organization,
+    Receipt,
+    Task,
+)
 from pydantic import BaseModel
 
 from ..settings import IrisSettings, parse_connection_string
@@ -27,6 +38,9 @@ log = logging.getLogger(__name__)
 
 M = TypeVar("M", bound=BaseModel)
 
+ORGANIZATIONS = ModelTable("app_organization", Organization, key=("id",), indexes=("kind",))
+ACTORS = ModelTable("app_actor", Actor, key=("id",), indexes=("role", "organization_id"))
+MDT_BOARDS = ModelTable("app_mdt_board", MdtBoard, key=("id",))
 CASES = ModelTable("app_case", Case, key=("id",),
                    indexes=("koc_id", "referring_doctor_id", "state", "queue"))
 DOCUMENTS = ModelTable("app_document", DocumentMeta, key=("id",),
@@ -36,7 +50,9 @@ FINDINGS = ModelTable("app_finding", Finding, key=("case_id", "id"),
 TASKS = ModelTable("app_task", Task, key=("id",), indexes=("case_id", "owner", "due"))
 MESSAGES = ModelTable("app_message", Message, key=("id",), indexes=("case_id",))
 RECEIPTS = ModelTable("app_receipt", Receipt, key=("message_id", "recipient_id"))
-MODEL_TABLES: list[ModelTable[Any]] = [CASES, DOCUMENTS, FINDINGS, TASKS, MESSAGES, RECEIPTS]
+MODEL_TABLES: list[ModelTable[Any]] = [
+    ORGANIZATIONS, ACTORS, MDT_BOARDS, CASES, DOCUMENTS, FINDINGS, TASKS, MESSAGES, RECEIPTS,
+]
 
 # The handover as one JSON document per (case, live | MDT snapshot). A plain string, not a stream,
 # so IRIS SQL can query inside it with JSON_TABLE.
@@ -176,6 +192,13 @@ class IrisRepository:
                 if name in existing:
                     cur.execute(f"DROP TABLE {self._t(name)}")
 
+    def clear(self) -> None:
+        """Delete every row of the app-state tables, keeping the schema (demo reset). The FHIR
+        projection is left as is: resources are upserted by id on the next save."""
+        with self._cursor() as cur:
+            for name in [t.name for t in MODEL_TABLES] + [HANDOVER_TABLE]:
+                cur.execute(f"DELETE FROM {self._t(name)}")
+
     # --- helpers -----------------------------------------------------------------------------
 
     def _upsert(self, table: str, values: dict[str, Any]) -> None:
@@ -207,16 +230,45 @@ class IrisRepository:
         except Exception:
             log.exception("FHIR projection failed")
 
+    def _get_by_id(self, table: ModelTable[M], model_id: str) -> M:
+        found = self._select(table, '"id" = ?', [model_id])
+        if not found:
+            raise KeyError(model_id)
+        return found[0]
+
+    # --- directory ---------------------------------------------------------------------------
+
+    def save_organization(self, organization: Organization) -> None:
+        self._upsert(ORGANIZATIONS.name, ORGANIZATIONS.row(organization))
+
+    def list_organizations(self) -> list[Organization]:
+        return self._select(ORGANIZATIONS)
+
+    def save_actor(self, actor: Actor) -> None:
+        self._upsert(ACTORS.name, ACTORS.row(actor))
+
+    def get_actor(self, actor_id: str) -> Actor:
+        return self._get_by_id(ACTORS, actor_id)
+
+    def list_actors(self) -> list[Actor]:
+        return self._select(ACTORS)
+
+    def save_mdt_board(self, board: MdtBoard) -> None:
+        self._upsert(MDT_BOARDS.name, MDT_BOARDS.row(board))
+
+    def get_mdt_board(self, board_id: str) -> MdtBoard:
+        return self._get_by_id(MDT_BOARDS, board_id)
+
+    def list_mdt_boards(self) -> list[MdtBoard]:
+        return self._select(MDT_BOARDS)
+
     # --- cases -------------------------------------------------------------------------------
 
     def save_case(self, case: Case) -> None:
         self._upsert(CASES.name, CASES.row(case))
 
     def get_case(self, case_id: str) -> Case:
-        found = self._select(CASES, '"id" = ?', [case_id])
-        if not found:
-            raise KeyError(case_id)
-        return found[0]
+        return self._get_by_id(CASES, case_id)
 
     def list_cases(self) -> list[Case]:
         return self._select(CASES)

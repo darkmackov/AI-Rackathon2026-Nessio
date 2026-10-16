@@ -15,6 +15,7 @@ from datetime import date, datetime
 
 import pytest
 from onko_contracts import (
+    Actor,
     Case,
     CaseState,
     DocumentMeta,
@@ -23,8 +24,12 @@ from onko_contracts import (
     Finding,
     FindingKind,
     Handover,
+    MdtBoard,
+    MdtMember,
     Message,
     MessageKind,
+    Organization,
+    OrganizationKind,
     Receipt,
     Severity,
     Sourced,
@@ -161,3 +166,49 @@ def test_messages_and_receipts(repo):
 
     assert repo.list_messages("c1") == [message]
     assert [m.id for m in repo.list_messages("c2")] == ["m2"]
+
+
+def test_directory_round_trip_and_upsert(repo):
+    org = Organization(id="koc-a", name="KOC A", kind=OrganizationKind.KOC,
+                       identifiers={"icp": "72045318"})
+    gp = Actor(id="pl-a", name="MUDr. A", role="referring_doctor", organization_id="pl-praxe")
+    coordinator = Actor(id="koord-a", name="Koordinátor A", role="coordinator",
+                        organization_id="koc-a")
+    board = MdtBoard(id="mdt-a", name="MDT A", organization_id="koc-a",
+                     members=[MdtMember(name="MUDr. Člen", specialty="onkologie", actor_id="koord-a")])
+    repo.save_organization(org)
+    repo.save_actor(gp)
+    repo.save_actor(coordinator)
+    repo.save_mdt_board(board)
+    repo.save_mdt_board(board.model_copy(update={"name": "MDT A2"}))
+
+    assert repo.list_organizations() == [org]
+    assert repo.get_actor("koord-a") == coordinator
+    assert [a.id for a in repo.list_actors()] == ["pl-a", "koord-a"]
+    assert repo.get_mdt_board("mdt-a").name == "MDT A2"
+    assert repo.get_mdt_board("mdt-a").members == board.members
+    assert [b.id for b in repo.list_mdt_boards()] == ["mdt-a"]
+
+
+@pytest.mark.parametrize("getter", ["get_actor", "get_mdt_board"])
+def test_unknown_directory_entry_raises_key_error(repo, getter):
+    with pytest.raises(KeyError):
+        getattr(repo, getter)("nope")
+
+
+def test_clear_removes_everything(repo):
+    repo.save_organization(Organization(id="koc-a", name="KOC A", kind=OrganizationKind.KOC))
+    repo.save_actor(Actor(id="pl-a", name="MUDr. A", role="referring_doctor"))
+    repo.save_mdt_board(MdtBoard(id="mdt-a", name="MDT A", organization_id="koc-a"))
+    repo.save_case(_case("c1"))
+    repo.save_document(DocumentMeta(id="d1", case_id="c1", filename="01.docx"), b"", "text")
+    repo.save_handover(Handover(case_id="c1", as_of=date(2026, 10, 16)))
+
+    repo.clear()
+
+    assert repo.list_organizations() == []
+    assert repo.list_actors() == []
+    assert repo.list_mdt_boards() == []
+    assert repo.list_cases() == []
+    assert repo.list_documents("c1") == []
+    assert repo.get_handover("c1") is None

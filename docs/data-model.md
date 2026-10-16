@@ -214,6 +214,9 @@ Tables and columns missing on start are created (`ALTER TABLE … ADD COLUMN`), 
 
 | Table | Model | Key | Indexed | Extra columns |
 |---|---|---|---|---|
+| `app_organization` | `Organization` | `id` | `kind` | |
+| `app_actor` | `Actor` | `id` | `role`, `organization_id` | |
+| `app_mdt_board` | `MdtBoard` | `id` | | |
 | `app_case` | `Case` | `id` | `koc_id`, `referring_doctor_id`, `state`, `queue` | |
 | `app_document` | `DocumentMeta` | `id` | `case_id` | `doc_text` (parsed text, stream), `doc_data` (original bytes, stream) |
 | `app_finding` | `Finding` | `case_id`, `id` | | `case_id`, `seq` (order) |
