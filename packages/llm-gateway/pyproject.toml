@@ -3,7 +3,7 @@ name = "onko-llm-gateway"
 version = "0.1.0"
 description = "Client for our OpenAI-compatible model endpoints: routing, JSON output, logging."
 requires-python = ">=3.11"
-dependencies = ["onko-contracts", "openai>=3.31.0"]
+dependencies = ["onko-contracts", "openai>=3.31.0", "httpx>=0.28.1", "python-dotenv>=1.2.4"]
 
 [build-system]
 requires = ["hatchling>=1.32.4"]

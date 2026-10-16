@@ -454,14 +454,18 @@ name = "onko-llm-gateway"
 version = "0.1.0"
 source = { editable = "packages/llm-gateway" }
 dependencies = [
+    { name = "httpx" },
     { name = "onko-contracts" },
     { name = "openai" },
+    { name = "python-dotenv" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "onko-contracts", editable = "packages/contracts" },
     { name = "openai", specifier = ">=3.31.0" },
+    { name = "python-dotenv", specifier = ">=1.2.4" },
 ]
 
 [[package]]
