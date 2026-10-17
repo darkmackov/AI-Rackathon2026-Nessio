@@ -2,6 +2,7 @@ import { delay, http, HttpResponse } from 'msw'
 import type { Case, DemoClock, DocumentMeta, DocumentMetaUpdate, Finding, Handover, Job, UploadResult } from '../client/types.gen'
 import { documentType, supportedFile, validDocumentDate } from '../components/documents/document-utils'
 import { actors } from './directory'
+import { changed, documentLabels } from './audit-text'
 import { s4CaseId, type createCoordinatorState } from './coordinator-state'
 import { referenceDocuments, referenceFindings, referenceHandover, referenceTexts } from './reference-data'
 import { extraFields, isApiDateTime, objectBody, queryValue, validationResponse } from './validation'
@@ -205,7 +206,7 @@ export function createDocumentHandlers(state: DemoState) {
       }
       if (errors.length) return validationResponse(errors)
       const updated = state.documents.update(id, body)!
-      if (updated.case_id) state.coordinator.record(updated.case_id, request.headers.get('X-Actor-Id') ?? '', state.clock().now, 'document_updated', updated.filename)
+      if (updated.case_id) state.coordinator.record(updated.case_id, request.headers.get('X-Actor-Id') ?? '', state.clock().now, 'document_updated', `${updated.filename}: ${changed(body, ['title', 'doc_type', 'document_date', 'facility', 'department', 'author', 'ordered_by'], {}, documentLabels)}`)
       return HttpResponse.json<DocumentMeta>(updated)
     }),
     http.get('*/api/documents/:documentId/text', ({ request, params }) => {

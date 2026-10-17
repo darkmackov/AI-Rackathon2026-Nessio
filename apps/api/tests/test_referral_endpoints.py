@@ -78,6 +78,13 @@ def test_gp_referral_reaches_the_koc_new_column(client):
     assert r.status_code == 200
     sent = r.json()
     assert sent["state"] == "odeslano" and sent["queue"] == "novy"
+    details = [(e["action"], e["detail"]) for e in client.get(f"/cases/{case_id}/audit").json()
+               if e["action"] in ("handover_field_updated", "examination_added", "referral_sent")]
+    assert details == [
+        ("handover_field_updated", "Stav výkonnosti: není k dispozici"),
+        ("examination_added", "30. 9. 2026 UZ břicha"),
+        ("referral_sent", "Koncept → Odesláno"),
+    ]
     assert sent["milestones"]["referred_at"].startswith("2026-10-02T08:00")  # the app clock runs
     assert case_id in _koc_new(client)
 

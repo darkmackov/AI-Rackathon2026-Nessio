@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw'
 import type { Case, Handover, Message, SourcedStr, Stamp } from '../client/types.gen'
 import { validDocumentDate } from '../components/documents/document-utils'
 import { actors, organizations } from './directory'
+import { auditDate, handoverLabels, transition } from './audit-text'
 import type { createDemoState } from './handlers'
 import { extraFields, objectBody, validationResponse } from './validation'
 
@@ -91,7 +92,7 @@ export function createReferralHandlers(state: DemoState) {
       const item: Case = { id, patient_name: '', koc_id: koc.id, referring_doctor_id: actor.id, state: 'koncept', queue: 'novy', priority: 'normal', created_at: now }
       state.saveCase(item)
       state.documents.saveHandover({ case_id: id, as_of: now.slice(0, 10) })
-      state.coordinator.record(id, actor.id, now, 'referral_created')
+      state.coordinator.record(id, actor.id, now, 'referral_created', koc.name)
       return HttpResponse.json<Case>(item, { status: 201 })
     }),
     http.patch('*/api/cases/:caseId/handover', async ({ request, params }) => {
@@ -109,7 +110,7 @@ export function createReferralHandlers(state: DemoState) {
       if (body.not_available !== true && body.value == null) return fail('give a value or not_available', 400)
       const handover = updateField(found.handover, body.path, body.value, body.not_available === true, typeof body.note === 'string' ? body.note : null, { by: found.actor.id, at: state.clock().now })
       if (!handover) return badValue()
-      saveHandover(found.item, handover, found.actor.id, 'handover_field_updated', body.not_available === true ? `: není k dispozici` : body.path)
+      saveHandover(found.item, handover, found.actor.id, 'handover_field_updated', `${handoverLabels[body.path] ?? body.path}${body.not_available === true ? ': není k dispozici' : ''}`)
       return HttpResponse.json<Handover>(handover)
     }),
     http.post('*/api/cases/:caseId/handover/examinations', async ({ request, params }) => {
@@ -122,7 +123,7 @@ export function createReferralHandlers(state: DemoState) {
       if (errors.length) return validationResponse(errors)
       if (typeof date !== 'string' || !validDocumentDate(date) || typeof place !== 'string' || typeof type !== 'string' || typeof result_full_text !== 'string') return badValue()
       const handover: Handover = { ...found.handover, examinations: [...(found.handover.examinations ?? []), { date, place, type, result_full_text, origin: 'manual', entered: { by: found.actor.id, at: state.clock().now } }] }
-      saveHandover(found.item, handover, found.actor.id, 'examination_added', ` `)
+      saveHandover(found.item, handover, found.actor.id, 'examination_added', `${auditDate(date)} ${type}`)
       return HttpResponse.json<Handover>(handover, { status: 201 })
     }),
     http.post('*/api/cases/:caseId/handover/validate', ({ request, params }) => {
@@ -143,7 +144,7 @@ export function createReferralHandlers(state: DemoState) {
       state.saveCase(item)
       // Queue, owner and next step are recomputed like after any other workflow change.
       state.coordinator.sync(item.id)
-      state.coordinator.record(item.id, found.actor.id, state.clock().now, 'referral_sent')
+      state.coordinator.record(item.id, found.actor.id, state.clock().now, 'referral_sent', transition(found.item.state, item.state))
       return HttpResponse.json<Case>(state.getCases().find((entry) => entry.id === item.id) ?? item)
     }),
     http.get('*/api/inbox', ({ request }) => {

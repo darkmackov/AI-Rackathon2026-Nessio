@@ -6,6 +6,7 @@ import type { createDemoState } from './handlers'
 import { fail, object, readBody, BodyReader } from './coordinator-validation'
 import { conclusionPrefill, lateDocuments, mdtRecord, resultRows, snapshotOf } from './mdt-state'
 import { demoMdtPdf } from './mdt-pdf'
+import { auditDate, conclusionSources, fields, mdtRecordLabels, transition } from './audit-text'
 
 export const demoDraftText = 'FIKTIVNÍ NÁVRH AI – nejde o analýzu dokumentace. Text před použitím zkontrolujte a upravte.'
 export const demoResultLine = 'FIKTIVNÍ JEDNOŘÁDKOVÝ VÝSLEDEK AI – zkontrolujte proti plnému textu.'
@@ -87,7 +88,7 @@ export function createMdtHandlers(state: ReturnType<typeof createDemoState>) {
       const value = mdtRecord(frozen, board, actors.find((entry) => entry.id === item.referring_doctor_id), stamp, item.patient_name)
       store.saveSnapshot(frozen); store.saveRecord(value)
       state.saveCase({ ...item, state: 'pripraveno_k_mdt', mdt_board_id: board.id, mdt_date: date }); state.coordinator.sync(id)
-      audit(item, actor, 'mdt_snapshot_created', `${item.state} → pripraveno_k_mdt, MDT ${date} (${board.name})`)
+      audit(item, actor, 'mdt_snapshot_created', `${transition(item.state, 'pripraveno_k_mdt')}, MDT ${auditDate(date)} (${board.name})`)
       return HttpResponse.json(value, { status: 201 })
     }),
     route('patch', '/cases/:caseId/mdt/record', async (request, id) => {
@@ -100,7 +101,7 @@ export function createMdtHandlers(state: ReturnType<typeof createDemoState>) {
       if ('comorbidities' in body.value) patch.comorbidities = body.list('comorbidities')
       body.done()
       const updated = { ...original, ...patch, members: patch.members ?? original.members, results: patch.results ?? original.results, comorbidities: patch.comorbidities ?? original.comorbidities }
-      store.saveRecord(updated); audit(item, actor, 'mdt_record_updated', Object.keys(patch).join(', ') || 'beze změny'); return HttpResponse.json(updated)
+      store.saveRecord(updated); audit(item, actor, 'mdt_record_updated', fields(['members', 'results', 'mdt_question', 'diagnosis_name', 'diagnosis_code', 'comorbidities'].filter((key) => key in patch), mdtRecordLabels)); return HttpResponse.json(updated)
     }),
     route('get', '/cases/:caseId/mdt/conclusion', (_request, id) => { getCase(id); return HttpResponse.json(conclusion(id)) }),
     route('get', '/cases/:caseId/mdt/record.pdf', (_request, id) => { getCase(id); record(id); return pdf(demoMdtPdf(), `mdt-zapis-${id}.pdf`) }),
@@ -122,7 +123,7 @@ export function createMdtHandlers(state: ReturnType<typeof createDemoState>) {
       const existing = store.conclusion(id), uploaded = existing?.source === 'uploaded'
       const updated: MdtConclusion = { case_id: id, ...patch, source: uploaded ? 'uploaded' : 'written', document_id: uploaded ? existing.document_id ?? null : null, confirmed: null }
       store.saveConclusion(updated)
-      audit(item, actor, 'mdt_conclusion_saved', updated.source + (existing?.confirmed ? ', potvrzení zrušeno' : ''))
+      audit(item, actor, 'mdt_conclusion_saved', conclusionSources[updated.source ?? 'written'] + (existing?.confirmed ? ', potvrzení zrušeno' : ''))
       return HttpResponse.json(updated)
     }),
     route('post', '/cases/:caseId/mdt/conclusion/confirm', (request, id) => {
@@ -139,7 +140,7 @@ export function createMdtHandlers(state: ReturnType<typeof createDemoState>) {
       }
       const held = value.date ?? item.mdt_date ?? now().slice(0, 10)
       state.saveCase({ ...item, state: 'zaver_mdt', diagnosis_label: value.diagnosis_name ?? item.diagnosis_label, milestones: { ...item.milestones, mdt_held: held } }); state.coordinator.sync(id)
-      audit(item, actor, 'mdt_conclusion_confirmed', `${item.state} → zaver_mdt` + (value.diagnosis_code ? `, definitivní kód ${value.diagnosis_code}` : ''))
+      audit(item, actor, 'mdt_conclusion_confirmed', transition(item.state, 'zaver_mdt') + (value.diagnosis_code ? `, definitivní kód ${value.diagnosis_code}` : ''))
       return HttpResponse.json(value)
     }),
     route('post', '/cases/:caseId/drafts', async (request, id) => {

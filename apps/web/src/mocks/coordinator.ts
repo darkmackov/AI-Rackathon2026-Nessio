@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw'
 import type { Actor, Case, DueNotice, Priority, Task, TaskSet, TaskTemplate } from '../client/types.gen'
 import { localDateTime } from '../time'
 import { actors, boards, organizations } from './directory'
+import { auditDate, changed, directoryNames, quoted, resolutions, transition, withNote } from './audit-text'
 import type { createDemoState } from './handlers'
 import { transitions } from './coordinator-state'
 import { BodyReader, fail, object, readBody, validateGraph } from './coordinator-validation'
@@ -32,14 +33,17 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
     if (!id || !actors.some((item) => item.id === id) && (peopleOnly || !organizations.some((item) => item.id === id))) fail(400, 'unknown owner')
     return id
   }
-  const record = (item: Case, user: Actor, action: string, detail?: unknown) => store.record(item.id, user.id, now(), action, detail === undefined ? undefined : auditDetail(detail))
+  const record = (item: Case, user: Actor, action: string, detail?: string | null) => store.record(item.id, user.id, now(), action, detail ?? undefined)
+  // Names for the ids an audit detail mentions, like the backend: the directory plus the case's tasks and documents.
+  const names = (caseId: string) => directoryNames(Object.fromEntries([...store.tasks(caseId).map((task): [string, string] => [task.id, task.title]),
+    ...state.documents.list(caseId).map((document): [string, string] => [document.id, document.filename])]))
   const finding = (id: string, key: string) => state.documents.result(id)?.findings.find((item) => item.id === key) ?? fail(404, 'finding not found')
   const result = (id: string) => state.documents.result(id) ?? fail(404, 'no handover yet')
   const route = (method: 'get' | 'post' | 'patch' | 'put' | 'delete', path: string, action: (request: Request, params: Record<string, string | readonly string[] | undefined>) => Response | Promise<Response>) =>
     http[method](`*/api${path}`, async ({ request, params }) => {
       try { return await action(request, params) } catch (error) { if (error instanceof Response) return error; throw error }
     })
-  function save(item: Case, user: Actor, action: string, detail?: unknown) {
+  function save(item: Case, user: Actor, action: string, detail?: string | null) {
     store.saveCase(item); store.sync(item.id); record(item, user, action, detail)
     return HttpResponse.json(caseById(item.id))
   }
@@ -47,7 +51,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
     route('post', '/cases/:caseId/take-over', (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item)
       if (item.state !== 'odeslano') fail(409, 'only a sent case can be taken over')
-      return save({ ...item, state: 'v_triage', coordinator_id: user.id }, user, 'case_taken_over')
+      return save({ ...item, state: 'v_triage', coordinator_id: user.id }, user, 'case_taken_over', transition(item.state, 'v_triage'))
     }),
     route('patch', '/cases/:caseId', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item); editable(item)
@@ -56,7 +60,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const coordinator = body.text('coordinator_id'), board = body.text('mdt_board_id'), date = body.date('mdt_date'); body.done()
       if (coordinator != null && !actors.some((person) => person.id === coordinator && person.role === 'coordinator' && person.organization_id === item.koc_id)) fail(400, 'unknown coordinator at this KOC')
       if (board != null && !boards.some((entry) => entry.id === board && entry.organization_id === item.koc_id)) fail(400, 'unknown MDT board at this KOC')
-      return save({ ...item, priority, ...(coordinator !== undefined ? { coordinator_id: coordinator } : {}), ...(board !== undefined ? { mdt_board_id: board } : {}), ...(date !== undefined ? { mdt_date: date } : {}) }, user, 'case_updated', body.value)
+      return save({ ...item, priority, ...(coordinator !== undefined ? { coordinator_id: coordinator } : {}), ...(board !== undefined ? { mdt_board_id: board } : {}), ...(date !== undefined ? { mdt_date: date } : {}) }, user, 'case_updated', changed(body.value, ['priority', 'coordinator_id', 'mdt_board_id', 'mdt_date'], names(item.id)))
     }),
     route('post', '/cases/:caseId/transition', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item)
@@ -64,7 +68,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       body.text('to', true)
       const to = body.pick('to', ['ceka_na_podklady', 'kompletni'] as const, 'ceka_na_podklady'); body.text('note'); body.done()
       if (!item.state || !transitions[item.state]?.includes(to)) fail(409, 'transition is not allowed')
-      return save({ ...item, state: to }, user, 'case_transitioned', body.value)
+      return save({ ...item, state: to }, user, 'case_transitioned', withNote(transition(item.state, to), typeof body.value.note === 'string' ? body.value.note : null))
     }),
     route('post', '/cases/:caseId/return', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item); editable(item)
@@ -72,22 +76,22 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       if (key) finding(item.id, key)
       store.saveMessage({ id: store.id('message'), case_id: item.id, kind: 'case_returned', channel: 'in_app', sender_id: user.id,
         recipient_ids: [item.referring_doctor_id], subject: 'Předávka vrácena k doplnění', body: note ?? '', finding_id: key, sent_at: now() })
-      return save({ ...item, state: 'vraceno_lekari' }, user, 'case_returned', body.value)
+      return save({ ...item, state: 'vraceno_lekari' }, user, 'case_returned', note)
     }),
     route('put', '/cases/:caseId/hold', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item); editable(item)
       const body = await readBody(request, ['reason', 'until']), reason = body.text('reason', true), until = body.date('until'); body.done()
-      return save({ ...item, on_hold: { reason: reason ?? '', until, set_by: user.id, set_at: now() } }, user, 'hold_set', body.value)
+      return save({ ...item, on_hold: { reason: reason ?? '', until, set_by: user.id, set_at: now() } }, user, 'hold_set', (reason ?? '') + (until ? ` (obnovit od ${auditDate(until)})` : ''))
     }),
     route('delete', '/cases/:caseId/hold', (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item); editable(item)
-      return save({ ...item, on_hold: null }, user, 'hold_cleared')
+      return save({ ...item, on_hold: null }, user, 'hold_cleared', item.on_hold?.reason)
     }),
     route('patch', '/cases/:caseId/milestones', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item)
       const body = await readBody(request, ['symptom_onset', 'treatment_start'])
       const onset = body.date('symptom_onset'), start = body.date('treatment_start'); body.done()
-      return save({ ...item, milestones: { ...item.milestones, ...(onset !== undefined ? { symptom_onset: onset } : {}), ...(start !== undefined ? { treatment_start: start } : {}) } }, user, 'milestones_updated', body.value)
+      return save({ ...item, milestones: { ...item.milestones, ...(onset !== undefined ? { symptom_onset: onset } : {}), ...(start !== undefined ? { treatment_start: start } : {}) } }, user, 'milestones_updated', changed(body.value, ['symptom_onset', 'treatment_start']))
     }),
     route('get', '/cases/:caseId/audit', (request, params) => {
       const item = caseById(String(params.caseId)); access(request, item)
@@ -103,7 +107,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const updated = { ...issue, resolved: true, resolution: { kind, note, by: user.id, at: now() } }
       const current = result(item.id)
       state.documents.saveResult(item.id, { ...current, findings: current.findings.map((entry) => entry.id === issue.id ? updated : entry) })
-      record(item, user, 'finding_resolved', { finding_id: issue.id, ...updated.resolution })
+      record(item, user, 'finding_resolved', withNote(`${quoted(issue.message_cs)}: ${resolutions[kind]}`, note))
       return HttpResponse.json(updated)
     }),
     route('post', '/cases/:caseId/findings/:findingId/request', async (request, params) => {
@@ -113,7 +117,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const body = await readBody(request, ['owner_id', 'title', 'due', 'priority', 'note'])
       const id = body.text('owner_id', true), title = body.text('title'), due = body.date('due', true), priority = body.pick('priority', priorities, 'normal'), note = body.text('note'); body.done()
       const task: Task = { id: store.id('task'), case_id: item.id, title: title || issue.message_cs, kind: 'request_documents', owner: owner(id), due, priority, status: 'planned', finding_id: issue.id, depends_on: [] }
-      store.saveTask(task); record(item, user, 'finding_requested', { task, note })
+      store.saveTask(task); record(item, user, 'finding_requested', withNote(`${quoted(issue.message_cs)} → ${names(item.id)[task.owner] ?? task.owner}`, note))
       return HttpResponse.json(task, { status: 201 })
     }),
     route('post', '/cases/:caseId/tasks', async (request, params) => {
@@ -121,7 +125,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const body = await readBody(request, ['title', 'kind', 'owner_id', 'location', 'due', 'priority', 'depends_on', 'external'])
       const task = taskBody(body, { id: store.id('task'), case_id: item.id, title: '', kind: '', owner: '' }, false)
       body.done(); owner(task.owner); validateGraph([...store.tasks(item.id), task].map((entry) => ({ key: entry.id, depends_on: entry.depends_on })))
-      store.saveTask(task); record(item, user, 'task_created', task)
+      store.saveTask(task); record(item, user, 'task_created', task.title)
       return HttpResponse.json(task, { status: 201 })
     }),
     route('patch', '/tasks/:taskId', async (request, params) => {
@@ -130,7 +134,9 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const updated = taskBody(body, task, true); body.done(); owner(updated.owner)
       if (updated.result_document_id && state.documents.get(updated.result_document_id)?.case_id !== item.id) fail(400, 'result document must belong to this case')
       validateGraph(store.tasks(item.id).map((entry) => ({ key: entry.id, depends_on: entry.id === task.id ? updated.depends_on : entry.depends_on })))
-      store.saveTask(updated); record(item, user, 'task_updated', updated)
+      // Like the backend: the changed fields in TaskUpdate's order, the owner last.
+      const changes = Object.fromEntries(Object.entries(body.value).map(([key, entry]): [string, unknown] => [key === 'owner_id' ? 'owner' : key, entry]))
+      store.saveTask(updated); record(item, user, 'task_updated', `${updated.title}: ${changed(changes, ['title', 'status', 'location', 'due', 'priority', 'depends_on', 'external', 'result_document_id', 'owner'], names(item.id))}`)
       return HttpResponse.json(updated)
     }),
     route('get', '/task-sets', (request) => {
@@ -173,7 +179,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
           due: step.due_offset_days == null ? null : localDateTime(due), depends_on: (step.depends_on ?? []).map((key) => ids[key]) }
       })
       for (const task of tasks) store.saveTask(task)
-      store.markRun(item.id, set.id); record(item, user, 'task_set_started', { task_set_id: set.id, tasks: tasks.map((task) => task.id) })
+      store.markRun(item.id, set.id); record(item, user, 'task_set_started', set.name)
       return HttpResponse.json(tasks, { status: 201 })
     }),
     route('get', '/notifications', (request) => {
@@ -197,21 +203,4 @@ function taskBody(body: BodyReader, old: Task, update: boolean): Task {
     depends_on: 'depends_on' in body.value ? body.list('depends_on') : old.depends_on ?? [], external: body.flag('external', old.external ?? false) }
   if (update && 'result_document_id' in body.value) task.result_document_id = body.text('result_document_id')
   return task
-}
-
-// Audit detail is Czech product data, like notes, rather than UI translation keys.
-function auditDetail(value: unknown): string {
-  const labels: Record<string, string> = {
-    id: 'ID', case_id: 'Případ', actor_id: 'Provedl', task: 'Úkol', tasks: 'Úkoly', task_set_id: 'Sada', finding_id: 'Nález',
-    title: 'Název', kind: 'Druh', owner: 'Odpovědnost', owner_id: 'Odpovědnost', priority: 'Priorita', status: 'Stav',
-    location: 'Místo', due: 'Termín', depends_on: 'Předchozí úkoly', external: 'Mimo KOC', result_document_id: 'Výsledný dokument',
-    note: 'Poznámka', reason: 'Důvod', until: 'Obnovit od', to: 'Cílový stav', coordinator_id: 'Koordinátor', mdt_board_id: 'MDT tým',
-    mdt_date: 'Plánované MDT', symptom_onset: 'Začátek obtíží', treatment_start: 'Zahájení léčby', path: 'Pole', value: 'Hodnota',
-    not_available: 'Není k dispozici', by: 'Provedl', at: 'Čas',
-  }
-  if (value == null) return 'Není uvedeno'
-  if (typeof value === 'boolean') return value ? 'Ano' : 'Ne'
-  if (Array.isArray(value)) return value.map(auditDetail).join(', ') || 'Žádné'
-  if (object(value)) return Object.entries(value).map(([key, nested]) => `${labels[key] ?? key}: ${auditDetail(nested)}`).join('\n')
-  return String(value)
 }
