@@ -4,11 +4,12 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { uploadDocumentMutation } from '../../client/@tanstack/react-query.gen'
+import type { DuplicateMatch } from '../../client/types.gen'
 import { QueryError } from '../DataState'
 import { documentAccept, supportedFile, uploadMime } from './document-utils'
 import { refreshCaseResults, rememberJob } from './use-document-ingest'
 
-type SelectedFile = { id: number; file: File; status: 'waiting' | 'uploading' | 'uploaded' | 'failed'; error?: unknown }
+type SelectedFile = { id: number; file: File; status: 'waiting' | 'uploading' | 'uploaded' | 'failed'; error?: unknown; duplicates?: DuplicateMatch[] }
 
 export type DocumentUploaderProps = { caseId: string; actorId: string; receivedAt?: string; disabled?: boolean }
 
@@ -45,8 +46,8 @@ function DocumentUploaderForm({ caseId, actorId, receivedAt, disabled = false }:
         try {
           // Preserve the original bytes, supplying the parser MIME if the browser omitted it.
           const file = new File([entry.file], entry.file.name, { type: uploadMime(entry.file), lastModified: entry.file.lastModified })
-          await upload.mutateAsync({ headers: actorHeaders(actorId), path: { case_id: caseId }, body: { file, ...(receivedAt ? { received_at: receivedAt } : {}) } })
-          setFiles((current) => current.map((item) => item.id === entry.id ? { ...item, status: 'uploaded' } : item))
+          const result = await upload.mutateAsync({ headers: actorHeaders(actorId), path: { case_id: caseId }, body: { file, ...(receivedAt ? { received_at: receivedAt } : {}) } })
+          setFiles((current) => current.map((item) => item.id === entry.id ? { ...item, status: 'uploaded', duplicates: result.duplicates ?? [] } : item))
         } catch (error) {
           setFiles((current) => current.map((item) => item.id === entry.id ? { ...item, status: 'failed', error } : item))
         }
@@ -80,6 +81,15 @@ function DocumentUploaderForm({ caseId, actorId, receivedAt, disabled = false }:
         </Group>
           <Group role="status"><Badge color={entry.status === 'failed' ? 'red' : entry.status === 'uploaded' ? 'green' : 'blue'} variant="light">{t(`documents.uploadStatus.${entry.status}`)}</Badge></Group>
           {entry.error != null && <QueryError error={entry.error} />}
+          {entry.duplicates && entry.duplicates.length > 0 && <Alert color="yellow" title={t('documents.duplicateTitle')}>
+            <Text size="sm">{t('documents.duplicateHelp')}</Text>
+            <Stack component="ul" gap={2} mt="xs" pl="md">
+              {entry.duplicates.map((match) => <Text component="li" size="sm" key={match.document_id}>
+                {match.kind === 'exact' ? t('documents.duplicateExact', { name: match.filename })
+                  : t('documents.duplicateNear', { name: match.filename, percent: new Intl.NumberFormat(i18n.language, { style: 'percent' }).format(match.similarity) })}
+              </Text>)}
+            </Stack>
+          </Alert>}
         </Stack>
       </Paper>)}
     </Stack>}

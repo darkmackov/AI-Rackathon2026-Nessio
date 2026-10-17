@@ -4229,6 +4229,17 @@
         "title": "CodeCandidate",
         "description": "An MKN-10 code proposed by vector search for a diagnosis without a code (Q-C11). Only a\nproposal: a person picks one. Candidates are listed best first; similarity scores are not shown,\nthey are not calibrated (Q-I19)."
       },
+      "Comparator": {
+        "type": "string",
+        "enum": [
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "title": "Comparator",
+        "description": "A comparator printed before a lab number, e.g. `< 0,5`."
+      },
       "ConclusionPrefill": {
         "properties": {
           "diagnosis_name": {
@@ -4523,6 +4534,18 @@
             "type": "string",
             "title": "Mime Type",
             "default": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256",
+            "description": "SHA-256 of the original bytes, for the duplicate check (Q-I22)"
           }
         },
         "additionalProperties": false,
@@ -4738,6 +4761,44 @@
         ],
         "title": "DueNotice",
         "description": "In-app deadline notification derived from tasks (Q-F17)."
+      },
+      "DuplicateKind": {
+        "type": "string",
+        "enum": [
+          "exact",
+          "near"
+        ],
+        "title": "DuplicateKind"
+      },
+      "DuplicateMatch": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DuplicateKind"
+          },
+          "similarity": {
+            "type": "number",
+            "title": "Similarity",
+            "description": "Jaccard overlap of the word shingles, 1.0 for exact"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document_id",
+          "filename",
+          "kind",
+          "similarity"
+        ],
+        "title": "DuplicateMatch",
+        "description": "An earlier document of the case the new upload duplicates. A warning only: the upload is\nstored anyway (Q-I22)."
       },
       "Evidence": {
         "properties": {
@@ -4991,7 +5052,8 @@
           "identity",
           "unattached_reference",
           "trend",
-          "unverified_quote"
+          "unverified_quote",
+          "unnormalized"
         ],
         "title": "FindingKind"
       },
@@ -5038,7 +5100,7 @@
           "schema_version": {
             "type": "string",
             "title": "Schema Version",
-            "default": "1"
+            "default": "2"
           },
           "case_id": {
             "type": "string",
@@ -5090,6 +5152,17 @@
           "performance_status": {
             "$ref": "#/components/schemas/Sourced_str_",
             "description": "ECOG / Karnofsky"
+          },
+          "performance_score": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceScore"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`performance_status` read as scale + score by deterministic code (Q-C13); None while it is missing or can't be read"
           },
           "weight_kg": {
             "$ref": "#/components/schemas/Sourced_float_"
@@ -5454,6 +5527,41 @@
             ],
             "title": "Flag",
             "description": "H / L as printed by the lab"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number",
+            "description": "`value` as a number (decimal comma read)"
+          },
+          "comparator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Comparator"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Printed before the number"
+          },
+          "ucum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ucum",
+            "description": "`unit` as a UCUM code, e.g. 'mmol/L'"
           }
         },
         "additionalProperties": false,
@@ -5462,7 +5570,8 @@
           "name",
           "value"
         ],
-        "title": "LabValue"
+        "title": "LabValue",
+        "description": "`value` and `unit` stay as printed; `number`, `comparator` and `ucum` are computed next to\nthem by deterministic code (Q-C13), None when they can't be (a qualitative or unparsed value)."
       },
       "MdtBoard": {
         "properties": {
@@ -6503,6 +6612,33 @@
         "title": "PatientNoticeCreate",
         "description": "'Informovat pacienta': recorded with simulated=True, never delivered (Q-F16)."
       },
+      "PerformanceScale": {
+        "type": "string",
+        "enum": [
+          "ecog",
+          "karnofsky"
+        ],
+        "title": "PerformanceScale"
+      },
+      "PerformanceScore": {
+        "properties": {
+          "scale": {
+            "$ref": "#/components/schemas/PerformanceScale"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scale",
+          "score"
+        ],
+        "title": "PerformanceScore",
+        "description": "`performance_status` as scale + score (Q-C13)."
+      },
       "Priority": {
         "type": "string",
         "enum": [
@@ -7494,6 +7630,14 @@
           },
           "job": {
             "$ref": "#/components/schemas/Job"
+          },
+          "duplicates": {
+            "items": {
+              "$ref": "#/components/schemas/DuplicateMatch"
+            },
+            "type": "array",
+            "title": "Duplicates",
+            "description": "Earlier documents of the case this upload duplicates: a warning, the upload is stored anyway (Q-I22)"
           }
         },
         "additionalProperties": false,

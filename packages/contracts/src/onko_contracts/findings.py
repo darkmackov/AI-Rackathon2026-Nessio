@@ -20,6 +20,8 @@ class FindingKind(StrEnum):
     # The model quoted text that is not in the document verbatim; the value was dropped (D-2) and
     # the evidence is the nearest chunk of that document (Q-I19)
     UNVERIFIED_QUOTE = "unverified_quote"
+    # A value kept as printed because deterministic code could not normalize it (Q-C13)
+    UNNORMALIZED = "unnormalized"
 
 
 class Severity(StrEnum):

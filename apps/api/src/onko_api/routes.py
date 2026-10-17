@@ -14,7 +14,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
-from onko_ai import code_candidates
+from onko_ai import code_candidates, normalize_handover
 from onko_cases import (
     CaseStateError,
     CodeNotNeededError,
@@ -99,7 +99,14 @@ from onko_contracts import (
     TimeToTreatment,
 )
 from onko_documents import DOCX as DOCX_MIME
-from onko_documents import PARSERS, parse, render_mdt_conclusion, render_mdt_record
+from onko_documents import (
+    PARSERS,
+    find_duplicates,
+    parse,
+    render_mdt_conclusion,
+    render_mdt_record,
+    sha256,
+)
 from onko_documents import PDF as PDF_MIME
 from onko_documents import PPTX as PPTX_MIME
 from onko_messaging import (
@@ -294,7 +301,8 @@ def create_referral_from_bundle(
     _audit(repo, case.id, user.id, "referral_created", now, f"{_org_name(repo, koc_id)}, FHIR Bundle")
     for attachment, mime, text in documents:
         meta = DocumentMeta(id=new_id("doc"), case_id=case.id, filename=attachment.filename,
-                            received_at=now, uploaded_by=user.id, mime_type=mime)
+                            received_at=now, uploaded_by=user.id, mime_type=mime,
+                            sha256=sha256(attachment.data))
         repo.save_document(meta, attachment.data, text)
         _audit(repo, case.id, user.id, "document_uploaded", now, meta.filename)
         job = queue_ingest(repo, now, case.id, meta.id)
@@ -335,13 +343,14 @@ def _store_upload(
     doc_type: DocumentType = DocumentType.OTHER,
 ) -> UploadResult:
     """Parse, store and queue the ingest of an uploaded file (415 / 422 before anything is
-    saved)."""
+    saved). Duplicates of the case's earlier documents are reported, never refused (Q-I22)."""
     mime = _mime_type(file)
     data = file.file.read()
     try:
         text = parse(data, mime)
     except Exception as e:  # noqa: BLE001 - a broken file is the client's problem
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"cannot read the file: {e}") from None
+    duplicates = find_duplicates(repo, case_id, data, text)
     now = clock.now()
     meta = DocumentMeta(
         id=document_id or new_id("doc"),
@@ -351,12 +360,13 @@ def _store_upload(
         received_at=received_at or now,
         uploaded_by=user.id,
         mime_type=mime,
+        sha256=sha256(data),
     )
     repo.save_document(meta, data, text)
     _audit(repo, case_id, user.id, "document_uploaded", now, meta.filename)
     job = queue_ingest(repo, now, case_id, meta.id)
     jobs.submit(run_ingest, job.id, repo, clock, llm)
-    return UploadResult(document=meta, job=job)
+    return UploadResult(document=meta, job=job, duplicates=duplicates)
 
 
 def _case_or_404(repo: Repo, case_id: str) -> Case:
@@ -499,7 +509,7 @@ def update_handover_field(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
     except ValidationError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
-    handover = _save_handover(repo, case, handover)
+    handover = _save_handover(repo, case, normalize_handover(handover))  # the score follows (Q-C13)
     field = audit_text.HANDOVER_LABELS.get(body.path, body.path)
     _audit(repo, case_id, user.id, "handover_field_updated", clock.now(),
            f"{field}: není k dispozici" if body.not_available else field)

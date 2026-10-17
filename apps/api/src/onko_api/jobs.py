@@ -43,6 +43,7 @@ log = logging.getLogger(__name__)
 
 NO_MODEL = "Není nastaven žádný jazykový model (ONKO_MODELS / ONKO_ACTIVE_MODEL)."
 NO_EMBED_MODEL = "Není nastaven embedding model (ONKO_EMBED_MODEL)."
+INTERRUPTED = "Úloha byla přerušena restartem serveru. Spusťte ji prosím znovu."
 
 # Drafts that need the MDT snapshot and record; the conclusion prefill is not AI (Q-F37).
 RECORD_DRAFTS = frozenset({DraftKind.MDT_RESULTS, DraftKind.MDT_CONCLUSION})
@@ -55,6 +56,22 @@ class ImmediateExecutor(Executor):
         future: Future = Future()
         future.set_result(fn(*args, **kwargs))
         return future
+
+
+def fail_interrupted(repo: CaseRepository, now: dt.datetime) -> list[str]:
+    """On startup: jobs still queued or running were lost with the previous process (the worker is
+    in-process, the status is persisted). Mark them failed, so the UI stops polling and a stuck
+    ingest no longer blocks the MDT snapshot. Returns their ids."""
+    failed = []
+    for case in repo.list_cases():
+        for job in repo.list_jobs(case.id):
+            if job.status in (JobStatus.QUEUED, JobStatus.RUNNING):
+                repo.save_job(job.model_copy(update={
+                    "status": JobStatus.FAILED, "finished_at": now, "error": INTERRUPTED}))
+                failed.append(job.id)
+    if failed:
+        log.warning("marked %d interrupted job(s) failed: %s", len(failed), ", ".join(failed))
+    return failed
 
 
 def new_id(prefix: str) -> str:

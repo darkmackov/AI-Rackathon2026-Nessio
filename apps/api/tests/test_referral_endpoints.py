@@ -126,7 +126,9 @@ def test_returned_referral_is_revalidated_and_goes_back_to_triage(client):
     client.put("/demo/clock", json={"now": "2026-10-03T10:00:00"})
 
     url = f"/cases/{case_id}/handover"
-    assert client.patch(url, headers=GP, json={"path": "performance_status", "value": "ECOG 1"}).status_code == 200
+    r = client.patch(url, headers=GP, json={"path": "performance_status", "value": "ECOG 1"})
+    assert r.status_code == 200
+    assert r.json()["performance_score"] == {"scale": "ecog", "score": 1}  # read right away (Q-C13)
     assert client.post(f"/cases/{case_id}/send", headers=GP).status_code == 409  # old validation
 
     client.post(f"/cases/{case_id}/handover/validate", headers=GP)

@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir fastembed==0.9.0 \
 
 FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:0.12.20 /uv /bin/uv
-# tzdata: the FHIR projection converts naive datetimes to Europe/Prague (D-13)
+# tzdata + TZ below: the app clock reads naive local time and the FHIR projection tags naive
+# datetimes as Europe/Prague (D-13), so the container must run in that zone
 RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
@@ -39,6 +40,7 @@ ENV PATH=/app/.venv/bin:$PATH \
     ONKO_DATA_DIR=/app/data \
     ONKO_WEB_DIST=/app/apps/web/dist \
     FASTEMBED_CACHE_PATH=/app/models \
-    HF_HUB_OFFLINE=1
+    HF_HUB_OFFLINE=1 \
+    TZ=Europe/Prague
 EXPOSE 8000
 CMD ["uvicorn", "onko_api.serve:app", "--host", "0.0.0.0", "--port", "8000"]

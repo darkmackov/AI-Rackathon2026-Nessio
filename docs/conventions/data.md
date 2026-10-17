@@ -35,7 +35,7 @@ flowchart LR
 | DM-7 | Any field whose meaning isn't obvious from its name gets `Field(description=…)`. When it implements a decision, cite the ID (e.g. `(Q-F9)`). |
 | DM-8 | Every handover value is `Sourced[T]` with the provenance the contract enforces (Q-A2): `origin=ai` needs verbatim `evidence`, `origin=manual` needs `entered`. A missing value is `status=MISSING, value=None`. Never a guess, never a placeholder (architecture principle 3, D-2). |
 | DM-9 | The handover structure is fixed product schema. Any change to `handover.py` bumps `HANDOVER_SCHEMA_VERSION`. |
-| DM-10 | Contracts hold data, validation and constants (e.g. `ALLOWED_TRANSITIONS`) only. No I/O, no business logic. Logic belongs in the module that owns it. |
+| DM-10 | Contracts hold data, validation and constants (e.g. `ALLOWED_TRANSITIONS`) only. No I/O, no business logic. Logic belongs in the module that owns it. The one shared helper is `match_text` (`text.py`), the pure text normalizer `ai` and `documents` both need (Q-K12). |
 | DM-11 | A type that never crosses a module boundary is not a contract. It goes in that module's `models.py` (see [implementation.md › MOD-4](implementation.md#module-layout)). |
 | DM-12 | Domain models are treated as immutable: change one with `model_copy(update={…})`, never by assigning attributes. |
 | DM-13 | A contract change is its own PR, reviewed by every stream. The same PR updates the reference JSONs and tests, `data-model.md` if the FHIR mapping changes, and regenerates the spec and client (API-6). |

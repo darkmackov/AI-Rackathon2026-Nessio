@@ -141,20 +141,20 @@ def test_event_after_its_document_date_is_temporal_but_planned_events_are_not():
 
 
 def test_birth_date_not_matching_the_birth_number_is_an_identity_finding():
-    a = make_doc("a", "RČ 705402/1234, nar. 2. 4. 1970", dt.date(2026, 9, 1))
-    b = make_doc("b", "RČ 705402/1234, nar. 2. 4. 1975", dt.date(2026, 10, 1))
+    a = make_doc("a", "RČ 705402/1238, nar. 2. 4. 1970", dt.date(2026, 9, 1))
+    b = make_doc("b", "RČ 705402/1238, nar. 2. 4. 1975", dt.date(2026, 10, 1))
     pairs = [
         (
             a,
             out(
-                claim(FieldPath.BIRTH_NUMBER, "705402/1234", "RČ 705402/1234"),
+                claim(FieldPath.BIRTH_NUMBER, "705402/1238", "RČ 705402/1238"),
                 claim(FieldPath.BIRTH_DATE, "1970-04-02", "nar. 2. 4. 1970"),
             ),
         ),
         (
             b,
             out(
-                claim(FieldPath.BIRTH_NUMBER, "705402/1234", "RČ 705402/1234"),
+                claim(FieldPath.BIRTH_NUMBER, "705402/1238", "RČ 705402/1238"),
                 claim(FieldPath.BIRTH_DATE, "1975-04-02", "nar. 2. 4. 1975"),
             ),
         ),
