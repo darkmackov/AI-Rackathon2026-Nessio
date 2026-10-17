@@ -82,3 +82,63 @@ export function quoteSegments(text: string, evidence?: Evidence): { text: string
   parts.push({ text: text.slice(cursor), highlight: false })
   return parts
 }
+
+export type TextPiece = { text: string; highlight: boolean }
+export type TextBlock = { kind: 'text'; pieces: TextPiece[] } | { kind: 'table'; header: TextPiece[][]; rows: TextPiece[][][] }
+
+// Splits highlighted pieces wherever `separator` matches; each part keeps its highlight.
+function splitPieces(pieces: TextPiece[], separator: RegExp): TextPiece[][] {
+  const parts: TextPiece[][] = [[]]
+  for (const piece of pieces) piece.text.split(separator).forEach((chunk, index) => {
+    if (index > 0) parts.push([])
+    if (chunk) parts[parts.length - 1].push({ text: chunk, highlight: piece.highlight })
+  })
+  return parts
+}
+
+const plain = (pieces: TextPiece[]) => pieces.map((piece) => piece.text).join('')
+const tableRow = /^\s*\|.*\|\s*$/
+const tableRule = /^\s*\|(\s*:?-{3,}:?\s*\|)+\s*$/
+// Converters prepend `<!-- source: file -->`; it is metadata, not document text.
+const htmlComment = /^\s*<!--.*-->\s*$/
+
+// Strips `pattern` characters from both ends of the joined text, across piece boundaries.
+function trimPieces(pieces: TextPiece[], pattern: RegExp): TextPiece[] {
+  const leading = new RegExp(`^${pattern.source}+`)
+  const trailing = new RegExp(`${pattern.source}+$`)
+  const result = pieces.filter((piece) => piece.text)
+  while (result.length && !(result[0] = { ...result[0], text: result[0].text.replace(leading, '') }).text) result.shift()
+  while (result.length && !(result[result.length - 1] = { ...result[result.length - 1], text: result[result.length - 1].text.replace(trailing, '') }).text) result.pop()
+  return result
+}
+
+function tableCells(line: TextPiece[]): TextPiece[][] {
+  return splitPieces(line, /(?<!\\)\|/).slice(1, -1).map((cell) => trimPieces(cell.map((piece) => ({ ...piece, text: piece.text.replace(/\\\|/g, '|') })), /\s/))
+}
+
+// Document text keeps Word tables as Markdown tables (onko_documents); this turns them back into rows and cells and hides comment lines.
+export function documentBlocks(segments: TextPiece[]): TextBlock[] {
+  const lines = splitPieces(segments, /\n/)
+  const blocks: TextBlock[] = []
+  let text: TextPiece[][] = []
+  const flush = () => {
+    const pieces = trimPieces(text.flatMap((line, index) => index === 0 ? line : [{ text: '\n', highlight: false }, ...line]), /\n/)
+    if (pieces.length) blocks.push({ kind: 'text', pieces })
+    text = []
+  }
+  for (let index = 0; index < lines.length; index++) {
+    if (htmlComment.test(plain(lines[index]))) continue
+    if (!tableRow.test(plain(lines[index])) || !tableRule.test(plain(lines[index + 1] ?? []))) { text.push(lines[index]); continue }
+    flush()
+    const header = tableCells(lines[index])
+    const rows: TextPiece[][][] = []
+    for (index += 2; index < lines.length && tableRow.test(plain(lines[index])); index++) {
+      const cells = tableCells(lines[index])
+      rows.push([...cells, ...Array.from({ length: header.length - cells.length }, () => [])])
+    }
+    index--
+    blocks.push({ kind: 'table', header, rows })
+  }
+  flush()
+  return blocks
+}
