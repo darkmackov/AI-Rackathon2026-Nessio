@@ -8,7 +8,8 @@ const confirmed: MdtConclusion = { case_id: 'case', confirmed: { by: 'koordinato
 describe('MDT progress', () => {
   it('maps each case state and conclusion to the current MDT stage', () => {
     expect(mdtStage('v_triage', undefined)).toBe('preparation')
-    expect(mdtStage('ceka_na_podklady', undefined)).toBe('preparation')
+    // Waiting for documents never blocks the MDT input.
+    expect(mdtStage('ceka_na_podklady', undefined)).toBe('snapshot')
     expect(mdtStage('kompletni', undefined)).toBe('snapshot')
     expect(mdtStage('pripraveno_k_mdt', null)).toBe('conclusion')
     expect(mdtStage('pripraveno_k_mdt', saved)).toBe('confirm')

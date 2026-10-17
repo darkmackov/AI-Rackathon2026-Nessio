@@ -136,7 +136,7 @@ S0 supplies the shared shell and identity selection before these screens (Q-W9).
    - Task sets are created and edited **in the UI** by the coordinator (Q-F2, Q-F21).
    - In-app deadline notifications (Q-F17).
 5. **MDT.**
-   - *Připravit podklad pro MDT* (prepare MDT input) freezes a snapshot of the handover at the MDT date; the coordinator confirms it. Unresolved blockers or a report received after the MDT date stop it (Q-F39).
+   - *Připravit podklad pro MDT* (prepare MDT input) freezes a snapshot of the handover at the MDT date; the coordinator confirms it. Unresolved blockers or a report received after the MDT date stop it; waiting for documents or open request tasks never do (Q-F39).
    - That produces the MDT record in the `MDT_zapis` layout: members from the board roster, diagnosis + MKN-10, comorbidities, results table (verbatim results, which an AI draft can shorten to one line each, Q-F35).
    - After the meeting the coordinator **records the conclusion** and recommendations, either by writing them (starting from a prefill of the parts that restate the record; the MDT's decision is never AI-drafted, Q-F37) or by uploading the MDT's own report (Q-F12, Q-F38) → `MDT_zaver` document. Confirming it records the definitive MKN-10 in the handover (Q-F36).
 6. **Feedback, slide 11.**

@@ -175,9 +175,19 @@ def test_documents_still_being_extracted_stop_the_snapshot():
         _snapshot(jobs=running)
 
 
-def test_snapshot_only_from_complete_and_with_a_board_of_the_koc():
+def test_waiting_for_documents_never_blocks_the_snapshot():
+    ready, snapshot = prepare_snapshot(_case(CaseState.WAITING_FOR_DOCUMENTS), _handover(), [], DOCS,
+                                       board=BOARD, mdt_date=MDT_DAY, by="koord-a", now=NOW)
+
+    assert ready.state is CaseState.READY_FOR_MDT
+    assert snapshot.as_of == MDT_DAY
+
+
+@pytest.mark.parametrize("state", [CaseState.TRIAGE, CaseState.RETURNED_TO_REFERRER,
+                                   CaseState.READY_FOR_MDT])
+def test_snapshot_only_before_the_mdt_after_triage_and_with_a_board_of_the_koc(state):
     with pytest.raises(TransitionError):
-        prepare_snapshot(_case(CaseState.WAITING_FOR_DOCUMENTS), _handover(), [], DOCS,
+        prepare_snapshot(_case(state), _handover(), [], DOCS,
                          board=BOARD, mdt_date=MDT_DAY, by="koord-a", now=NOW)
     with pytest.raises(MdtBoardError):
         _snapshot(board=BOARD.model_copy(update={"organization_id": "koc-b"}))

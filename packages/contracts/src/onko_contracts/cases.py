@@ -37,7 +37,12 @@ ALLOWED_TRANSITIONS: dict[CaseState, set[CaseState]] = {
     },
     # The GP resends; the case goes straight back to the coordinator who returned it (D-15)
     CaseState.RETURNED_TO_REFERRER: {CaseState.TRIAGE},
-    CaseState.WAITING_FOR_DOCUMENTS: {CaseState.COMPLETE, CaseState.RETURNED_TO_REFERRER},
+    # Waiting for documents never blocks the MDT: the snapshot freezes what is known by then
+    CaseState.WAITING_FOR_DOCUMENTS: {
+        CaseState.COMPLETE,
+        CaseState.READY_FOR_MDT,
+        CaseState.RETURNED_TO_REFERRER,
+    },
     CaseState.COMPLETE: {
         CaseState.READY_FOR_MDT,
         CaseState.WAITING_FOR_DOCUMENTS,

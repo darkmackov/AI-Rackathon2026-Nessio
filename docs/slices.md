@@ -130,7 +130,7 @@ flowchart LR
   - conclusion: `upsertMdtConclusion`, `uploadMdtConclusion`, `getMdtConclusion`, `confirmMdtConclusion`, `getMdtConclusionPdf`
 - **UI:**
   - Epikríza side by side (verbatim vs AI summary) and the MDT question editor.
-  - *Připravit podklad pro MDT*, blocked with 409 until blockers are resolved or overridden.
+  - *Připravit podklad pro MDT*, blocked with 409 until blockers are resolved or overridden. Waiting for documents or open request tasks never block it (Q-F39).
   - MDT record view/PDF; conclusion editor or upload; definitive MKN-10.
 - **Modules:** `documents.render_pdf` (MDT_zapis / MDT_zaver layouts, Typst), `cases.mdt` (snapshot, record, conclusion), `ai` drafts, `repository` `app_mdt_record`.
 - **Done when:** demo steps 9, 11, 12. The MDT record matches the `MDT_zapis` layout, and the snapshot excludes reports received after 21. 10.

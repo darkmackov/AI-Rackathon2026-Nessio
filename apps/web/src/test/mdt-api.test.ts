@@ -32,6 +32,16 @@ describe('S5 contract-shaped HTTP demo', () => {
     await expect(snapshot()).rejects.toMatchObject({ status: 409 })
   })
 
+  it('never blocks a snapshot on waiting for documents or an open request task', async () => {
+    const item = completeCase(); resolveBlockers()
+    demoState.saveCase({ ...item, state: 'ceka_na_podklady' })
+    const request = await mutation(api.createTaskMutation(), { ...options, body: { title: 'Vyžádat MR jater', kind: 'request_documents', owner_id: 'koordinator' } })
+    expectApiResponse('create_mdt_snapshot', 201, await snapshot())
+    expect(demoState.getCases().find((entry) => entry.id === s4CaseId)?.state).toBe('pripraveno_k_mdt')
+    const tasks = await createQueryClient().fetchQuery(api.listTasksOptions(options))
+    expect(tasks.find((task) => task.id === request.id)?.status).toBe('planned')
+  })
+
   it('keeps the frozen snapshot and record independent of later live edits and roster edits', async () => {
     completeCase(); resolveBlockers()
     const live = demoState.documents.result(s4CaseId)

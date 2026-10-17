@@ -522,8 +522,8 @@ export const listNotifications = <ThrowOnError extends boolean = false>(options:
 /**
  * Create Mdt Snapshot
  *
- * 'Připravit podklad pro MDT', a coordinator of the case's KOC: kompletni → pripraveno_k_mdt.
- * Freezes a copy of the live handover (`as_of` = `mdt_date`, confirmed by the coordinator; read it
+ * 'Připravit podklad pro MDT', a coordinator of the case's KOC: kompletni or ceka_na_podklady
+ * → pripraveno_k_mdt; waiting for documents or open tasks never block it. Freezes a copy of the live handover (`as_of` = `mdt_date`, confirmed by the coordinator; read it
  * with `getHandover?snapshot=true`) and builds the MDT record from it, with the board's members
  * and the referring doctor from the directory. 409 in another state, while blockers are
  * unresolved (resolve or override them first), while a document is still being extracted, or

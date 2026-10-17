@@ -148,7 +148,7 @@ classDiagram
 ```
 
 How the MDT snapshot works (S5, Q-F39):
-- *Připravit podklad pro MDT* copies the live handover with `as_of` = the MDT date and `confirmed_by_coordinator` stamped, and the case moves to *Připraveno k MDT*. Nothing is re-extracted.
+- *Připravit podklad pro MDT* copies the live handover with `as_of` = the MDT date and `confirmed_by_coordinator` stamped, and the case moves from *Kompletní* or *Čeká na podklady* to *Připraveno k MDT*. Nothing is re-extracted.
 - The snapshot only uses documents with `received_at <= as_of`: it is refused (409) when any value, examination or lab panel quotes a later document, and while blockers are unresolved.
 - The live handover keeps updating; the snapshot stays frozen. The `MdtRecord` is built from it once (members copied from the board roster) and edited only before the meeting.
 

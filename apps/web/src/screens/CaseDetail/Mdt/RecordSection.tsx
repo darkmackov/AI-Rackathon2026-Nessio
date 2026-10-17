@@ -12,6 +12,7 @@ import PdfDownload from './PdfDownload'
 import RecordEditor from './RecordEditor'
 import RecordView from './RecordView'
 import SnapshotForm from './SnapshotForm'
+import { snapshotStates } from './mdt-progress'
 
 const focusEditor = (node: HTMLHeadingElement | null) => { node?.focus() }
 
@@ -23,7 +24,7 @@ export default function RecordSection({ item, actorId, record, retry, editable, 
   const close = (changed: boolean) => { setEditing(false); setDraft(null); setSaved(changed) }
   if (record.kind === 'loading') return <LoadingState rows={3} />
   if (record.kind === 'error') return <QueryError error={record.error} retry={retry} />
-  if (record.kind === 'missing') return item.state === 'kompletni' ? <SnapshotForm item={item} actorId={actorId} showFindings={showFindings} /> : <EmptyState title={t('mdt.noRecord')} description={t('mdt.notComplete')} />
+  if (record.kind === 'missing') return item.state && snapshotStates.includes(item.state) ? <SnapshotForm item={item} actorId={actorId} showFindings={showFindings} /> : <EmptyState title={t('mdt.noRecord')} description={t('mdt.notComplete')} />
   return <Stack gap="sm">
     {saved && <Alert color="green" role="status">{t('mdt.saved')}</Alert>}
     {editing

@@ -218,6 +218,21 @@ def test_the_snapshot_waits_for_documents_still_being_extracted(client):
     assert client.post(f"/cases/{CASE}/mdt/snapshot", headers=COORDINATOR, json=SNAPSHOT).status_code == 201
 
 
+def test_waiting_for_documents_and_open_requests_never_block_the_snapshot(client):
+    _clear_blockers(client)
+    r = client.post(f"/cases/{CASE}/tasks", headers=COORDINATOR,
+                    json={"title": "Vyžádat MR jater", "kind": "request_documents", "owner_id": "koordinator"})
+    assert r.status_code == 201, r.text
+    assert client.post(f"/cases/{CASE}/transition", headers=COORDINATOR,
+                       json={"to": "ceka_na_podklady"}).status_code == 200
+
+    r = client.post(f"/cases/{CASE}/mdt/snapshot", headers=COORDINATOR, json=SNAPSHOT)
+    assert r.status_code == 201, r.text
+    assert _state(client) == "pripraveno_k_mdt"
+    task = next(t for t in client.get(f"/cases/{CASE}/tasks").json() if t["title"] == "Vyžádat MR jater")
+    assert task["status"] == "planned"  # the request stays open: it is not part of the snapshot
+
+
 def test_the_snapshot_refuses_a_handover_that_uses_a_later_document(client):
     _clear_blockers(client)
     repo = _repo(client)

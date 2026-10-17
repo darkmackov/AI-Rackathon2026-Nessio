@@ -74,7 +74,7 @@ export function createMdtHandlers(state: ReturnType<typeof createDemoState>) {
       const body = await readBody(request, ['board_id', 'mdt_date']), boardId = body.text('board_id', true), date = body.date('mdt_date'); if (!date) body.bad('mdt_date'); body.done()
       if (!date) fail(422, 'MDT date required')
       const board = store.boards().find((entry) => entry.id === boardId) ?? fail(400, 'unknown MDT board')
-      if (item.state !== 'kompletni') fail(409, `the MDT input is prepared from kompletni, not ${item.state}`)
+      if (item.state !== 'kompletni' && item.state !== 'ceka_na_podklady') fail(409, `the MDT input is not prepared from ${item.state}`)
       if (board.organization_id !== item.koc_id) fail(400, 'not an MDT board of the case\'s KOC')
       const live = state.documents.result(id) ?? fail(404, 'no handover yet')
       const pending = state.documents.listJobs(id, now()).filter((job) => job.kind === 'ingest_document' && (job.status === 'queued' || job.status === 'running'))

@@ -41,6 +41,9 @@ from .models import (
 )
 from .referral import set_handover_field, sync_case_from_handover
 
+# Waiting for documents or open request tasks never block the MDT input: the snapshot freezes
+# what is known by the MDT date.
+SNAPSHOT_STATES = frozenset({CaseState.COMPLETE, CaseState.WAITING_FOR_DOCUMENTS})
 # The record is the MDT's input: edited only before the meeting (Q-F34). The conclusion can be
 # corrected until it is sent; a correction needs a new confirmation (Q-I20).
 RECORD_EDIT_STATES = frozenset({CaseState.READY_FOR_MDT})
@@ -98,12 +101,12 @@ def prepare_snapshot(
     now: dt.datetime,
     jobs: Iterable[Job] = (),
 ) -> tuple[Case, Handover]:
-    """'Připravit podklad pro MDT': kompletni → pripraveno_k_mdt with the board and date set, and
-    the frozen copy of the live handover (`as_of` = MDT date), confirmed by the coordinator
-    (Q-F5, D-3). Only what was known by the MDT date may be in it, and never a handover whose
+    """'Připravit podklad pro MDT': kompletni or ceka_na_podklady → pripraveno_k_mdt with the board
+    and date set, and the frozen copy of the live handover (`as_of` = MDT date), confirmed by the
+    coordinator (Q-F5, D-3). Only what was known by the MDT date may be in it, and never a handover whose
     documents are still being extracted (Q-F39)."""
-    if case.state is not CaseState.COMPLETE:
-        raise TransitionError(f"the MDT input is prepared from {CaseState.COMPLETE}, not {case.state}")
+    if case.state not in SNAPSHOT_STATES:
+        raise TransitionError(f"the MDT input is not prepared from {case.state}")
     if board.organization_id != case.koc_id:
         raise MdtBoardError("not an MDT board of the case's KOC")
     pending = pending_ingest(jobs)

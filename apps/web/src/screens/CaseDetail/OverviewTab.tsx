@@ -15,6 +15,7 @@ import { useSession } from '../../session'
 import { formatDate } from '../../time'
 import { StampView } from '../../components/handover/ClinicalValue'
 import { loaded } from './Mdt/loaded'
+import { snapshotStates } from './Mdt/mdt-progress'
 
 function Card({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return <Paper withBorder p="sm" component="section" aria-labelledby={id}><Stack gap="xs">
@@ -45,7 +46,7 @@ export default function OverviewTab({ item, names, referrer, handover, handoverS
     : recordState.kind === 'error' ? <QueryError error={recordState.error} pending={record.isFetching} retry={() => { void record.refetch() }} />
     : <Stack gap={4} align="flex-start">
       <Text size="xs" c="dimmed">{t('caseDetail.confirmHint')}</Text>
-      {item.state === 'kompletni' && <Button size="compact-sm" variant="light" rightSection={<IconArrowRight size={14} aria-hidden />} onClick={showMdt}>{t('caseDetail.goMdt')}</Button>}
+      {item.state && snapshotStates.includes(item.state) && <Button size="compact-sm" variant="light" rightSection={<IconArrowRight size={14} aria-hidden />} onClick={showMdt}>{t('caseDetail.goMdt')}</Button>}
     </Stack>
   return <Stack gap="sm">
     <CaseActions item={item} settings />
