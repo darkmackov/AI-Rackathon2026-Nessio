@@ -247,6 +247,9 @@ class InMemoryRepository:
     def pending_fhir_writes(self) -> int:
         return 0  # no FHIR projection
 
+    def rejected_fhir_writes(self) -> int:
+        return 0
+
 
 def _check_vectors(items: list, vectors: list[list[float]]) -> None:
     if len(items) != len(vectors):

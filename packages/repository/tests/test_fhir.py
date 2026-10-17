@@ -7,7 +7,7 @@ import base64
 import json
 import os
 import re
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import httpx
@@ -140,6 +140,34 @@ def test_projector_posts_one_transaction(handover, case):
     assert all(e["request"]["method"] == "PUT" for e in bundle["entry"])
 
 
+def _strings(value):
+    if isinstance(value, dict):
+        return [s for v in value.values() for s in _strings(v)]
+    if isinstance(value, list):
+        return [s for v in value for s in _strings(v)]
+    return [value] if isinstance(value, str) else []
+
+
+def test_a_case_without_a_patient_name_has_no_empty_name(case):
+    # The intake creates a case before any name is known; FHIR rejects `name.text: ""` (EmptyValue).
+    nameless = case.model_copy(update={"patient_name": ""})
+    handover = Handover(case_id=case.id, as_of=date(2026, 10, 16))
+
+    bundle = transaction(handover_resources(handover, nameless, snapshot=False))
+
+    [patient] = [e["resource"] for e in bundle["entry"]
+                 if e["resource"]["resourceType"] == "Patient"]
+    assert "name" not in patient
+    assert all(s.strip() for s in _strings(bundle))
+
+
+def test_a_transaction_omits_blank_values_and_what_they_leave_empty():
+    bundle = transaction([{"resourceType": "Task", "id": "t1", "description": " ",
+                           "note": [{"text": ""}], "owner": {"display": "KOC 1"}}])
+    assert bundle["entry"][0]["resource"] == {"resourceType": "Task", "id": "t1",
+                                              "owner": {"display": "KOC 1"}}
+
+
 def _live_projector() -> FhirProjector:
     if os.environ.get("ONKO_TEST_IRIS") != "1":
         pytest.skip("set ONKO_TEST_IRIS=1 to run against the IRIS FHIR server")
@@ -241,6 +269,15 @@ def test_mdt_conclusion_is_a_document_bundle_composition_first(handover, case):
     assert reference["resourceType"] == "DocumentReference"
     assert reference["content"][0]["attachment"]["url"] == f"Bundle/{bundle['id']}"
     assert reference["subject"] == {"reference": f"Patient/{patient['id']}"}
+
+
+def test_mdt_conclusion_without_a_handover_or_patient_name_has_no_empty_name(handover, case):
+    nameless = case.model_copy(update={"patient_name": ""})
+    bundle, _ = mdt_conclusion_resources(_conclusion(handover), None, nameless,
+                                         patient_on_server=True)
+    patient = next(e["resource"] for e in bundle["entry"]
+                   if e["resource"]["resourceType"] == "Patient")
+    assert "name" not in patient
 
 
 def test_uploaded_conclusion_attaches_its_pdf(handover, case):

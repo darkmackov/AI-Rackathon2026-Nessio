@@ -145,6 +145,7 @@ def test_health_shows_pending_fhir_writes():
         health = client.get("/health").json()
     assert health["ok"] is True
     assert health["fhir_pending"] == 0  # the in-memory fake has no FHIR projection (D-14)
+    assert health["fhir_rejected"] == 0
 
 
 def test_case_reads_404_for_an_unknown_case():

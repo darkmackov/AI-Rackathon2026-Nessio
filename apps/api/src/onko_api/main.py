@@ -87,8 +87,10 @@ app.include_router(router)
 @app.get("/health", tags=["system"])
 def health(repo: Repo) -> dict[str, bool | int]:
     """`fhir_pending`: FHIR writes still waiting in the outbox (D-14), never silent."""
+    # fhir_rejected: writes the FHIR server refused for good, parked in the outbox with their error
     return {"ok": True, "iris_configured": _iris_configured(),
-            "fhir_pending": repo.pending_fhir_writes()}
+            "fhir_pending": repo.pending_fhir_writes(),
+            "fhir_rejected": repo.rejected_fhir_writes()}
 
 
 @app.get("/cases", tags=["cases"])

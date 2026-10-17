@@ -489,6 +489,7 @@ def test_no_pending_fhir_writes_without_a_fhir_server(repo):
     repo.save_case(_case("c1"))
     repo.save_task(Task(id="t1", case_id="c1", title="CT", kind="imaging", owner="koc"))
     assert repo.pending_fhir_writes() == 0
+    assert repo.rejected_fhir_writes() == 0
 
 
 def _schema_state(repo: IrisRepository) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
