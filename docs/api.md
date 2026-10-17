@@ -29,7 +29,7 @@ Live docs while the API runs: `http://localhost:8000/docs`.
 - **Ids** are strings. **Dates** are ISO `YYYY-MM-DD`, **datetimes** ISO 8601. Task owners and request recipients can be a person or an organisation id.
 - **Time:** "now" is the app clock (`/demo/clock`), so the demo can play the 2.–27. 10. story in minutes.
 - **Data language is Czech** (`message_cs`, notes, drafts). Only the UI is multilingual (Q-F20).
-- **Slow AI work is asynchronous.** Uploads and drafts return a `Job` (`queued → running → done | failed`), and the UI polls `GET /jobs/{id}`. Results land on the case (handover, findings, document metadata) or on the job: `job.draft` (drafts), `job.answer` (ask the case), `job.result` (suggestions).
+- **Slow AI work is asynchronous.** Uploads and drafts return a `Job` (`queued → running → done | failed`), and the UI polls `GET /jobs/{id}`. The worker runs in the API process, so on startup jobs still `queued`/`running` from the previous process become `failed` with a Czech reason ("přerušena restartem"); rerun them by hand (upload or `reextractCase` again). Results land on the case (handover, findings, document metadata) or on the job: `job.draft` (drafts), `job.answer` (ask the case), `job.result` (suggestions).
 - **Errors:** `{"detail": "..."}` with these codes:
 
   | Code | Meaning |
