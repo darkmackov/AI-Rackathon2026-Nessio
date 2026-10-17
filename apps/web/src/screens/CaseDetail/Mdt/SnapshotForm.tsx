@@ -62,7 +62,7 @@ export default function SnapshotForm({ item, actorId, showFindings }: { item: Ca
     </Stack></form>}
     {!confirm && blockedNotice}
     <Modal opened={confirm} onClose={close} title={t('mdt.snapshotTitle')} closeOnEscape={!mutation.isPending} closeOnClickOutside={!mutation.isPending} closeButtonProps={{ 'aria-label': t('close'), disabled: mutation.isPending }}>
-      <Stack><Text>{t('mdt.snapshotHelp')}</Text><Text fw={600}>{selected?.name} · {formatDate(form.values.mdt_date, i18n.language)}</Text>
+      <Stack><Text>{t('mdt.snapshotHelp')}</Text><Text fw={600}>{selected?.name} · {validDocumentDate(form.values.mdt_date) ? formatDate(form.values.mdt_date, i18n.language) : t('unavailable')}</Text>
         {blockedNotice}{mutation.isError && !blocked && <QueryError error={mutation.error} />}
         <Group><Button loading={mutation.isPending} disabled={busy} onClick={() => mutation.mutate({ body: form.values, path: { case_id: item.id }, headers: actorHeaders(actorId) })}>{t('mdt.snapshotConfirm')}</Button><Button variant="default" disabled={mutation.isPending} onClick={close}>{t('cancel')}</Button></Group>
       </Stack>
