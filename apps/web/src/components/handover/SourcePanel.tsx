@@ -33,10 +33,11 @@ export function SourcePlaceholder() {
   </Paper>
 }
 
-export default function SourcePanel({ document, evidence, close, fallback }: { document?: DocumentMeta; evidence?: Evidence; close: () => void; fallback?: ReactNode }) {
+export default function SourcePanel({ document, evidence, close, fallback, forceDrawer = false }: { document?: DocumentMeta; evidence?: Evidence; close: () => void; fallback?: ReactNode; forceDrawer?: boolean }) {
   const { t } = useTranslation()
   const { actorId } = useSession()
-  const wide = useMediaQuery('(min-width: 75em)')
+  const desktop = useMediaQuery('(min-width: 75em)')
+  const wide = desktop && !forceDrawer
   const query = useQuery({ ...documentTextOptions({ path: { document_id: document?.id ?? '' }, headers: actorHeaders(actorId ?? '') }), enabled: !!document })
   const text = query.data?.text ?? ''
   const segments = quoteSegments(text, evidence)
@@ -61,5 +62,5 @@ export default function SourcePanel({ document, evidence, close, fallback }: { d
     </>}
   </Stack>
   return wide ? <Paper component="aside" withBorder p="md" pt={0} aria-label={t('caseDetail.source')} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); close() } }} style={sideColumn}>{content}</Paper>
-    : <Drawer opened onClose={close} position="right" size="100%" title={t('caseDetail.source')} closeButtonProps={{ 'aria-label': t('caseDetail.closeSource') }}>{content}</Drawer>
+    : <Drawer opened onClose={close} position="right" size={forceDrawer ? 'lg' : '100%'} returnFocus={!forceDrawer} title={t('caseDetail.source')} closeButtonProps={{ 'aria-label': t('caseDetail.closeSource') }}>{content}</Drawer>
 }

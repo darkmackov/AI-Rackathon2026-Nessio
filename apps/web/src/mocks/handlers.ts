@@ -10,6 +10,7 @@ import { createReferralHandlers } from './referrals'
 import { createFeedbackHandlers } from './feedback'
 import { createMdtState } from './mdt-state'
 import { createMdtHandlers } from './mdt'
+import { createS8Handlers, createS8State } from './s8'
 import { caseStates, enumError, extraFields, isApiDateTime, objectBody, organizationKinds, queryValue, queueColumns, validateEnumQuery, validationResponse } from './validation'
 
 // Mutable simulated server state is private to this tab (Q-W6, Q-W10).
@@ -19,6 +20,7 @@ export function createDemoState(readNow: () => number = Date.now) {
   let anchoredAt = readNow()
   const documents = createDocumentDemoState(readNow)
   const mdt = createMdtState(readNow)
+  const s8 = createS8State(readNow)
 
   const setTime = (value: string | null) => {
     simulatedAt = value === null ? null : new Date(value).getTime()
@@ -28,6 +30,7 @@ export function createDemoState(readNow: () => number = Date.now) {
     documents.reset(scenario !== 'empty')
     coordinator.reset(scenario !== 'empty')
     mdt.reset()
+    s8.reset()
     setTime(scenario === 'empty' ? '2026-10-02T14:00:00' : '2026-10-21T09:00:00')
     return coordinator.cases()
   }
@@ -35,6 +38,7 @@ export function createDemoState(readNow: () => number = Date.now) {
   return {
     documents,
     mdt,
+    s8,
     coordinator,
     reset,
     setTime,
@@ -52,6 +56,7 @@ export function createDemoState(readNow: () => number = Date.now) {
 export function createHandlers(state = createDemoState()) {
   const notFound = () => HttpResponse.json({ detail: 'not found' }, { status: 404 })
   return [
+    ...createS8Handlers(state),
     ...createMdtHandlers(state),
     ...createCoordinatorHandlers(state),
     ...createDocumentHandlers(state),
