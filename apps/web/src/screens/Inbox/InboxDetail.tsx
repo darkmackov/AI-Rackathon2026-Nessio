@@ -72,7 +72,6 @@ function MdtResult({ message, item, actorId, receipt, receiptsReady }: { message
             <Title order={5} size="h6">{t('messages.materials')}</Title>
             <Group align="flex-start" gap="xs" wrap="wrap">
                 <PdfDownload caseId={message.case_id} actorId={actorId} kind="conclusion" />
-                <PdfDownload caseId={message.case_id} actorId={actorId} kind="record" />
                 {documents.data?.filter((document) => attachments.includes(document.id)).map((document) => <Attachment key={document.id} document={document} actorId={actorId} />)}
                 <Button variant="subtle" size="compact-sm" aria-expanded={showRecord} rightSection={showRecord ? <IconChevronUp size={14} aria-hidden /> : <IconChevronDown size={14} aria-hidden />} onClick={() => setShowRecord(!showRecord)}>{t(showRecord ? 'messages.hideInput' : 'messages.showInput')}</Button>
             </Group>

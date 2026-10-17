@@ -1206,11 +1206,11 @@ def update_mdt_record(
 
 @router.get("/cases/{case_id}/mdt/record.pdf", tags=["mdt"], response_class=Response, responses=PDF)
 def get_mdt_record_pdf(case_id: str, repo: Repo) -> Response:
-    """The MDT record as PDF in the `MDT_zapis` layout; sections 6–7 from a confirmed
-    conclusion."""
+    """The MDT record as PDF in the `MDT_zapis` layout: the board's brief before the meeting,
+    with the rest of the frozen handover snapshot; never the conclusion (that is `MDT_zaver`)."""
     _case_or_404(repo, case_id)
     record = _record_or_404(repo, case_id)
-    return _pdf(render_mdt_record(record, repo.get_mdt_conclusion(case_id)),
+    return _pdf(render_mdt_record(record, repo.get_handover(case_id, snapshot=True)),
                 f"mdt-zapis-{case_id}.pdf")
 
 

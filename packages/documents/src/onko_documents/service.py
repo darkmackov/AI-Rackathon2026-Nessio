@@ -8,7 +8,14 @@ import re
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
-from onko_contracts import DuplicateKind, DuplicateMatch, MdtConclusion, MdtRecord, match_text
+from onko_contracts import (
+    DuplicateKind,
+    DuplicateMatch,
+    Handover,
+    MdtConclusion,
+    MdtRecord,
+    match_text,
+)
 from onko_repository import CaseRepository
 
 from .adapters.office import docx_to_md, pptx_to_md
@@ -93,13 +100,31 @@ def render_pdf(kind: str, data: Mapping[str, Any]) -> bytes:
     return typst_to_pdf(kind, {**data, "title": RENDER_KINDS[kind]})
 
 
-def render_mdt_record(record: MdtRecord, conclusion: MdtConclusion | None = None) -> bytes:
-    """The MDT record PDF in the `MDT_zapis` layout. Sections 6–7 come from a confirmed
-    conclusion only."""
-    confirmed = conclusion if conclusion is not None and conclusion.confirmed else None
+def _snapshot_fields(snapshot: Handover) -> dict[str, Any]:
+    """The handover values the board needs beyond `MdtRecord`, as they stand in the frozen
+    snapshot; a missing one stays None."""
+    return {
+        "age": snapshot.patient.age.value,
+        "sex": snapshot.patient.sex.value,
+        "contact_person": snapshot.contacts.contact_person.value,
+        "contact_person_phone": snapshot.contacts.contact_person_phone.value,
+        "epicrisis": snapshot.epicrisis.value,
+        "histology": snapshot.histology.value,
+        "performance_status": snapshot.performance_status.value,
+        "symptoms": snapshot.symptoms.value,
+        "medications": snapshot.medications.value or [],
+        "allergies": snapshot.allergies.value,
+        "other": snapshot.other.value,
+    }
+
+
+def render_mdt_record(record: MdtRecord, snapshot: Handover | None = None) -> bytes:
+    """The MDT record PDF in the `MDT_zapis` layout: the board's brief before the meeting, so no
+    conclusion. With the frozen `snapshot`, the rest of the handover (age, sex, contact person,
+    epikríza, histology, PS, symptoms, FA, AA, other notes) goes into its sections."""
     return render_pdf("mdt_record", {
         "record": record.model_dump(mode="json"),
-        "conclusion": confirmed.model_dump(mode="json") if confirmed else None,
+        "handover": _snapshot_fields(snapshot) if snapshot is not None else None,
     })
 
 

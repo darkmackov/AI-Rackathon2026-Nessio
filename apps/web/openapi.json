@@ -2696,7 +2696,7 @@
           "mdt"
         ],
         "summary": "Get Mdt Record Pdf",
-        "description": "The MDT record as PDF in the `MDT_zapis` layout; sections 6–7 from a confirmed\nconclusion.",
+        "description": "The MDT record as PDF in the `MDT_zapis` layout: the board's brief before the meeting,\nwith the rest of the frozen handover snapshot; never the conclusion (that is `MDT_zaver`).",
         "operationId": "get_mdt_record_pdf",
         "parameters": [
           {

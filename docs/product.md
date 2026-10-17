@@ -137,10 +137,10 @@ S0 supplies the shared shell and identity selection before these screens (Q-W9).
    - In-app deadline notifications (Q-F17).
 5. **MDT.**
    - *Připravit podklad pro MDT* (prepare MDT input) freezes a snapshot of the handover at the MDT date; the coordinator confirms it. Unresolved blockers or a report received after the MDT date stop it; waiting for documents or open request tasks never do (Q-F39).
-   - That produces the MDT record in the `MDT_zapis` layout: members from the board roster, diagnosis + MKN-10, comorbidities, results table (verbatim results, which an AI draft can shorten to one line each, Q-F35).
-   - After the meeting the coordinator **records the conclusion** and recommendations, either by writing them (starting from a prefill of the parts that restate the record; the MDT's decision is never AI-drafted, Q-F37) or by uploading the MDT's own report (Q-F12, Q-F38) → `MDT_zaver` document. Confirming it records the definitive MKN-10 in the handover (Q-F36).
+   - That produces the MDT record in the `MDT_zapis` layout, the board's brief: members from the board roster, diagnosis + MKN-10, comorbidities, results table (verbatim results, which an AI draft can shorten to one line each, Q-F35). Its PDF also carries the rest of the frozen handover in those sections (age, sex, contact person, epikríza, histology, PS, symptoms, FA, AA, other notes) and never the outcome.
+   - After the meeting the coordinator **records the conclusion** and recommendations, either by writing them (starting from a prefill of the parts that restate the record; the MDT's decision is never AI-drafted, Q-F37) or by uploading the MDT's own report (Q-F12, Q-F38) → `MDT_zaver` document, the only document with the outcome. Confirming it records the definitive MKN-10 in the handover (Q-F36).
 6. **Feedback, slide 11.**
-   - Send to the referring doctor (result + original context). The reviewing-doctor feed comes in Phase 2.
+   - Send to the referring doctor (the `MDT_zaver` result + original context; not the `MDT_zapis` brief, which the result restates). The reviewing-doctor feed comes in Phase 2.
    - The recipient clicks *Potvrzuji převzetí* (I confirm receipt) → the receipt goes into the audit → case closed.
 
 ## Where requests and tasks come from

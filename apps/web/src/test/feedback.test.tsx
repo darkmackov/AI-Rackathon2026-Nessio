@@ -65,6 +65,8 @@ describe('S6 feedback workflow', () => {
     const confirm = await within(todo).findByRole('button', { name: 'Potvrzuji převzetí' })
     expect(conclusion.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(todo).getByRole('heading', { name: 'Podklady' })).toBeVisible()
+    expect(within(todo).getByRole('button', { name: 'Stáhnout závěr PDF' })).toBeVisible()
+    expect(within(todo).queryByRole('button', { name: 'Stáhnout zápis PDF' })).not.toBeInTheDocument()
     expect(within(todo).getByRole('button', { name: 'Zobrazit podklad MDT' })).toHaveAttribute('aria-expanded', 'false')
     await waitFor(() => expect(confirm).toBeEnabled())
     await user.click(confirm)

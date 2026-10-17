@@ -1011,8 +1011,8 @@ export const getMdtRecordPdfQueryKey = (options: Options<GetMdtRecordPdfData>) =
 /**
  * Get Mdt Record Pdf
  *
- * The MDT record as PDF in the `MDT_zapis` layout; sections 6–7 from a confirmed
- * conclusion.
+ * The MDT record as PDF in the `MDT_zapis` layout: the board's brief before the meeting,
+ * with the rest of the frozen handover snapshot; never the conclusion (that is `MDT_zaver`).
  */
 export const getMdtRecordPdfOptions = (options: Options<GetMdtRecordPdfData>) => queryOptions<GetMdtRecordPdfResponse, GetMdtRecordPdfError, GetMdtRecordPdfResponse, ReturnType<typeof getMdtRecordPdfQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

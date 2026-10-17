@@ -124,7 +124,12 @@ def test_mdt_from_the_input_to_the_confirmed_conclusion(client):
 
     pdf = client.get(f"/cases/{CASE}/mdt/record.pdf")
     assert pdf.status_code == 200 and pdf.headers["content-type"] == "application/pdf"
-    assert "Alena Procházková" in parse(pdf.content, "application/pdf")
+    record_text = parse(pdf.content, "application/pdf")
+    assert "Alena Procházková" in record_text
+    for label in ("Epikríza", "Histologie", "Léková anamnéza (FA)", "Alergie (AA)", "Jiná sdělení"):
+        assert label in record_text  # the rest of the frozen snapshot reaches the board
+    if snapshot["patient"]["age"]["value"] is not None:
+        assert f"věk {snapshot['patient']['age']['value']}" in record_text
 
     # The AI one-liners for the results table, applied to the record.
     rows = _draft(client, "mdt_results")["draft"]["rows"]
@@ -163,7 +168,8 @@ def test_mdt_from_the_input_to_the_confirmed_conclusion(client):
     text = parse(client.get(f"/cases/{CASE}/mdt/conclusion.pdf").content, "application/pdf")
     assert "Neoadjuvantní chemoterapie" in text and "Nemocnice Lipová" in text
     record_text = parse(client.get(f"/cases/{CASE}/mdt/record.pdf").content, "application/pdf")
-    assert "Neoadjuvantní chemoterapie" in record_text  # sections 6–7 from the confirmed conclusion
+    assert "Neoadjuvantní chemoterapie" not in record_text  # the zápis is the brief, not the outcome
+    assert "Závěr MDT" not in record_text
 
     # The record is the MDT's input: closed after the meeting.
     r = client.patch(f"/cases/{CASE}/mdt/record", headers=COORDINATOR, json={"mdt_question": "x"})

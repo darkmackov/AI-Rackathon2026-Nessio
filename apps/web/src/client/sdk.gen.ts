@@ -564,8 +564,8 @@ export const updateMdtRecord = <ThrowOnError extends boolean = false>(options: O
 /**
  * Get Mdt Record Pdf
  *
- * The MDT record as PDF in the `MDT_zapis` layout; sections 6–7 from a confirmed
- * conclusion.
+ * The MDT record as PDF in the `MDT_zapis` layout: the board's brief before the meeting,
+ * with the rest of the frozen handover snapshot; never the conclusion (that is `MDT_zaver`).
  */
 export const getMdtRecordPdf = <ThrowOnError extends boolean = false>(options: Options<GetMdtRecordPdfData, ThrowOnError>): RequestResult<GetMdtRecordPdfResponses, GetMdtRecordPdfErrors, ThrowOnError> => (options.client ?? client).get<GetMdtRecordPdfResponses, GetMdtRecordPdfErrors, ThrowOnError>({ url: '/cases/{case_id}/mdt/record.pdf', ...options });
 

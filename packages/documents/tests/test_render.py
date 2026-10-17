@@ -6,7 +6,19 @@ import io
 from datetime import date, datetime
 
 import pytest
-from onko_contracts import MdtConclusion, MdtMember, MdtRecord, MdtResultRow, Stamp
+from onko_contracts import (
+    Contacts,
+    FieldStatus,
+    Handover,
+    MdtConclusion,
+    MdtMember,
+    MdtRecord,
+    MdtResultRow,
+    Origin,
+    PatientDetails,
+    Sourced,
+    Stamp,
+)
 from onko_documents import (
     parse,
     render_mdt_conclusion,
@@ -33,6 +45,28 @@ def _record(**update) -> MdtRecord:
     return record.model_copy(update=update)
 
 
+def _manual(value) -> Sourced:
+    return Sourced(value=value, status=FieldStatus.FOUND, origin=Origin.MANUAL,
+                   entered=Stamp(by="koordinator", at=NOW))
+
+
+def _snapshot(**update) -> Handover:
+    snapshot = Handover(
+        case_id="c1", as_of=date(2026, 10, 21),
+        patient=PatientDetails(age=_manual(63), sex=_manual("žena")),
+        contacts=Contacts(contact_person=_manual("Petra Horká (dcera)"),
+                          contact_person_phone=_manual("+420 777 000 000")),
+        epicrisis=_manual("Bolesti epigastria, úbytek hmotnosti."),
+        histology=_manual("Duktální adenokarcinom, G2–G3."),
+        performance_status=_manual("soběstačná"),
+        symptoms=_manual("Bolesti epigastria od srpna 2026."),
+        medications=_manual(["Apixaban 5 mg 1-0-1"]),
+        allergies=_manual("Neudává"),
+        other=_manual("Přeje si informovat dceru."),
+    )
+    return snapshot.model_copy(update=update)
+
+
 def _text(pdf: bytes) -> str:
     assert pdf.startswith(b"%PDF")
     return " ".join(" ".join(page.extract_text().split()) for page in PdfReader(io.BytesIO(pdf)).pages)
@@ -42,13 +76,12 @@ def test_mdt_record_follows_the_mdt_zapis_layout():
     text = _text(render_mdt_record(_record()))
 
     for heading in ("1 Základní údaje", "2 Členové MDT", "3 Diagnóza", "4 Komorbidity",
-                    "5 Výsledky stávajících vyšetření", "6 Závěr MDT", "7 Doporučení MDT"):
+                    "5 Výsledky stávajících vyšetření"):
         assert heading in text
     assert "Jana Nováková" in text
     assert "MUDr. Tomáš Řezníček" in text
     assert "65 kg, 165 cm" in text
     assert "21. 10. 2026" in text
-    assert "Doplní se po jednání MDT." in text
 
 
 def test_missing_values_say_neuvedeno():
@@ -58,14 +91,43 @@ def test_missing_values_say_neuvedeno():
     assert "Požadavek / otázka na MDT neuvedeno" in text
 
 
-def test_record_shows_only_a_confirmed_conclusion():
-    unconfirmed = MdtConclusion(case_id="c1", conclusion="Neoadjuvantní chemoterapie.")
-    assert "Neoadjuvantní" not in _text(render_mdt_record(_record(), unconfirmed))
-    confirmed = unconfirmed.model_copy(update={"confirmed": Stamp(by="koordinator", at=NOW),
-                                               "recommendations": ["Onkologické konzilium"]})
-    text = _text(render_mdt_record(_record(), confirmed))
-    assert "Neoadjuvantní chemoterapie." in text
-    assert "Onkologické konzilium" in text
+def test_record_is_the_brief_before_the_meeting_never_the_outcome():
+    text = _text(render_mdt_record(_record(), _snapshot()))
+    for heading in ("Závěr MDT", "Doporučení MDT", "Doplní se po jednání MDT."):
+        assert heading not in text
+
+
+def test_record_carries_the_rest_of_the_snapshot_in_its_sections():
+    text = _text(render_mdt_record(_record(), _snapshot()))
+
+    basics, rest = text.split("2 Členové MDT")
+    assert "věk 63, žena" in basics
+    assert "Kontaktní osoba Petra Horká (dcera) +420 777 000 000" in basics
+    diagnosis, rest = rest.split("3 Diagnóza")[1].split("4 Komorbidity")
+    assert "Epikríza Bolesti epigastria, úbytek hmotnosti." in diagnosis
+    assert "Histologie Duktální adenokarcinom, G2–G3." in diagnosis
+    assert "Stav výkonnosti (PS) soběstačná" in diagnosis
+    assert "Symptomy a jejich počátek Bolesti epigastria od srpna 2026." in diagnosis
+    comorbidities, rest = rest.split("5 Výsledky stávajících vyšetření")
+    assert "Léková anamnéza (FA) • Apixaban 5 mg 1-0-1" in comorbidities
+    assert "Alergie (AA) Neudává" in comorbidities
+    assert "neuvedeno Jiná sdělení Přeje si informovat dceru. Nessio" in rest
+
+
+def test_missing_snapshot_values_say_neuvedeno():
+    empty = Handover(case_id="c1", as_of=date(2026, 10, 21))
+    text = _text(render_mdt_record(_record(), empty))
+    for label in ("Kontaktní osoba", "Epikríza", "Histologie", "Stav výkonnosti (PS)",
+                  "Symptomy a jejich počátek", "Léková anamnéza (FA)", "Alergie (AA)",
+                  "Jiná sdělení"):
+        assert f"{label} neuvedeno" in text
+    assert "věk" not in text
+
+
+def test_record_without_a_snapshot_shows_only_its_own_fields():
+    text = _text(render_mdt_record(_record()))
+    for label in ("Kontaktní osoba", "Epikríza", "Léková anamnéza", "Jiná sdělení"):
+        assert label not in text
 
 
 def test_mdt_conclusion_follows_the_mdt_zaver_layout():
