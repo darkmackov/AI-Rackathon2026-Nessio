@@ -36,9 +36,9 @@ describe('S6 feedback workflow', () => {
     expect(screen.getByRole('button', { name: 'Odeslat PL' })).toBeDisabled()
 
     await changeIdentity(user); await signIn(user, 'referring_doctor')
-    await user.click(await screen.findByRole('button', { name: /Výsledek MDT: Alena Procházková/ }))
+    await user.click(await screen.findByRole('button', { name: /Alena Procházková.*Závěr MDT ze dne 21\. 10\. 2026/ }))
     expect(await screen.findByText('Fiktivní závěr MDT.')).toBeVisible()
-    expect(screen.getByText('Poznámka pro PL.')).toBeVisible()
+    expect(screen.getByText(/^Poznámka pro PL\./)).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Zobrazit podklad MDT' }))
     expect(await screen.findByText(/Zmrazené podklady k 21. 10. 2026/)).toBeVisible()
     expect(screen.getByRole('button', { name: 'Stáhnout zápis PDF' })).toBeVisible()
@@ -64,7 +64,7 @@ describe('S6 feedback workflow', () => {
     expect(queryClient.getQueryCache().getAll().some((query) => JSON.stringify(query.queryKey).includes('pl-reznicek'))).toBe(false)
   })
 
-  it('keeps sending disabled when the MDT input cannot be reviewed and allows retry', async () => {
+  it('shows a retry when the MDT input cannot be loaded for review', async () => {
     await concludeReference()
     server.use(http.get('*/api/cases/:id/mdt/record', () => HttpResponse.json({ detail: 'unavailable' }, { status: 501 })))
     renderApp(); const user = userEvent.setup(); await openReferenceCase(user); await openTab(user, 'Komunikace')
@@ -72,11 +72,11 @@ describe('S6 feedback workflow', () => {
     await user.click(screen.getByRole('button', { name: 'Odeslat PL' }))
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Tato funkce zatím není implementována.')
-    expect(within(dialog).getByRole('button', { name: 'Odeslat PL' })).toBeDisabled()
     expect(demoState.getMessages()).toHaveLength(0)
     server.resetHandlers()
     await user.click(within(dialog).getByRole('button', { name: 'Zkusit znovu' }))
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Odeslat PL' })).toBeEnabled())
+    expect(await within(dialog).findByText(/Zmrazený podklad MDT k/)).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: 'Odeslat PL' })).toBeEnabled()
   })
 
   it('does not invent a pending receipt or allow confirmation when receipts fail to load', async () => {
@@ -87,7 +87,7 @@ describe('S6 feedback workflow', () => {
     expect(await within(inbox).findByRole('alert')).toHaveTextContent('Tato funkce zatím není implementována.')
     expect(within(inbox).queryByText('Čeká na potvrzení převzetí')).not.toBeInTheDocument()
     expect(within(inbox).queryByText('1 k potvrzení')).not.toBeInTheDocument()
-    await user.click(within(inbox).getByRole('button', { name: /Výsledek MDT: Alena Procházková/ }))
+    await user.click(within(inbox).getByRole('button', { name: /Alena Procházková.*Závěr MDT ze dne 21\. 10\. 2026/ }))
     await screen.findByText('Fiktivní závěr MDT.')
     expect(screen.getByRole('button', { name: 'Potvrzuji převzetí' })).toBeDisabled()
     server.resetHandlers()
@@ -132,7 +132,7 @@ describe('S6 feedback workflow', () => {
   it('clears the inbox and receipt queries when the demo is reset', async () => {
     await sentResult()
     const { queryClient } = renderApp(), user = userEvent.setup(); await signIn(user, 'referring_doctor')
-    await screen.findByRole('button', { name: /Výsledek MDT: Alena Procházková/ })
+    await screen.findByRole('button', { name: /Alena Procházková.*Závěr MDT ze dne 21\. 10\. 2026/ })
     await user.click(screen.getByRole('button', { name: 'Demo' }))
     const demo = await screen.findByRole('dialog', { name: 'Ovládání dema' })
     await user.click(within(demo).getByRole('button', { name: 'Obnovit prázdné demo' }))
@@ -143,6 +143,6 @@ describe('S6 feedback workflow', () => {
     expect(await screen.findByText('Ve schránce zatím nejsou žádné zprávy.')).toBeVisible()
     expect(queryClient.getQueryCache().getAll().some((query) => JSON.stringify(query.queryKey).includes('listCaseReceipts'))).toBe(false)
     await act(async () => { await queryClient.invalidateQueries() })
-    expect(screen.queryByRole('button', { name: /Výsledek MDT: Alena Procházková/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Alena Procházková.*Závěr MDT ze dne 21\. 10\. 2026/ })).not.toBeInTheDocument()
   })
 })

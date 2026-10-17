@@ -19,7 +19,7 @@ const text = { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } as const
 
 function Note({ message }: { message: Message }) {
     const { t } = useTranslation()
-    return <div><Text size="sm" fw={600}>{t(message.kind === 'case_returned' ? 'messages.returnedNote' : 'messages.note')}</Text>
+    return <div><Text size="sm" fw={600}>{t(message.kind === 'case_returned' ? 'messages.returnedNote' : message.kind === 'mdt_result' ? 'messages.body' : 'messages.note')}</Text>
         <Text size="sm" c={message.body ? undefined : 'dimmed'} style={text}>{message.body || t('messages.noNote')}</Text></div>
 }
 

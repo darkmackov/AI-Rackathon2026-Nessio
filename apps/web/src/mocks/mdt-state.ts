@@ -10,20 +10,25 @@ export function snapshotOf(handover: Handover, date: string, confirmed: Stamp): 
   return { ...structuredClone(handover), as_of: date, confirmed_by_coordinator: confirmed }
 }
 
-function quotedDocuments(node: unknown, found = new Set<string>()): Set<string> {
-  if (Array.isArray(node)) node.forEach((item) => quotedDocuments(item, found))
+function evidenceDocuments(node: unknown, found = new Set<string>()): Set<string> {
+  if (Array.isArray(node)) node.forEach((item) => evidenceDocuments(item, found))
   else if (node && typeof node === 'object') {
     for (const [key, value] of Object.entries(node)) {
       if (key === 'evidence' && Array.isArray(value)) value.forEach((source) => { if (source && typeof source === 'object' && 'document_id' in source) found.add(String(source.document_id)) })
-      else quotedDocuments(value, found)
+      else evidenceDocuments(value, found)
     }
   }
   return found
 }
 
+/** Ids of the documents the handover's values, examinations or labs quote, sorted (S6 attachments). */
+export function quotedDocuments(handover: Handover): string[] {
+  return [...evidenceDocuments(handover)].sort()
+}
+
 /** Documents received after `date` that the handover quotes; any of them stops the snapshot. */
 export function lateDocuments(handover: Handover, documents: DocumentMeta[], date: string): string[] {
-  const quoted = quotedDocuments(handover)
+  const quoted = evidenceDocuments(handover)
   return documents.filter((document) => document.received_at && document.received_at.slice(0, 10) > date && quoted.has(document.id)).map((document) => document.id).sort()
 }
 

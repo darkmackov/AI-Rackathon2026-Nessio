@@ -23,7 +23,7 @@ const actionIcons: Record<string, Icon> = {
   task_created: IconPlaylistAdd, task_updated: IconChecklist, task_set_started: IconChecklist,
   mdt_snapshot_created: IconUsersGroup, mdt_record_updated: IconUsersGroup, mdt_conclusion_saved: IconUsersGroup,
   mdt_conclusion_uploaded: IconFileUpload, mdt_conclusion_confirmed: IconCircleCheck,
-  feedback_sent: IconSend, receipt_confirmed: IconCircleCheck, patient_notice_sent: IconMessage, patient_notice_created: IconMessage,
+  feedback_sent: IconSend, receipt_confirmed: IconCircleCheck, patient_notice_sent: IconMessage,
 }
 
 /** Newest first, grouped by local calendar day (naive datetimes are local, Q-W10). */

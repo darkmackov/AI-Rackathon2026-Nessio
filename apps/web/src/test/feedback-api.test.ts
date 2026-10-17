@@ -3,6 +3,7 @@ import { actorHeaders, createQueryClient } from '../api'
 import * as api from '../client/@tanstack/react-query.gen'
 import type { FeedbackSend, PatientNoticeCreate } from '../client/types.gen'
 import { s4CaseId } from '../mocks/coordinator-state'
+import { quotedDocuments } from '../mocks/mdt-state'
 import { expectApiResponse } from './api-contract'
 import { concludeReference, referenceId as caseId } from './feedback-fixtures'
 import { mutation } from './mdt-fixtures'
@@ -16,18 +17,22 @@ const confirm = (messageId: string, headers = gp) => mutation(api.confirmReceipt
 const notice = (body: PatientNoticeCreate, headers = coordinator, id = caseId) => mutation(api.createPatientNoticeMutation(), { headers, path: { case_id: id }, body })
 const inbox = (headers = gp) => createQueryClient().fetchQuery(api.listInboxOptions({ headers }))
 
+// The mock mirrors the backend's S6 rules (apps/api/tests/test_feedback_endpoints.py, Q-W16).
 describe('S6 contract-shaped HTTP demo', () => {
   it('sends the confirmed result once, keeps the GP on the move and closes the case on the first receipt', async () => {
     await concludeReference()
+    const quoted = quotedDocuments(demoState.mdt.snapshot(caseId)!)
     const message = await send({ note: 'Fiktivní poznámka pro lékaře.' })
     expectApiResponse('send_feedback', 201, message)
-    expect(message).toMatchObject({ case_id: caseId, kind: 'mdt_result', sender_id: 'koordinator', recipient_ids: ['pl-reznicek'], body: 'Fiktivní poznámka pro lékaře.', attachment_document_ids: [], simulated: false })
-    expect(current()).toMatchObject({ state: 'zpetna_vazba_odeslana', on_move: 'pl-reznicek', next_due: null })
+    expect(quoted.length).toBeGreaterThan(0)
+    expect(message).toMatchObject({ case_id: caseId, kind: 'mdt_result', sender_id: 'koordinator', recipient_ids: ['pl-reznicek'], subject: 'Závěr MDT ze dne 21. 10. 2026',
+      body: 'Fiktivní poznámka pro lékaře.\n\nFiktivní závěr MDT.', attachment_document_ids: quoted, simulated: false })
+    expect(current()).toMatchObject({ state: 'zpetna_vazba_odeslana', on_move: 'pl-reznicek', next_step: null, next_due: null })
     await expect(send()).rejects.toMatchObject({ status: 409 })
     // The sent result stays as sent: the conclusion is locked and a task change does not take the GP off the move.
     await expect(mutation(api.upsertMdtConclusionMutation(), { headers: coordinator, path, body: { conclusion: 'Pozdní změna.' } })).rejects.toMatchObject({ status: 409 })
     await mutation(api.updateTaskMutation(), { headers: coordinator, path: { task_id: 'vzp-prochazkova-ca-pankreas-mdt' }, body: { status: 'done' } })
-    expect(current()).toMatchObject({ on_move: 'pl-reznicek', next_due: null })
+    expect(current()).toMatchObject({ on_move: 'pl-reznicek', next_step: null, next_due: null })
 
     const received = await inbox()
     expectApiResponse('list_inbox', 200, received)
@@ -41,7 +46,7 @@ describe('S6 contract-shaped HTTP demo', () => {
     expectApiResponse('confirm_receipt', 201, receipt)
     expect(receipt).toMatchObject({ message_id: message.id, recipient_id: 'pl-reznicek' })
     expect(current()).toMatchObject({ state: 'uzavreno', on_move: null, next_step: null, next_due: null })
-    expect(await confirm(message.id)).toEqual(receipt)
+    await expect(confirm(message.id)).rejects.toMatchObject({ status: 409 })  // once per recipient
     const receipts = await createQueryClient().fetchQuery(api.listCaseReceiptsOptions({ path }))
     expectApiResponse('list_case_receipts', 200, receipts)
     expect(receipts).toEqual([receipt])
@@ -56,7 +61,7 @@ describe('S6 contract-shaped HTTP demo', () => {
   })
 
   it('refuses feedback without a confirmed conclusion, from the wrong people, for unknown cases and with invalid bodies', async () => {
-    await expect(send()).rejects.toMatchObject({ status: 409 })  // still Kompletní
+    await expect(send()).rejects.toMatchObject({ status: 404 })  // no conclusion yet
     await concludeReference(false)
     demoState.saveCase({ ...current()!, state: 'zaver_mdt' })
     await expect(send()).rejects.toMatchObject({ status: 409 })  // conclusion saved but not confirmed
@@ -83,19 +88,22 @@ describe('S6 contract-shaped HTTP demo', () => {
     demoState.saveCase({ ...current()!, state: 'uzavreno' })
     await expect(notice({ subject: 'x', body: 'y' })).rejects.toMatchObject({ status: 409 })
     const actions = (await createQueryClient().fetchQuery(api.listAuditOptions({ headers: coordinator, path }))).map((event) => event.action)
-    expect(actions).toEqual(['patient_notice_created'])
+    expect(actions).toEqual(['patient_notice_sent'])
+    // A returned referral can still be notified: the case is taken over and not closed.
+    demoState.saveCase({ ...current()!, state: 'vraceno_lekari' })
+    expect(await notice({ subject: 'x', body: 'y' })).toMatchObject({ simulated: true })
   })
 
-  it('lists a returned referral in the inbox; confirming it never closes the case', async () => {
+  it('lists a returned referral in the inbox; only an MDT result can be confirmed', async () => {
     demoState.saveCase({ ...current(s4CaseId)!, state: 'v_triage', coordinator_id: 'koordinator' })
     await mutation(api.returnCaseMutation(), { headers: coordinator, path: { case_id: s4CaseId }, body: { note: 'Doplňte prosím fiktivní údaj.' } })
     const [returned] = await inbox()
     expect(returned).toMatchObject({ kind: 'case_returned', case_id: s4CaseId })
-    await confirm(returned.id)
+    await expect(confirm(returned.id)).rejects.toMatchObject({ status: 409 })
     expect(current(s4CaseId)?.state).toBe('vraceno_lekari')
     expect(await createQueryClient().fetchQuery(api.listCaseMessagesOptions({ path: { case_id: s4CaseId } }))).toHaveLength(1)
     await expect(createQueryClient().fetchQuery(api.listCaseMessagesOptions({ path: { case_id: 'unknown' } }))).rejects.toMatchObject({ status: 404 })
-    await expect(createQueryClient().fetchQuery(api.listCaseReceiptsOptions({ headers: actorHeaders('koord-severni'), path: { case_id: s4CaseId } }))).rejects.toMatchObject({ status: 403 })
+    expect(await createQueryClient().fetchQuery(api.listCaseReceiptsOptions({ path: { case_id: s4CaseId } }))).toEqual([])
   })
 
   it('keeps the frozen MDT input and the sent result when reports arrive after the MDT, and clears everything on reset', async () => {
@@ -111,18 +119,16 @@ describe('S6 contract-shaped HTTP demo', () => {
     expect(await createQueryClient().fetchQuery(api.listCaseReceiptsOptions({ path }))).toEqual([])
   })
 
-  it('attaches an existing source document and refuses a missing attachment without sending', async () => {
+  it('attaches the uploaded report first, then the documents the snapshot quotes, and lists the case\'s messages oldest first', async () => {
     await concludeReference()
     const conclusion = demoState.mdt.conclusion(caseId)
-    const document = demoState.documents.list(caseId)[0]
-    if (!conclusion || !document) throw new Error('Missing reference fixtures')
-    demoState.mdt.saveConclusion({ ...conclusion, document_id: 'missing-document' })
-    await expect(send()).rejects.toMatchObject({ status: 409 })
-    expect(await inbox()).toEqual([])
-    expect(current()?.state).toBe('zaver_mdt')
-    demoState.mdt.saveConclusion({ ...conclusion, document_id: document.id })
+    if (!conclusion) throw new Error('Missing reference conclusion')
+    demoState.mdt.saveConclusion({ ...conclusion, conclusion: null, document_id: 'demo-report' })
+    const notified = await notice({ subject: 'Termín', body: 'Fiktivní.' })
     const message = await send()
-    expect(message.attachment_document_ids).toEqual([document.id])
+    expect(message.attachment_document_ids).toEqual(['demo-report', ...quotedDocuments(demoState.mdt.snapshot(caseId)!)])
+    expect(message.body).toBe('Závěr MDT v příloze')
+    expect((await createQueryClient().fetchQuery(api.listCaseMessagesOptions({ path }))).map((item) => item.id)).toEqual([notified.id, message.id])
     expect(await inbox(actorHeaders('pl-novakova'))).toEqual([])
     await expect(confirm(message.id, actorHeaders('pl-novakova'))).rejects.toMatchObject({ status: 403 })
     expect(await createQueryClient().fetchQuery(api.listCaseReceiptsOptions({ path }))).toEqual([])
@@ -137,5 +143,14 @@ describe('S6 contract-shaped HTTP demo', () => {
     await expect(confirm(message.id)).rejects.toMatchObject({ status: 409 })
     expect(await createQueryClient().fetchQuery(api.listCaseReceiptsOptions({ path }))).toEqual([])
     expect(demoState.coordinator.audit(caseId).some((event) => event.action === 'receipt_confirmed')).toBe(false)
+  })
+
+  it('ends a hold when the receipt closes the case', async () => {
+    await concludeReference()
+    const message = await send()
+    demoState.saveCase({ ...current()!, on_hold: { reason: 'Fiktivní důvod.', set_by: 'koordinator', set_at: '2026-10-21T10:00:00' } })
+    await confirm(message.id)
+    expect(current()).toMatchObject({ state: 'uzavreno', on_hold: null, queue: 'aktivni' })
+    expect(demoState.coordinator.audit(caseId).find((event) => event.action === 'receipt_confirmed')?.detail).toBe('Zpětná vazba odeslána → Uzavřeno, odložení zrušeno')
   })
 })
