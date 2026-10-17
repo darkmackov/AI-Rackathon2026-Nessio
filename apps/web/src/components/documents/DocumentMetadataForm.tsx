@@ -1,3 +1,4 @@
+import DateInput from '../DateInput'
 import Button from '../ActionButton'
 import { pendingControlProps } from '../pending-control'
 import { Alert, Group, NativeSelect, Stack, TextInput } from '@mantine/core'
@@ -66,7 +67,7 @@ export default function DocumentMetadataForm({ document, caseId, actorId, onClos
         data={[{ value: '', label: t('unavailable'), disabled: true }, ...Object.keys(documentTypes).map((value) => ({ value, label: t(`documents.types.${value}`) }))]}
         onChange={(event) => { form.setFieldValue('doc_type', documentType(event.currentTarget.value)); save.reset() }}
         onBlur={() => form.validateField('doc_type')} error={form.errors.doc_type} />
-      <TextInput type="date" label={t('documents.documentDate')} {...pendingControlProps(busy)} {...form.getInputProps('document_date')} />
+      <DateInput label={t('documents.documentDate')} {...pendingControlProps(busy)} {...form.getInputProps('document_date')} />
       {textFields.map((key) => <TextInput key={key} label={t(`documents.metadata.${key}`)} {...pendingControlProps(busy)} {...form.getInputProps(key)} />)}
       {save.isError && <QueryError error={save.error} />}
       {save.isSuccess && !form.isDirty() && <Alert color="green" role="status">{t('documents.metadataSaved')}</Alert>}

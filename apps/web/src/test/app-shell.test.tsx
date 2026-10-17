@@ -179,6 +179,32 @@ describe('app shell, identity and demo controls', () => {
     expect(await screen.findByText('There are no cases at your KOC yet.')).toBeVisible()
   })
 
+  it('keeps clock controls in place after a failed update and retries through the original action', async () => {
+    let requests = 0
+    server.use(http.put('*/api/demo/clock', () => {
+      requests++
+      return HttpResponse.json({ detail: 'private failure' }, { status: 500 })
+    }))
+    renderApp('/', { notifications: true })
+    const user = userEvent.setup()
+    await signIn(user)
+    await user.click(screen.getByRole('button', { name: 'Demo' }))
+    const drawer = await screen.findByRole('dialog', { name: 'Ovládání dema' })
+    const button = within(drawer).getByRole('button', { name: 'Nastavit čas' })
+    const form = button.closest('form')!
+    const children = Array.from(form.firstElementChild!.children)
+    const date = within(drawer).getByLabelText('Datum a čas')
+    await user.click(button)
+    await screen.findByText('Při zpracování požadavku nastala chyba. Zkuste to znovu.')
+    expect(Array.from(form.firstElementChild!.children)).toEqual(children)
+    expect(within(drawer).queryByRole('button', { name: 'Zkusit znovu' })).not.toBeInTheDocument()
+    expect(within(drawer).getByLabelText('Datum a čas')).toBe(date)
+    await user.click(button)
+    await waitFor(() => expect(requests).toBe(2))
+    await waitFor(() => expect(button).toBeEnabled())
+    expect(Array.from(form.firstElementChild!.children)).toEqual(children)
+  })
+
   it('validates the time on submit and focuses the error summary', async () => {
     renderApp()
     const user = userEvent.setup()

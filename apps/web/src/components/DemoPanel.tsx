@@ -1,6 +1,7 @@
+import DateInput from './DateInput'
 import Button from './ActionButton'
 import { pendingControlProps } from './pending-control'
-import { Alert, Divider, Drawer, Group, Modal, Stack, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Divider, Drawer, Group, Modal, Stack, Text, Title } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -65,15 +66,12 @@ function TimeForm({ initialNow, onStart, onSaved }: { initialNow: string; onStar
   }}>
     <Stack>
       {failedSubmits > 0 && <FormErrorSummary errors={formProblems(form.errors, labels)} focusKey={failedSubmits} />}
-      <TextInput type="datetime-local" step={1} label={t('dateTime')} {...pendingControlProps(busy)}
+      <DateInput type="datetime-local" step={1} label={t('dateTime')} {...pendingControlProps(busy)}
         {...form.getInputProps('now')} />
       <Group>
         <Button type="submit" pending={busy || change.isPending}>{t('applyTime')}</Button>
         <Button variant="outline" pending={busy} onClick={() => { onStart(); change.mutate({ body: { now: null }, headers: actorHeaders(actorId ?? '') }) }}>{t('wallClockAction')}</Button>
       </Group>
-      {change.isError && <QueryError error={change.error} retry={() => {
-        if (change.variables) change.mutate(change.variables)
-      }} />}
     </Stack>
   </form>
 }

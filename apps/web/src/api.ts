@@ -3,7 +3,14 @@ import { client } from './client/client.gen'
 import { ApiError } from './api-error'
 import { isRecord } from './notifications/normalize-error'
 import { allowNotificationRecovery, notifyApiError } from './notifications/notify'
+import type { NotificationAction } from './notifications/notification-action'
 export { ApiError } from './api-error'
+
+declare module '@tanstack/react-query' {
+  interface Register {
+    mutationMeta: { notificationAction?: (error: unknown) => NotificationAction | undefined }
+  }
+}
 
 export function configureClient(baseUrl = '/api') {
   client.setConfig({ baseUrl })
@@ -27,7 +34,9 @@ export function createQueryClient() {
         notifyApiError(error, { scope: query.queryHash, automatic: true })
       }
     }),
-    mutationCache: new MutationCache({ onError: (error) => { notifyApiError(error) } }),
+    mutationCache: new MutationCache({ onError: (error, _variables, _context, mutation) => {
+      notifyApiError(error, { action: mutation.meta?.notificationAction?.(error) })
+    } }),
     defaultOptions: {
       queries: { retry: false, refetchOnWindowFocus: false },
       mutations: { retry: false },

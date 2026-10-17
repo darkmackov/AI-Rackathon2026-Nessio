@@ -12,6 +12,7 @@ import { completeCase, mutation, resolveBlockers } from './mdt-fixtures'
 import { renderApp } from './renderApp'
 import { openTab, signIn, type User } from './shell'
 import { demoState, server } from './setup'
+import * as mdtSteps from '../screens/CaseDetail/Mdt/NextStep'
 
 async function openMdt(user: User) {
     await signIn(user)
@@ -42,6 +43,7 @@ describe('MDT field notifications', () => {
         await openMdt(user)
         await user.click(await screen.findByRole('button', { name: 'Připravit podklad pro MDT' }))
         const dialog = await screen.findByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })
+        const progressRender = vi.spyOn(mdtSteps, 'MdtProgress')
         const background = Array.from(document.querySelectorAll<HTMLButtonElement>('button'))
             .filter((button) => !button.closest('[role="dialog"]'))
             .map((button) => ({ button, disabled: button.disabled, text: button.textContent, content: button.querySelector('.mantine-Button-inner') }))
@@ -53,6 +55,13 @@ describe('MDT field notifications', () => {
         })
         server.use(http.post('*/api/cases/:id/mdt/snapshot', request))
         const confirm = within(dialog).getByRole('button', { name: 'Potvrdit a připravit' })
+        const layout = Array.from(confirm.parentElement!.parentElement!.children)
+        const date = screen.getByLabelText('Datum MDT')
+        const dateValue = date.getAttribute('value')
+        const calendar = date.closest('.mantine-InputWrapper-root')!.querySelector('[data-calendar-icon]')!
+        expect(calendar).toBeVisible()
+        expect(within(dialog).queryByText('Zobrazit k řešení')).not.toBeInTheDocument()
+        expect(layout).toHaveLength(3)
         await user.click(confirm)
         try {
             await waitFor(() => expect(request).toHaveBeenCalledOnce())
@@ -63,6 +72,15 @@ describe('MDT field notifications', () => {
             expect(confirm.querySelector('.mantine-Button-loader')).not.toBeInTheDocument()
             expect(confirm).toBeDisabled()
             expect(within(dialog).getByRole('button', { name: 'Zrušit' })).toBeDisabled()
+            expect(Array.from(confirm.parentElement!.parentElement!.children)).toEqual(layout)
+            expect(within(dialog).queryByText('Zobrazit k řešení')).not.toBeInTheDocument()
+            expect(progressRender).not.toHaveBeenCalled()
+            expect(screen.getByLabelText('Datum MDT')).toBe(date)
+            expect(date).toHaveAttribute('type', 'date')
+            expect(date).toBeDisabled()
+            expect(date).toHaveAttribute('data-pending', 'true')
+            expect(date.closest('.mantine-InputWrapper-root')!.querySelector('[data-calendar-icon]')).toBe(calendar)
+            expect(calendar).toBeVisible()
             for (const { button, disabled, text, content } of background) {
                 expect(button).toBeInTheDocument()
                 expect(button.textContent).toBe(text)
@@ -81,9 +99,37 @@ describe('MDT field notifications', () => {
         expect(dialog).toBeVisible()
         expect(confirm).toBeEnabled()
         expect(confirm).not.toHaveAttribute('aria-busy')
+        expect(Array.from(confirm.parentElement!.parentElement!.children)).toEqual(layout)
+        const recovery = screen.queryByRole('button', { name: 'Zobrazit k řešení' })
+        expect(recovery !== null).toBe(status === 409)
+        if (recovery) expect(recovery.closest('[data-notification]')).toBeInTheDocument()
+        expect(progressRender).not.toHaveBeenCalled()
+        expect(screen.getByLabelText('Datum MDT')).toBe(date)
+        expect(date).toHaveValue(dateValue)
+        expect(date).toBeEnabled()
         expect(demoState.mdt.snapshot(s4CaseId)).toBeUndefined()
         expect(document.body).not.toHaveTextContent('private backend detail')
         for (const { button, disabled } of background) expect(button.disabled).toBe(disabled)
+
+        // A retry must keep the same compact dialog and the contextual popup action.
+        let finishRetry = () => {}
+        const retryResponse = new Promise<void>((resolve) => { finishRetry = resolve })
+        server.use(http.post('*/api/cases/:id/mdt/snapshot', async () => {
+            await retryResponse
+            return HttpResponse.json({ detail: 'private backend detail' }, { status: 500 })
+        }))
+        await user.click(confirm)
+        try {
+            await waitFor(() => expect(confirm).toHaveAttribute('aria-busy', 'true'))
+            expect(Array.from(confirm.parentElement!.parentElement!.children)).toEqual(layout)
+            if (recovery) expect(recovery).toBeDisabled()
+            expect(calendar).toBeVisible()
+            expect(progressRender).not.toHaveBeenCalled()
+        } finally {
+            await act(async () => { finishRetry(); await retryResponse })
+        }
+        await waitFor(() => expect(confirm).toBeEnabled())
+        expect(Array.from(confirm.parentElement!.parentElement!.children)).toEqual(layout)
     })
 
     it('reports every missing record row field without naming valid fields and validates on blur', async () => {
@@ -256,6 +302,7 @@ describe('MDT field notifications', () => {
         expect(problem).not.toHaveTextContent(i18n.t('mdt.snapshotBlocked'))
         expect(dialog.queryByRole('button', { name: 'Zobrazit k řešení' }) !== null).toBe(blockers)
         if (blockers) {
+            expect(within(problem).getByRole('button', { name: 'Zobrazit k řešení' })).toBeVisible()
             await user.click(dialog.getByRole('button', { name: 'Zobrazit k řešení' }))
             expect(await screen.findByRole('article', { name: 'Fiktivní ukázka: chybí ECOG / Karnofsky.' })).toBeVisible()
         }

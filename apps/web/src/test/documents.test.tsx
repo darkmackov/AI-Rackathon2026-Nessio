@@ -237,6 +237,32 @@ describe('S2 document upload and processing in the case documents tab', () => {
     await waitFor(() => expect(retried).toBe(actorId))
   })
 
+  it('keeps extraction controls in place after a request failure and retries using the same action', async () => {
+    let requests = 0
+    server.use(
+      http.get('*/api/cases/:caseId/documents', () => HttpResponse.json([{ id: 'doc-a', case_id: caseId, filename: 'a.pdf' }])),
+      http.get('*/api/cases/:caseId/jobs', () => HttpResponse.json([])),
+      http.post('*/api/cases/:caseId/extract', () => {
+        requests++
+        return HttpResponse.json({ detail: 'private failure' }, { status: 500 })
+      }),
+    )
+    renderDocuments(undefined, caseId, actorId, true)
+    await userEvent.click(screen.getByRole('button', { name: 'Select coordinator' }))
+    const button = await screen.findByRole('button', { name: 'Znovu spustit extrakci' })
+    await waitFor(() => expect(button).toBeEnabled())
+    const section = button.closest('section')!
+    const children = Array.from(section.children)
+    await userEvent.click(button)
+    await screen.findByText('Při zpracování požadavku nastala chyba. Zkuste to znovu.')
+    expect(Array.from(section.children)).toEqual(children)
+    expect(within(section).queryByRole('button', { name: 'Zkusit znovu' })).not.toBeInTheDocument()
+    await userEvent.click(button)
+    await waitFor(() => expect(requests).toBe(2))
+    await waitFor(() => expect(button).toBeEnabled())
+    expect(Array.from(section.children)).toEqual(children)
+  })
+
   it('shows honest 501 job failures without blocking uploads', async () => {
     server.use(http.get('*/api/cases/:caseId/jobs', () => HttpResponse.json({ detail: 'not implemented' }, { status: 501 })))
     renderDocuments(undefined, caseId, actorId, true)

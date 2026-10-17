@@ -1,6 +1,7 @@
 import { pendingControlProps } from '../../../components/pending-control'
 import Button from '../../../components/ActionButton'
-import { Alert, Group, Modal, NativeSelect, Stack, Text, TextInput } from '@mantine/core'
+import DateInput from '../../../components/DateInput'
+import { Alert, Group, Modal, NativeSelect, Stack, Text } from '@mantine/core'
 import { useForm, type FormErrors } from '@mantine/form'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -63,6 +64,9 @@ export default function SnapshotForm({ item, actorId, showFindings }: { item: Ca
   const selected = choices.find((board) => board.id === form.values.board_id)
   const mutation = useMutation({
     ...createMdtSnapshotMutation(),
+    meta: { notificationAction: (error) => normalizeError(error).code === 'blockers'
+      ? { labelKey: 'mdt.reviewFindings', onClick: () => { setConfirm(false); showFindings() } }
+      : undefined },
     onError: (error) => form.setErrors(apiFieldErrors(error, labels, t)),
     onSuccess: async () => { await refreshCaseResults(client, item.id); setConfirm(false) },
   })
@@ -80,7 +84,7 @@ export default function SnapshotForm({ item, actorId, showFindings }: { item: Ca
             {...form.getInputProps('board_id')} {...pendingControlProps(busy)} />
           <Group><Button variant="subtle" size="compact-sm" px={4} onClick={() => { setSaved(false); setRoster(true) }} pending={busy} disabled={!selected}>{t('mdt.roster')}</Button></Group>
         </Stack>
-        <TextInput type="date" label={t('mdt.date')} {...form.getInputProps('mdt_date')} {...pendingControlProps(busy)} />
+        <DateInput label={t('mdt.date')} {...form.getInputProps('mdt_date')} {...pendingControlProps(busy)} />
       </Group>
       {saved && <Alert color="green" role="status">{t('mdt.rosterSaved')}</Alert>}
       <Group><Button type="submit" pending={busy}>{t('mdt.snapshot')}</Button></Group>
@@ -88,7 +92,6 @@ export default function SnapshotForm({ item, actorId, showFindings }: { item: Ca
     <Modal opened={confirm} onClose={() => { if (!dialogBusy) setConfirm(false) }} title={t('mdt.snapshotTitle')} closeOnEscape={!dialogBusy} closeOnClickOutside={!dialogBusy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(dialogBusy) }}>
       <Stack><Text>{t('mdt.snapshotHelp')}</Text><Text fw={600}>{selected?.name} · {confirm && formatDate(form.values.mdt_date, i18n.language)}</Text>
         {mutation.isError && <QueryError error={mutation.error} />}
-        {mutation.isError && normalizeError(mutation.error).code === 'blockers' && <Button variant="outline" onClick={() => { setConfirm(false); showFindings() }}>{t('mdt.reviewFindings')}</Button>}
         <Group><Button pending={dialogBusy || mutation.isPending} onClick={() => mutation.mutate({ body: form.values, path: { case_id: item.id }, headers: actorHeaders(actorId) })}>{t('mdt.snapshotConfirm')}</Button><Button variant="default" pending={dialogBusy} onClick={() => setConfirm(false)}>{t('cancel')}</Button></Group>
       </Stack>
     </Modal>

@@ -4,6 +4,7 @@ import { IconAlertCircle, IconAlertTriangle, IconCircleCheck, IconInfoCircle } f
 import { ApiError } from '../api-error'
 import type { Job } from '../client/types.gen'
 import { normalizeError } from './normalize-error'
+import type { NotificationAction } from './notification-action'
 import { JobMessage, NoticeOverflow, NoticeRepeated, NoticeTitle, ProblemMessage } from './NotificationText'
 
 export const notificationStore = createNotificationsStore()
@@ -45,7 +46,7 @@ export function notifyError(id: string, message: NotificationData['message']) { 
 export function notifySuccess(id: string, message: NotificationData['message']) { show(`success:${id}`, 'success', message) }
 export function notifyInfo(id: string, message: NotificationData['message']) { show(`info:${id}`, 'info', message) }
 
-export function notifyApiError(error: unknown, options: { scope?: string; automatic?: boolean } = {}) {
+export function notifyApiError(error: unknown, options: { scope?: string; automatic?: boolean; action?: NotificationAction } = {}) {
     if (error instanceof Error && (error.name === 'AbortError' || error.name === 'CancelledError' || error instanceof ApiError && error.detail instanceof DOMException && error.detail.name === 'AbortError')) return
     if (typeof error === 'object' && error !== null) {
         if (seenErrors.has(error)) return
@@ -55,7 +56,12 @@ export function notifyApiError(error: unknown, options: { scope?: string; automa
     const shared = ['network', 'unavailable', 'timeout'].includes(problem.code)
     const scope = shared ? 'connection' : options.scope ?? (error instanceof ApiError ? error.scope : undefined) ?? 'operation'
     const operation = error instanceof ApiError ? error.operation : undefined
-    show(`api:${scope}:${problem.code}`, problem.severity, <ProblemMessage problem={problem} operation={operation} />, options.automatic)
+    const id = `api:${scope}:${problem.code}`
+    const action = options.action && { ...options.action, onClick: () => {
+        notifications.hide(id, notificationStore)
+        options.action?.onClick()
+    } }
+    show(id, problem.severity, <ProblemMessage problem={problem} operation={operation} action={action} />, options.automatic)
 }
 
 export function notifyJobFailure(job: Job) {

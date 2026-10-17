@@ -1,3 +1,4 @@
+import DateInput from '../../components/DateInput'
 import Button from '../../components/ActionButton'
 import { pendingControlProps } from '../../components/pending-control'
 import { Group, Stack, Textarea, TextInput } from '@mantine/core'
@@ -47,7 +48,7 @@ export default function ExaminationForm({ caseId, actorId, close, saved }: { cas
     })(event)
   }}><Stack>
       {failedSubmits > 0 && <FormErrorSummary errors={formProblems(form.errors, labels)} focusKey={failedSubmits} />}
-      <TextInput type="date" label={labels.date} {...form.getInputProps('date')} {...pendingControlProps(busy)} />
+      <DateInput label={labels.date} {...form.getInputProps('date')} {...pendingControlProps(busy)} />
       <TextInput label={labels.place} {...form.getInputProps('place')} {...pendingControlProps(busy)} />
       <TextInput label={labels.type} {...form.getInputProps('type')} {...pendingControlProps(busy)} />
       <Textarea rows={6} label={labels.result_full_text} {...form.getInputProps('result_full_text')} {...pendingControlProps(busy)} />

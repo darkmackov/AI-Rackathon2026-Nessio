@@ -1,4 +1,13 @@
+.layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    pointer-events: none;
+}
+
 .host[data-position='top-center'] {
+    position: absolute;
+    pointer-events: auto;
     top: max(12px, env(safe-area-inset-top));
     max-height: calc(100dvh - 88px);
     overflow-y: auto;
@@ -6,7 +15,7 @@
     padding: 4px;
 }
 
-:global([role='dialog'][aria-modal='true']):has(> .host) {
+:global([role='dialog'][aria-modal='true']):has(> .layer) {
     transform: none !important;
 }
 
@@ -29,7 +38,8 @@
 }
 
 .controls {
-    position: fixed;
+    position: absolute;
+    pointer-events: auto;
     z-index: 1101;
     bottom: max(12px, env(safe-area-inset-bottom));
     left: 50%;
@@ -44,7 +54,7 @@
 }
 
 .progress {
-    position: fixed;
+    position: absolute;
     z-index: 1102;
     right: max(12px, env(safe-area-inset-right));
     bottom: max(12px, env(safe-area-inset-bottom));

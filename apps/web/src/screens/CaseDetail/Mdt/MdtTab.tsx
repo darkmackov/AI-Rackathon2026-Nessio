@@ -1,4 +1,5 @@
 import Button from '../../../components/ActionButton'
+import WriteControls from '../../../components/WriteControls'
 import { pendingControlProps } from '../../../components/pending-control'
 import { Accordion, Badge, Group, Modal, Stack, Text } from '@mantine/core'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,7 +9,6 @@ import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../../api'
 import { confirmMdtConclusionMutation, getMdtConclusionOptions, getMdtRecordOptions, listCaseJobsOptions } from '../../../client/@tanstack/react-query.gen'
 import type { Case, DocumentMeta, Handover } from '../../../client/types.gen'
-import { QueryError } from '../../../components/DataState'
 import { terminalJob } from '../../../components/documents/document-utils'
 import { refreshCaseResults } from '../../../components/documents/use-document-ingest'
 import type { Sources } from '../../../components/handover/ClinicalValue'
@@ -25,10 +25,24 @@ function SectionTitle({ title, status }: { title: string; status?: ReactNode }) 
   return <Group gap="sm" wrap="wrap"><Text fw={650}>{title}</Text>{status}</Group>
 }
 
+function ConclusionConfirmation({ opened, caseId, actorId, pending, close, confirmed }: {
+  opened: boolean; caseId: string; actorId: string; pending: boolean; close: () => void; confirmed: () => void;
+}) {
+  const { t } = useTranslation(), client = useQueryClient(), busy = useIsMutating() > 0
+  const mutation = useMutation({ ...confirmMdtConclusionMutation(), onSuccess: async () => {
+    await refreshCaseResults(client, caseId); close(); confirmed()
+  } })
+  return <Modal opened={opened} onClose={() => { if (!busy) close() }} title={t('mdt.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
+    <Stack><Text>{t('mdt.confirmHelp')}</Text>
+      <Group><Button pending={busy || pending || mutation.isPending} onClick={() => mutation.mutate({ headers: actorHeaders(actorId), path: { case_id: caseId } })}>{t('mdt.confirm')}</Button><Button variant="default" pending={busy} onClick={close}>{t('cancel')}</Button></Group>
+    </Stack>
+  </Modal>
+}
+
 export default function MdtTab({ item, handover, documents, names, sources, showFindings, showCommunication, handoverState }: {
   item: Case; handover?: Handover; documents: DocumentMeta[]; names: Record<string, string>; sources: Sources; showFindings: () => void; showCommunication: () => void; handoverState?: ReactNode;
 }) {
-  const { t, i18n } = useTranslation(), { actorId } = useSession(), client = useQueryClient(), busy = useIsMutating() > 0
+  const { t, i18n } = useTranslation(), { actorId } = useSession()
   const actor = actorId ?? '', options = { headers: actorHeaders(actor), path: { case_id: item.id } }
   const [confirm, setConfirm] = useState(false), [feedback, setFeedback] = useState<string | null>(null)
   // Open sections follow the stage until the coordinator opens or closes one in it.
@@ -51,7 +65,6 @@ export default function MdtTab({ item, handover, documents, names, sources, show
     const control = controls.current[section]
     control?.focus(); control?.scrollIntoView?.({ block: 'center' })
   }
-  const confirmMutation = useMutation({ ...confirmMdtConclusionMutation(), onSuccess: async () => { await refreshCaseResults(client, item.id); setConfirm(false); setFeedback('mdt.confirmed') } })
   const settled = recordState.kind !== 'loading' && !(record.data && conclusionState.kind === 'loading')
 
   const recordStatus = record.data
@@ -66,8 +79,8 @@ export default function MdtTab({ item, handover, documents, names, sources, show
 
   return <Stack component="section" aria-label={t('mdt.title')} gap="md">
     <MdtProgress stage={stage} />
-    {settled && <NextStep stage={stage} feedback={feedback} disabled={!jobs.isSuccess || !conclusion.isSuccess} pending={pending || busy}
-      goSnapshot={() => reveal('record')} goConclusion={() => reveal('conclusion')} goSend={showCommunication} confirm={() => { confirmMutation.reset(); setConfirm(true) }} />}
+    {settled && <WriteControls>{(busy) => <NextStep stage={stage} feedback={feedback} disabled={!jobs.isSuccess || !conclusion.isSuccess} pending={pending || busy}
+      goSnapshot={() => reveal('record')} goConclusion={() => reveal('conclusion')} goSend={showCommunication} confirm={() => setConfirm(true)} />}</WriteControls>}
     <Accordion multiple variant="separated" order={2} chevronPosition="left" value={value} onChange={(next) => setOpened({ stage, value: next })}>
       {pre && <Accordion.Item value="preparation">
         <Accordion.Control {...control('preparation')}><SectionTitle title={t('mdt.preparation')} /></Accordion.Control>
@@ -82,10 +95,6 @@ export default function MdtTab({ item, handover, documents, names, sources, show
         <Accordion.Panel><ConclusionSection caseId={item.id} actorId={actor} record={record.data} conclusion={conclusionState} retry={() => { void conclusion.refetch() }} jobs={jobs} ingest={ingest} pending={pending} editable={conclusionOpen} documents={documents} sources={sources} /></Accordion.Panel>
       </Accordion.Item>}
     </Accordion>
-    <Modal opened={confirm} onClose={() => { if (!busy) setConfirm(false) }} title={t('mdt.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
-      <Stack><Text>{t('mdt.confirmHelp')}</Text>{confirmMutation.isError && <QueryError error={confirmMutation.error} />}
-        <Group><Button pending={busy || pending || confirmMutation.isPending} onClick={() => confirmMutation.mutate(options)}>{t('mdt.confirm')}</Button><Button variant="default" pending={busy} onClick={() => setConfirm(false)}>{t('cancel')}</Button></Group>
-      </Stack>
-    </Modal>
+    <ConclusionConfirmation opened={confirm} caseId={item.id} actorId={actor} pending={pending} close={() => setConfirm(false)} confirmed={() => setFeedback('mdt.confirmed')} />
   </Stack>
 }

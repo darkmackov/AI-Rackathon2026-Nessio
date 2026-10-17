@@ -1,8 +1,9 @@
 import { pendingControlProps } from '../../components/pending-control'
 import Button from '../../components/ActionButton'
+import WriteControls from '../../components/WriteControls'
 import { Alert, Anchor, Badge, Grid, Group, Modal, Paper, Stack, Tabs, Text } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
-import { useIsMutating, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { IconArrowLeft, IconClipboardText, IconFiles } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -36,7 +37,6 @@ function ReferralContent({ caseId }: { caseId: string }) {
   const { t } = useTranslation()
   const { actorId } = useSession()
   const actor = actorId ?? ''
-  const busy = useIsMutating() > 0
   const wide = useMediaQuery('(min-width: 75em)')
   const [tab, setTab] = useState<string | null>('documents')
   const [openSections, setOpenSections] = useState<string[]>(['patient', 'diagnosis', 'epicrisis'])
@@ -100,11 +100,11 @@ function ReferralContent({ caseId }: { caseId: string }) {
           {handover.data && <>
             <Group gap="xs"><Text size="sm" c="dimmed">{t('caseDetail.validated')}:</Text><StampView stamp={handover.data.validated_by_referrer} names={names} /></Group>
             <HandoverTab handover={handover.data} names={names} sources={sources} findings={findings.data?.filter((finding) => !finding.resolved) ?? []} showFinding={showFinding} open={openSections} setOpen={(sections) => { setOpenSections(sections); setFocusPath(null) }} focusPath={focusPath}
-              fieldActions={(path) => !editable || path === 'epicrisis' || path === 'mdt_question' ? null : <Group gap="xs">
+              fieldActions={(path) => !editable || path === 'epicrisis' || path === 'mdt_question' ? null : <WriteControls>{(busy) => <Group gap="xs">
                 <Button size="compact-sm" variant="subtle" pending={busy || processing} onClick={() => setEditing({ path, unavailable: false })}>{t(fields[path]?.status === 'found' ? 'referral.edit' : 'referral.fill')}</Button>
                 <Button size="compact-sm" variant="subtle" color="gray" pending={busy || processing} onClick={() => setEditing({ path, unavailable: true })}>{t('handoverEdit.notAvailable')}</Button>
-              </Group>}
-              examinationAction={editable && <Button variant="outline" size="compact-sm" pending={busy || processing} onClick={() => setAddExam(true)}>{t('referral.addExam')}</Button>} />
+              </Group>}</WriteControls>}
+              examinationAction={editable && <WriteControls>{(busy) => <Button variant="outline" size="compact-sm" pending={busy || processing} onClick={() => setAddExam(true)}>{t('referral.addExam')}</Button>}</WriteControls>} />
           </>}
           <FindingsPanel caseId={caseId} names={names} sources={sources} handover={handover.data} showField={showField} />
           {jobs.isError && <QueryError error={jobs.error} retry={() => { void jobs.refetch() }} pending={jobs.isFetching} />}
@@ -115,12 +115,12 @@ function ReferralContent({ caseId }: { caseId: string }) {
       </Grid.Col>{wide && <Grid.Col span={5}>{source || <SourcePlaceholder />}</Grid.Col>}</Grid>
       {!wide && source}
     </Tabs>
-    <Modal opened={!!editing && editable} onClose={() => { if (!busy) setEditing(null) }} title={t('referral.editField', { field: editLabel ? t(`caseDetail.${editLabel}`) : '' })} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
+    <WriteControls>{(busy) => <Modal opened={!!editing && editable} onClose={() => { if (!busy) setEditing(null) }} title={t('referral.editField', { field: editLabel ? t(`caseDetail.${editLabel}`) : '' })} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {editing && editable && <HandoverFieldForm key={`${editing.path}-${editing.unavailable}`} caseId={caseId} actorId={actor} path={editing.path} value={fields[editing.path]} unavailable={editing.unavailable} close={() => setEditing(null)} saved={() => { setEditing(null); setFeedback('referral.saved') }} />}
-    </Modal>
-    <Modal opened={addExam && editable} onClose={() => { if (!busy) setAddExam(false) }} title={t('referral.addExam')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
+    </Modal>}</WriteControls>
+    <WriteControls>{(busy) => <Modal opened={addExam && editable} onClose={() => { if (!busy) setAddExam(false) }} title={t('referral.addExam')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {addExam && editable && <ExaminationForm caseId={caseId} actorId={actor} close={() => setAddExam(false)} saved={() => { setAddExam(false); setFeedback('referral.examSaved') }} />}
-    </Modal>
+    </Modal>}</WriteControls>
   </Stack>
 }
 

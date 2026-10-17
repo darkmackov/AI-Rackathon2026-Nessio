@@ -31,6 +31,5 @@ export default function DocumentJobs({ caseId, actorId, documents, disabled = fa
     {jobs.isSuccess && !ingestJobs.length && <EmptyState title={t('documents.noJobs')} />}
     {ingestJobs.map((job) => <JobProgress key={job.id} job={job} actorId={actorId} documents={documents} />)}
     <Button variant="outline" onClick={retry} pending={busy || processing || reextract.isPending} disabled={disabled || !documents.length}>{t('documents.reextract')}</Button>
-    {reextract.isError && <QueryError error={reextract.error} retry={retry} />}
   </Stack>
 }

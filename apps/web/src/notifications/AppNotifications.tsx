@@ -1,4 +1,4 @@
-import { Button, Group, Notification, Paper, Portal, Stack, Text } from '@mantine/core'
+import { Box, Button, Group, Notification, Paper, Portal, Stack, Text } from '@mantine/core'
 import { Notifications, notifications, useNotifications, type NotificationData } from '@mantine/notifications'
 import { useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -49,6 +49,15 @@ function subscribePending(callback: () => void) {
     return () => observer.disconnect()
 }
 
+// Keep progress updates inside this leaf instead of rendering the notification host again.
+function ProgressStatus() {
+    const { t } = useTranslation()
+    const pending = useSyncExternalStore(subscribePending, actionPending, () => false)
+    return pending && <Paper className={classes.progress} withBorder shadow="sm" p="sm" role="status">
+        <Text size="sm">{t('notices.working')}</Text>
+    </Paper>
+}
+
 function Toast({ data }: { data: NotificationData }) {
     const { t } = useTranslation()
     return <Notification title={data.title} icon={data.icon} color={data.color} withBorder radius={8} role="presentation"
@@ -71,23 +80,18 @@ export default function AppNotifications() {
     const { t } = useTranslation()
     const mobile = useSyncExternalStore(subscribeViewport, mobileViewport, () => false)
     const target = useSyncExternalStore(subscribeDialog, dialogTarget, () => undefined)
-    const pending = useSyncExternalStore(subscribePending, actionPending, () => false)
     const portalKey = target?.getAttribute('aria-labelledby') ?? 'page'
     const state = useNotifications(notificationStore)
     const [expanded, setExpanded] = useState(false)
     const count = state.notifications.length + state.queue.length
-    return <>
-        <Notifications key={`host:${portalKey}`} store={notificationStore} position="top-center" autoClose={false} limit={expanded ? 11 : mobile ? 1 : 3}
+    return <Portal key={portalKey} target={target}><Box className={classes.layer}>
+        <Notifications withinPortal={false} store={notificationStore} position="top-center" autoClose={false} limit={expanded ? 11 : mobile ? 1 : 3}
             zIndex={1100} containerWidth="min(480px, calc(100vw - 16px))" transitionDuration={150} notificationMaxHeight="100dvh"
-            allowDragDismiss={false} allowScrollDismiss={false} portalProps={{ target }}
+            allowDragDismiss={false} allowScrollDismiss={false}
             classNames={{ root: classes.host }} renderNotification={(data) => <Toast data={data} />} />
-        {count > (mobile ? 1 : 3) && <Portal key={`controls:${portalKey}`} target={target}><Stack className={classes.controls}>
+        {count > (mobile ? 1 : 3) && <Stack className={classes.controls}>
             <Group gap="xs" justify="center"><Text size="sm">{t('notices.total', { count })}</Text><Button size="compact-sm" variant="light" onClick={() => { distribute(expanded ? mobile ? 1 : 3 : 11); setExpanded(!expanded) }}>{t(expanded ? 'notices.collapse' : 'notices.expand')}</Button></Group>
-        </Stack></Portal>}
-        {pending && <Portal key={`progress:${portalKey}`} target={target}>
-            <Paper className={classes.progress} withBorder shadow="sm" p="sm" role="status">
-                <Text size="sm">{t('notices.working')}</Text>
-            </Paper>
-        </Portal>}
-    </>
+        </Stack>}
+        <ProgressStatus />
+    </Box></Portal>
 }

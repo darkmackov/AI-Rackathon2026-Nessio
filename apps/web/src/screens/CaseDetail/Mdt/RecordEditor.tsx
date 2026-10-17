@@ -1,3 +1,4 @@
+import DateInput from '../../../components/DateInput'
 import Button from '../../../components/ActionButton'
 import ActionIcon from '../../../components/ActionIconButton'
 import { pendingControlProps } from '../../../components/pending-control'
@@ -65,7 +66,7 @@ export default function RecordEditor({ record, actorId, rows, close, saved }: { 
       <Title order={4} size="h6">{t('mdt.results')}</Title>
       {form.values.results.map((_, index) => <Paper withBorder p="sm" key={index}><Stack gap="xs">
         <Group gap="xs" align="flex-end" wrap="nowrap">
-          <TextInput type="date" w={170} label={`${t('mdt.resultDate')} (${index + 1})`} {...form.getInputProps(`results.${index}.date`)} {...pendingControlProps(busy)} />
+          <DateInput w={170} label={`${t('mdt.resultDate')} (${index + 1})`} {...form.getInputProps(`results.${index}.date`)} {...pendingControlProps(busy)} />
           <TextInput flex={1} label={`${t('mdt.examination')} (${index + 1})`} {...form.getInputProps(`results.${index}.examination`)} {...pendingControlProps(busy)} />
           <ActionIcon variant="subtle" color="gray" size={36} pending={busy} aria-label={t('mdt.removeResult', { number: index + 1 })} onClick={() => form.removeListItem('results', index)}><IconTrash size={18} aria-hidden /></ActionIcon>
         </Group>
