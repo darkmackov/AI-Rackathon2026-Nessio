@@ -20,9 +20,10 @@ COPY pyproject.toml uv.lock ./
 COPY packages/ packages/
 COPY apps/api/ apps/api/
 RUN uv sync --frozen --no-dev --no-editable --package onko-api
-# The reference case and the demo directory feed the seed (seed.py, S0)
+# The reference case (with its original reports) and the demo directory feed the seed (seed.py)
 COPY data/vzp-structured/ data/vzp-structured/
 COPY data/demo/ data/demo/
+COPY data/cesta-pacienta-data/Pacient/ data/cesta-pacienta-data/Pacient/
 COPY --from=web /web/dist/ apps/web/dist/
 
 ENV PATH=/app/.venv/bin:$PATH \

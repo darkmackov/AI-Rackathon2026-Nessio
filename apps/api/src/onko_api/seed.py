@@ -34,6 +34,8 @@ DATA = Path(os.environ.get("ONKO_DATA_DIR", Path(__file__).resolve().parents[4] 
 DIRECTORY = DATA / "demo" / "directory.json"
 REF = DATA / "vzp-structured" / "reference"
 REPORTS = DATA / "vzp-structured" / "reports"
+# The reference case's original .docx reports, served by getDocumentFile (S1)
+ORIGINALS = DATA / "cesta-pacienta-data" / "Pacient"
 CASE_ID = "vzp-prochazkova"
 
 # Where each scenario puts the app clock (D-10): the start of the story (referral, 2. 10.) or the
@@ -153,7 +155,9 @@ def seed_reference_case(repo: CaseRepository) -> None:
         if meta.received_at and meta.received_at.date() > case.mdt_date:
             continue  # post-MDT reports arrive later in the demo
         text = (REPORTS / (Path(meta.filename).stem + ".md")).read_text(encoding="utf-8")
-        repo.save_document(meta.model_copy(update={"case_id": CASE_ID}), b"", text)
+        original = ORIGINALS / meta.filename
+        data = original.read_bytes() if original.is_file() else b""
+        repo.save_document(meta.model_copy(update={"case_id": CASE_ID}), data, text)
     repo.save_handover(handover)
     repo.save_findings(CASE_ID, findings)
     for t in tasks:
