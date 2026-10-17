@@ -11,7 +11,7 @@ Every endpoint already has its request and response shape in the OpenAPI spec ([
 - **Status `works (seeded)`:** the endpoint already serves the reference case from the in-memory repository.
 - **Status `works`:** implemented by its slice.
 
-67 operations in total. Things users need that no operation covers yet, not even as a 501 stub, are listed in [Not in the API yet](#not-in-the-api-yet).
+68 operations in total. Things users need that no operation covers yet, not even as a 501 stub, are listed in [Not in the API yet](#not-in-the-api-yet).
 
 **S0 web demo (Q-W6):** the standalone web simulates the eight S0 directory/identity and demo clock/reset operations, plus `/cases` for the existing provisional S1 queue, using MSW and these existing models. Contract tests check the implemented success responses and `HTTPValidationError` response shapes against the committed OpenAPI. This does not implement or change backend endpoints; the statuses below still describe the actual API. The simulation does not cover the full API or every undocumented backend coercion. `VITE_API_MODE=real` disables it without falling back on errors. See [web README](../apps/web/README.md).
 
@@ -41,6 +41,8 @@ Live docs while the API runs: `http://localhost:8000/docs`.
   | 415 | Upload of a file type we cannot parse (supported: .docx, .pptx, .pdf) |
   | 422 | Validation (FastAPI default), or an uploaded file that cannot be read |
   | 501 | Not implemented yet |
+  | 502 | FHIR export failed upstream or returned an incomplete/invalid Bundle |
+  | 503 | FHIR export is not configured (including the in-memory backend) |
 
 - **Vector search (S8, Q-I19):** "ask the case" (`askCase`) is a `Job` of kind `ask_case`; its `CaseAnswer` (verbatim quotes as `Evidence`, or `found=false`) arrives in `job.answer`. MKN-10 candidates (`listCodeCandidates`) are AI proposals for a diagnosis without a code; the pick (`pickDiagnosisCode`) is stored as `origin=manual` and the suggestion is written to the audit log (Q-C11, Q-I21). An extraction quote not found verbatim becomes a `Finding` of kind `unverified_quote` whose evidence is the nearest chunk of that document.
 - **Manual entries** (`PATCH /cases/{id}/handover`) produce `Sourced` values with `origin=manual` and `entered={by, at}`. AI values carry `origin=ai` and verbatim `evidence`. The contracts enforce both.
@@ -48,7 +50,7 @@ Live docs while the API runs: `http://localhost:8000/docs`.
 - **Who is on the move** (`Case.on_move`, `next_step`, `next_due`) is recomputed after every task change, take-over, return, resend, feedback and receipt: the earliest ready task (owner, title, due); without one the coordinator, with no step; while the case is `vraceno_lekari` or `zpetna_vazba_odeslana` the referring doctor; once `uzavreno` nobody.
 - **MDT (S5):** *Připravit podklad pro MDT* (`createMdtSnapshot`) freezes a copy of the live handover (`getHandover?snapshot=true`, `as_of` = MDT date) and builds the `MdtRecord`. It is 409 while blockers are unresolved, while a document is still being extracted, or when the handover quotes a document received after the MDT date (Q-F39). The record is edited only before the meeting; the conclusion until the feedback is sent, and an edit needs a new confirmation (Q-F34). Confirming writes the definitive diagnosis into the live handover as a manual value and sets `milestones.mdt_held`; findings are resolved explicitly (Q-F36). Drafts (`createDraft`) cover what the MDT receives and come back typed in `Job.draft` (`text`, `rows` or `fields`); `mdt_conclusion` is a non-AI prefill (Q-F37). PDFs follow the `MDT_zapis` / `MDT_zaver` layouts.
 - **Feedback (S6):** *Odeslat PL* (`sendFeedback`, a coordinator of the case's KOC) needs a confirmed conclusion in `zaver_mdt` (409 otherwise, also after an unconfirmed correction) and sends one `mdt_result` message to the referring doctor's inbox: subject *Závěr MDT ze dne …* (the conclusion's date, else the MDT date), body = the optional `note`, then the conclusion text (*Závěr MDT v příloze* for an uploaded report without text). Attached: the uploaded MDT report, if any, first, then every document the frozen MDT snapshot quotes. The case moves to `zpetna_vazba_odeslana` and the conclusion is locked. *Potvrzuji převzetí* (`confirmReceipt`) is for a recipient of an `mdt_result` only (403 for anyone else; 409 for another kind, a second confirmation, or a case not awaiting it); it closes the case (`uzavreno`), ends a hold and leaves open tasks as they are. `listInbox` is the user's messages across cases, newest first; `listCaseMessages` and `listCaseReceipts` are oldest first. *Informovat pacienta* (`createPatientNotice`, a coordinator of the case's KOC, after the take-over and before closing) is recorded with `simulated=True` and no recipients, so it is never delivered and in no inbox (Q-F16).
-- **Storage:** app state is kept in IRIS, projected to FHIR only where needed (decision 16. 10.). Nothing in the API exposes FHIR directly; the one FHIR input is `createReferralFromBundle`, a referral Bundle uploaded as a file (S9, Q-I20).
+- **Storage:** app state is kept in IRIS, projected to FHIR only where needed (decision 16. 10.). FHIR input is `createReferralFromBundle`, a referral Bundle uploaded as a file. The sole FHIR output is the user-authorized S9 download `getCaseFhir`: an opaque `application/fhir+json` file read from the case's projected `Patient/$everything` in IRIS. There is no general FHIR proxy (Q-W17).
 - **MCP:** a read-only MCP server is mounted under `/mcp` (S10, Q-I23; `/api/mcp` in production). It is not part of the 67 REST operations or the OpenAPI spec. Its tools (`search_cases`, `get_case`, `get_time_to_treatment`, `case_overview`, `list_findings`, `get_handover`, `ask_case`) call the same services and return the same contract models as the read endpoints, with the same `X-Actor-Id` check; errors come back as MCP tool errors with the same `detail` text. `ask_case(case_id, question)` returns a `CaseAnswer` like `askCase`'s `job.answer`, but synchronously (a tool can't poll a job); without a model or an embedding model it is a tool error with the job's Czech reason.
 
 ## The flows through the API
@@ -189,6 +191,21 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 | `POST` | `/referrals` | `ReferralCreate` | `Case` 201 | ✓ | `createReferral` | **works** (S3) |
 | `POST` | `/cases/{case_id}/send` | — | `Case` 200 | ✓ | `sendReferral` | **works** (S3) |
 | `POST` | `/referrals/fhir` | file (multipart, FHIR `Bundle` JSON) + form `koc_id` | `Case` 201 | ✓ | `createReferralFromBundle` | **works** (S9) |
+
+### FHIR export (S9, Q-W17)
+
+| Method | Path | Body | Response | Actor header | Client function | Status |
+|---|---|---|---|---|---|---|
+| `GET` | `/cases/{case_id}/fhir` | — | FHIR JSON file (`application/fhir+json`) | ✓ | `getCaseFhir` | **works** (S9) |
+
+The case's referring doctor or a coordinator of its KOC can download the existing IRIS
+`Patient/{projected-patient-id}/$everything`. The repository follows same-server pagination and
+returns all pages in one Bundle, preserving resources; it rejects external, cyclic or malformed
+pagination without returning a partial file. No clinical mapping, confirmation, state change or
+FHIR write is triggered. The file contains the projection available on IRIS at download time;
+pending outbox writes are not included until delivered. 404 for an unknown case or a patient not
+projected yet, 403 for another case's people, 502 on upstream failure, 503 without FHIR.
+`Content-Disposition: attachment`, `Cache-Control: no-store`; credentials stay in the repository.
 
 ### documents
 

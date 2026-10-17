@@ -54,6 +54,35 @@ Both roles can open **Demo** in the header. Times mean **computer-local time**, 
 
 Resets require confirmation and restore both the scenario and its time. They retain the person and language, refresh affected queries and return to the role home. A reset or time change blocks overlapping writes and identity switching. Failure leaves a retryable error. The displayed clock polls through Query; components contain no timers or effects.
 
+## S9: FHIR import and export
+
+In **Nová žádost**, the referring doctor chooses a KOC and **Import z FHIR (JSON)**.
+One JSON file can be selected or dropped, removed, and explicitly confirmed with **Importovat a odeslat**.
+The generated `createReferralFromBundleMutation` sends multipart `file` + `koc_id` with the current
+`X-Actor-Id` to `POST /referrals/fhir`. The returned case opens in the existing referral detail;
+S2 lists its documents, polls extraction jobs, refreshes the handover/findings and opens sources.
+The case arrives already sent in **Nový**, with no inferred handover validation stamp.
+
+MSW accepts inline attachments in `DocumentReference.content` and `DiagnosticReport.presentedForm`,
+including references to a `Binary` within the Bundle. It retains original attachment bytes only in
+memory and reuses the explicitly fictional S2 extraction fixtures. It does **not** parse PDF/Office
+content or validate those formats like the real backend; malformed document contents require a real
+API test. Invalid envelopes, missing attachments, external URLs and unsupported attachment formats
+are rejected before saving a case. Structured Patient/Condition values are not mapped (Q-I21).
+There is no frontend size limit because the endpoint defines none. No new dependencies are required.
+
+`VITE_API_MODE=real` uses the same generated mutation against the implemented backend, without a
+dummy fallback. **Exportovat FHIR** in the coordinator's and GP's case header uses generated
+`getCaseFhirOptions` for `GET /cases/{case_id}/fhir`, with actor headers and `parseAs: 'blob'`.
+The backend repository downloads the currently projected `Patient/$everything` from IRIS,
+combining same-server pages. No clinical mapping or workflow change happens in the browser.
+Pending outbox writes are not part of the download until delivered. Without a configured FHIR
+server (including the in-memory backend), the API returns 503 and the UI explains this.
+The MSW download is a clearly labelled **fictional sample without clinical data**, associated
+with the selected case; it does not claim to reproduce an IRIS projection. Outbound projections,
+AuditEvents, Tasks and outbox retries remain backend responsibilities (Q-W17).
+Local S9 tests are in `src/test/fhir-referral.test.tsx`; no browser automation is required.
+
 ## Verification and fixtures
 
 ```bash

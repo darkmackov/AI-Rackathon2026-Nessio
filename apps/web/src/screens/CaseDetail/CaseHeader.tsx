@@ -13,6 +13,8 @@ import { severityMeta } from '../../components/severity-meta'
 import { fieldStatusCounts } from '../../components/handover/clinical'
 import { statusMeta } from '../../components/handover/status-meta'
 import CaseActions from './CaseActions'
+import ExportCaseFhir from '../../components/fhir/ExportCaseFhir'
+import { useSession } from '../../session'
 
 const priorityColor = { normal: 'gray', high: 'orange', urgent: 'red' } as const
 
@@ -54,6 +56,7 @@ function AttentionStrip({ caseId, findings, handover }: { caseId: string; findin
 /** The sticky case header: where the case is, who is on the move and by when (UX-4), plus what needs attention. */
 export default function CaseHeader({ item, findings, handover }: { item: Case; findings?: Finding[]; handover?: Handover }) {
   const { t } = useTranslation()
+  const { actorId } = useSession()
   const heading = useId()
   // Sticky only where there is room for it; at 320 px or 200 % zoom it would cover the content (A11Y-10).
   const sticky = useMediaQuery('(min-width: 48em)') ?? false
@@ -75,7 +78,10 @@ export default function CaseHeader({ item, findings, handover }: { item: Case; f
           <PageHeading size="h2" id={heading}>{item.patient_name}</PageHeading>
           <Text size="sm" c="dimmed">{item.diagnosis_label ?? t('unavailable')}</Text>
         </Stack>
-        <CaseActions item={item} findings={findings} />
+        <Stack gap="xs" align="flex-end">
+          <CaseActions item={item} findings={findings} />
+          {actorId && <ExportCaseFhir caseId={item.id} actorId={actorId} />}
+        </Stack>
       </Group>
       <Group gap="md" wrap="wrap" style={{ rowGap: 'var(--mantine-spacing-xs)' }}>
         <Group gap={6}>

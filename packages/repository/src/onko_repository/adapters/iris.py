@@ -43,6 +43,7 @@ from onko_contracts import (
 )
 from pydantic import BaseModel
 
+from ..models import FhirExportUnavailableError
 from ..settings import IrisSettings, parse_connection_string
 from .fhir import (
     FhirProjector,
@@ -51,6 +52,7 @@ from .fhir import (
     document_resources,
     handover_resources,
     mdt_conclusion_resources,
+    patient_id,
     task_resource,
     transaction,
 )
@@ -691,6 +693,12 @@ class IrisRepository:
     def get_mdt_conclusion(self, case_id: str) -> MdtConclusion | None:
         found = self._select(MDT_CONCLUSIONS, '"case_id" = ?', [case_id])
         return found[0] if found else None
+
+    def case_fhir_bundle(self, case_id: str) -> bytes | None:
+        self.get_case(case_id)
+        if self.projector is None:
+            raise FhirExportUnavailableError("no FHIR exchange server")
+        return self.projector.client.patient_bundle(patient_id(case_id))
 
 
     # --- vector search (S8, Q-I19) -------------------------------------------------------------

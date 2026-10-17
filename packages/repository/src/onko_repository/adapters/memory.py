@@ -25,6 +25,8 @@ from onko_contracts import (
     TaskSet,
 )
 
+from ..models import FhirExportUnavailableError
+
 
 def _sent(message: Message) -> tuple[bool, Any]:
     """Sort key: unsent messages first, then by `sent_at`."""
@@ -89,6 +91,10 @@ class InMemoryRepository:
 
     def list_cases(self) -> list[Case]:
         return list(self.cases.values())
+
+    def case_fhir_bundle(self, case_id: str) -> bytes | None:
+        self._require_case(case_id)
+        raise FhirExportUnavailableError("no FHIR exchange server")
 
     def save_document(self, meta: DocumentMeta, data: bytes, text: str) -> None:
         self._require_case(meta.case_id)

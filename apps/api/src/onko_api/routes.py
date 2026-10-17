@@ -112,7 +112,13 @@ from onko_messaging import (
 )
 from onko_messaging import confirm as confirm_message
 from onko_messaging import send as send_message
-from onko_repository import BundleError, CaseRepository, referral_attachments
+from onko_repository import (
+    BundleError,
+    CaseRepository,
+    FhirExportError,
+    FhirExportUnavailableError,
+    referral_attachments,
+)
 from pydantic import ValidationError
 
 from . import audit_text
@@ -1297,6 +1303,34 @@ def get_mdt_conclusion_pdf(case_id: str, repo: Repo) -> Response:
         if meta is not None and meta.mime_type == PDF_MIME and data:
             return _pdf(data, meta.filename)
     return _pdf(_render_conclusion(repo, case, conclusion), f"mdt-zaver-{case_id}.pdf")
+
+
+@router.get("/cases/{case_id}/fhir", tags=["fhir"], response_class=Response, responses={
+    200: {"description": "FHIR Bundle JSON file", "content": {
+        "application/fhir+json": {"schema": {"type": "string", "format": "binary"}},
+    }},
+})
+def get_case_fhir(case_id: str, user: CurrentUser, repo: Repo) -> Response:
+    """Download the case's projected Patient/$everything from IRIS (S9). The case's referring
+    doctor or a coordinator of its KOC; no writes, validation or new clinical mapping.
+    404 until projected, 503 without FHIR, 502 if the FHIR server cannot supply a complete Bundle.
+    """
+    case = _case_or_404(repo, case_id)
+    _require_party(user, case)
+    try:
+        data = repo.case_fhir_bundle(case_id)
+    except FhirExportUnavailableError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
+                            "FHIR export is not configured") from None
+    except FhirExportError:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "FHIR export failed") from None
+    if data is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "case is not projected to FHIR yet")
+    filename = quote(f"case-{case_id}.fhir.json", safe="")
+    return Response(content=data, media_type="application/fhir+json", headers={
+        "Content-Disposition": f"attachment; filename*=UTF-8''{filename}",
+        "Cache-Control": "no-store",
+    })
 
 
 # --- Feedback and messages (slice S6) ----------------------------------------------------------

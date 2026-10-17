@@ -175,7 +175,7 @@ flowchart LR
   - **MDT conclusion out:** when the conclusion is sent (S6), a FHIR document `Bundle` (`Composition` first, then only the resources it references; unique identifier and timestamp; never changed, a correction is a new Bundle) plus a `DocumentReference` indexing it, with the Bundle and the PDF as attachments (Q-I20).
   - **Audit out:** `app_audit` rows projected as FHIR `AuditEvent` (Q-I26).
   - **`$validate` (Q-I25):** the opt-in IRIS tests validate every projected resource on the server against its declared profile.
-  - **`Patient/$everything` (Q-I25):** the whole case as one Bundle, read straight from the IRIS FHIR server, not through the API.
+  - **`Patient/$everything` (Q-I25, Q-W17):** the projected case as one Bundle. The web's **Exportovat FHIR** in the case header downloads it through `GET /cases/{case_id}/fhir`; only the repository reads IRIS, following all same-server pages. This read-only download neither rebuilds the projection nor changes clinical/workflow data.
   - **Outbox (D-14):** every FHIR write is stored in the same IRIS SQL transaction as the app-state save and retried until it succeeds; pending writes are visible.
   - **Tasks out:** every `Task`, including request tasks, projected as FHIR `Task` (requester = KOC, owner = whoever holds the report).
   - **Referral in:** a referral accepted as a FHIR `Bundle` next to file upload; attached documents go through extraction (S2). How structured values enter the handover is open (Q-I21, a contract change).

@@ -7,9 +7,11 @@ import { caseDetailCs, caseDetailEn } from './screens/CaseDetail/translations'
 import { referralCs, referralEn } from './screens/Referral/translations'
 import { mdtCs, mdtEn } from './screens/CaseDetail/Mdt/translations'
 import { messagesCs, messagesEn } from './components/messages/translations'
+import { fhirExportCs, fhirExportEn } from './components/fhir/translations'
 
 export const resources = {
   cs: { translation: {
+    fhirExport: fhirExportCs,
     messages: messagesCs,
     mdt: mdtCs,
     workflow: workflowCs,
@@ -54,6 +56,7 @@ export const resources = {
     notFound: 'Stránka nebyla nalezena', notFoundDescription: 'Tato adresa v aplikaci neexistuje.', home: 'Přejít na úvod',
   } },
   en: { translation: {
+    fhirExport: fhirExportEn,
     messages: messagesEn,
     mdt: mdtEn,
     workflow: workflowEn,

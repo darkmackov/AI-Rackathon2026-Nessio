@@ -208,6 +208,14 @@ Package ids, versions, profile names and identifier systems below were **checked
 | `hl7.fhir.cz.terminology` | **0.2.0 only** | cz.core and cz.lab require 0.3.0, which is not on the registry |
 
 ### How the projection is written (S7, S9)
+
+**Download (Q-W17, user-authorized 17 October 2026):** `case_fhir_bundle` reads the case's existing
+projected `Patient/$everything` through the repository's FHIR client. The API's
+`GET /cases/{case_id}/fhir` returns it as a JSON file for the referring doctor or a coordinator of
+the case's KOC. Same-server pages are combined without changing resources. It exports the currently
+available projection, not pending outbox writes, and never re-runs mapping or changes app state.
+The in-memory repository has no FHIR server and reports unavailability; the web's MSW download is
+an explicitly labelled fictional sample with no clinical data.
 - `IrisRepository` pushes the projection on every save, as one FHIR transaction (`PUT` by id): `save_document` → `DocumentReference` + `Binary` (Q-I10; the parsed text when the original bytes are missing); `save_handover` → `Patient`, `Condition`, `Observation`, `DiagnosticReport`, `Composition`, `Provenance`; `save_task` → `Task`; `save_audit` → `AuditEvent`; `save_mdt_conclusion` with a confirmed conclusion → the MDT conclusion document `Bundle` + its `DocumentReference` (S9, Q-I20). Findings, cases and messages are not projected.
 - **`Task`** (S9): id `task-{task}`; status `planned` → `requested`, `booked` → `accepted`, `done` → `completed`, `cancelled` → `cancelled`; `intent=order`; priority `normal` → `routine`, `high` → `urgent`, `urgent` → `asap`; `requester` = the case's KOC, `owner` = `Task.owner` (both by name from the directory, as `display`); `restriction.period.end` = due; `for` = the case's `Patient` once a handover has been projected; the result document as `output` (`DocumentReference`).
 - **`AuditEvent`** (S9): id `audit-{event}`, type DICOM `110110` *Patient Record*, the app's `action` as `subtype`, `recorded` = `at`, the actor as the requesting `agent`, the case's `Patient` as `entity` (with `detail` as its description).

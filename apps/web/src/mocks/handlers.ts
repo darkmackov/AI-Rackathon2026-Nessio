@@ -7,6 +7,8 @@ import { createCoordinatorHandlers } from './coordinator'
 import { treatmentTime } from './treatment-time'
 import { createDocumentDemoState, createDocumentHandlers } from './documents'
 import { createReferralHandlers } from './referrals'
+import { createReferralBundleHandlers } from './referral-bundle'
+import { createFhirExportHandlers } from './fhir-export'
 import { createFeedbackHandlers } from './feedback'
 import { createMdtState } from './mdt-state'
 import { createMdtHandlers } from './mdt'
@@ -56,6 +58,8 @@ export function createHandlers(state = createDemoState()) {
     ...createCoordinatorHandlers(state),
     ...createDocumentHandlers(state),
     ...createReferralHandlers(state),
+    ...createReferralBundleHandlers(state),
+    ...createFhirExportHandlers(state),
     ...createFeedbackHandlers(state),
     http.get('*/api/me', ({ request }) => {
       const id = request.headers.get('X-Actor-Id')
