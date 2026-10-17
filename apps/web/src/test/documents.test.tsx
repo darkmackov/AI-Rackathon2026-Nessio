@@ -112,7 +112,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
     expect(uploads).toBe(0)
     await userEvent.click(screen.getByRole('button', { name: 'Odebrat zprava.pdf' }))
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Nahrát vybrané dokumenty' })).not.toBeInTheDocument()
   })
 
   it('uploads multiple files one at a time with case, actor and optional received_at; preserves drafts across language changes', async () => {
@@ -243,6 +243,20 @@ describe('S2 document upload and processing in the case documents tab', () => {
     expect(within(dialog).getByLabelText('Datum dokumentu')).toHaveValue('')
   })
 
+  it('folds jobs finished before the view opened into one summary line and names the icon actions', async () => {
+    const done: Job = { id: 'job-done', kind: 'ingest_document', case_id: caseId, document_id: 'doc-a', status: 'done', created_at: '2026-10-16T09:00:00' }
+    server.use(
+      http.get('*/api/cases/:caseId/documents', () => HttpResponse.json([{ id: 'doc-a', case_id: caseId, filename: 'a.pdf' }])),
+      http.get('*/api/cases/:caseId/jobs', () => HttpResponse.json([done, { ...done, id: 'job-done-2' }])),
+    )
+    renderDocuments()
+    await userEvent.click(screen.getByRole('button', { name: 'Select coordinator' }))
+    expect(await screen.findByText('AI zpracování dokončeno (2×)')).toBeVisible()
+    expect(screen.queryByText('Dokončeno')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Stáhnout originál' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Opravit metadata' })).toBeVisible()
+  })
+
   it('shows failed extraction without exposing backend details and offers one retry via reextractCase', async () => {
     const failed: Job = { id: 'job-failed', kind: 'ingest_document', case_id: caseId, status: 'failed', error: 'internal stack', created_at: '2026-10-16T09:00:00' }
     let retried: string | null = null
@@ -335,7 +349,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
     view.changeCase('another-case')
     await screen.findByRole('heading', { name: 'Nahrát dokumenty' })
     expect(screen.queryByRole('list', { name: 'Vybrané soubory' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Nahrát vybrané dokumenty' })).not.toBeInTheDocument()
   })
 
   it('also resets the standalone uploader on a case or actor change and allows choosing a removed file again', async () => {

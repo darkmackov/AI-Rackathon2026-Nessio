@@ -60,22 +60,22 @@ function DocumentUploaderForm({ caseId, actorId, receivedAt, disabled = false }:
   }
 
   return <Stack gap="sm">
-    <Paper withBorder p="md" bg="gray.0" onDragOver={(event) => { event.preventDefault() }} onDrop={(event) => {
+    <Paper withBorder p="sm" style={{ borderStyle: 'dashed' }} onDragOver={(event) => { event.preventDefault() }} onDrop={(event) => {
       event.preventDefault()
       select(Array.from(event.dataTransfer.files))
     }}>
-      <Stack gap="sm">
-        <Text fw={600}>{t('documents.drop')}</Text>
-        <Text size="sm" c="dimmed">{t('documents.formats')}</Text>
+      <Group gap="sm" justify="space-between" wrap="wrap">
+        <div><Text size="sm" fw={600}>{t('documents.drop')}</Text>
+          <Text size="xs" c="dimmed">{t('documents.formats')}</Text></div>
         <FileButton multiple accept={documentAccept} disabled={blocked} resetRef={resetInput} onChange={(selected) => { select(selected); resetInput.current?.() }} inputProps={{ 'aria-label': t('documents.choose') }}>
-          {(props) => <Button {...props} variant="outline" pending={pending} disabled={unavailable}>{t('documents.choose')}</Button>}
+          {(props) => <Button {...props} variant="outline" size="xs" pending={pending} disabled={unavailable}>{t('documents.choose')}</Button>}
         </FileButton>
-      </Stack>
+      </Group>
     </Paper>
     {files.length > 0 && <Stack component="ul" gap="sm" m={0} pl={0} style={{ listStyle: 'none' }} aria-label={t('documents.selected')}>
-      {files.map((entry) => <Paper component="li" withBorder p="sm" key={entry.id}>
+      {files.map((entry) => <Paper component="li" withBorder px="sm" py="xs" key={entry.id}>
         <Stack gap="xs"><Group justify="space-between" align="flex-start">
-          <div><Text fw={600}>{entry.file.name}</Text><Text size="sm" c="dimmed">{new Intl.NumberFormat(i18n.language).format(entry.file.size)} {t('documents.bytes')}</Text></div>
+          <div><Text size="sm" fw={600} style={{ overflowWrap: 'anywhere' }}>{entry.file.name}</Text><Text size="xs" c="dimmed">{new Intl.NumberFormat(i18n.language).format(entry.file.size)} {t('documents.bytes')}</Text></div>
           <Button variant="subtle" size="compact-sm" pending={sending || busy} aria-label={t('documents.removeNamed', { name: entry.file.name })}
             onClick={() => setFiles((current) => current.filter((item) => item.id !== entry.id))}>{t('documents.remove')}</Button>
         </Group>
@@ -93,9 +93,9 @@ function DocumentUploaderForm({ caseId, actorId, receivedAt, disabled = false }:
         </Stack>
       </Paper>)}
     </Stack>}
-    <Button onClick={() => { void send() }} pending={pending} disabled={unavailable || !sending && !files.some((file) => file.status === 'waiting' || file.status === 'failed')}>
+    {files.length > 0 && <Button onClick={() => { void send() }} pending={pending} disabled={unavailable || !sending && !files.some((file) => file.status === 'waiting' || file.status === 'failed')}>
       {t('documents.upload')}
-    </Button>
+    </Button>}
   </Stack>
 }
 

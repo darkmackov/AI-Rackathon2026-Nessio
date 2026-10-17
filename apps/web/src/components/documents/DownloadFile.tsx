@@ -1,5 +1,6 @@
 import Button from '../ActionButton'
-import { type ButtonProps, Stack, Text } from '@mantine/core'
+import ActionIcon from '../ActionIconButton'
+import { type ButtonProps, Stack, Text, Tooltip } from '@mantine/core'
 import { type ReactNode, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api-error'
@@ -10,10 +11,11 @@ import { hideSuccess, notifyApiError, notifyError, notifySuccess } from '../../n
  * `fitButton` wraps the feedback to the button's width so neighbouring controls don't move.
  * Without `readyMessage` a successful download shows no inline message.
  * An `errorMessage` function picks the failure text from the error itself, even for an `ApiError`.
+ * With `icon` it renders a compact icon button that carries `label` as its name and tooltip.
  */
-export default function DownloadFile({ load, pending, filename, label, readyMessage, errorMessage, variant = 'subtle', size = 'compact-sm', leftSection, fitButton = false }: {
+export default function DownloadFile({ load, pending, filename, label, readyMessage, errorMessage, variant = 'subtle', size = 'compact-sm', leftSection, fitButton = false, icon }: {
   load: () => Promise<unknown>; pending: boolean; filename: string; label: string; readyMessage?: string; errorMessage?: string | ((error: unknown) => string)
-  variant?: ButtonProps['variant']; size?: ButtonProps['size']; leftSection?: ReactNode; fitButton?: boolean
+  variant?: ButtonProps['variant']; size?: ButtonProps['size']; leftSection?: ReactNode; fitButton?: boolean; icon?: ReactNode
 }) {
   const { t } = useTranslation()
   const [feedback, setFeedback] = useState<'downloaded' | null>(null)
@@ -23,7 +25,7 @@ export default function DownloadFile({ load, pending, filename, label, readyMess
     link.current = node
     return () => { link.current = null; if (url.current) URL.revokeObjectURL(url.current); url.current = null }
   }, [])
-  return <Stack gap={4} w={fitButton ? 'min-content' : undefined}><Button variant={variant} size={size} leftSection={leftSection} pending={pending} onClick={async () => {
+  const download = async () => {
     setFeedback(null); hideSuccess('download')
     try {
       const data = await load()
@@ -38,7 +40,11 @@ export default function DownloadFile({ load, pending, filename, label, readyMess
         else notifyError('download', (typeof errorMessage === 'function' ? errorMessage(error) : errorMessage) ?? t('caseDetail.downloadError'))
       }
     }
-  }}>{label}</Button><a hidden ref={linkRef} download={filename} />
+  }
+  const control = icon
+    ? <Tooltip label={label}><ActionIcon variant="subtle" color="gray" pending={pending} aria-label={label} onClick={() => { void download() }}>{icon}</ActionIcon></Tooltip>
+    : <Button variant={variant} size={size} leftSection={leftSection} pending={pending} onClick={() => { void download() }}>{label}</Button>
+  return <Stack gap={4} w={fitButton || icon ? 'min-content' : undefined}>{control}<a hidden ref={linkRef} download={filename} />
     {message && <Text size="sm" role="status">{message}</Text>}
   </Stack>
 }
