@@ -86,6 +86,7 @@ def test_mdt_conclusion_follows_the_mdt_zaver_layout():
     assert "Praha 4, 21. 10. 2026" in text
     assert "předsedající MDT" in text
     assert "Kopie: MUDr. Tomáš Řezníček" in text
+    assert "CT břicha 8. 10. 2026 Tumor hlavy pankreatu" in text
 
 
 def test_conclusion_without_a_record_still_renders():
@@ -115,7 +116,8 @@ def test_multiline_values_keep_their_lines():
 
 
 def test_every_page_carries_the_nessio_header_and_a_page_footer():
-    long = [MdtResultRow(date=date(2026, 10, 8), examination="CT", result="Nález. " * 400)]
+    long = [MdtResultRow(date=date(2026, 10, 8), examination="CT", result="Nález. " * 400),
+            MdtResultRow(date=date(2026, 10, 9), examination="PET/CT", result="Bez ložisek.")]
     pdf = render_mdt_record(_record(results=long))
     pages = [" ".join(p.extract_text().split()) for p in PdfReader(io.BytesIO(pdf)).pages]
 
@@ -123,4 +125,5 @@ def test_every_page_carries_the_nessio_header_and_a_page_footer():
     for number, page in enumerate(pages, start=1):
         assert page.startswith("Nessio")
         assert f"Strana {number} / {len(pages)}" in page
-    assert "Výsledek" in pages[1]  # the results table repeats its header row
+    assert "Nález." in pages[0] and "Nález." in pages[1]  # the long result breaks across pages
+    assert "PET/CT 9. 10. 2026 Bez ložisek." in " ".join(pages)

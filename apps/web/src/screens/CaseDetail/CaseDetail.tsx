@@ -30,6 +30,8 @@ import CodeCandidates from './S8/CodeCandidates'
 const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles, audit: IconHistory, mdt: IconUsersGroup, communication: IconMessages }
 // Tabs without clinical values have no source column.
 const noSources: DetailTab[] = ['overview', 'audit', 'communication']
+// Tabs whose values are rarely sourced open a source in a drawer instead of keeping a column.
+const drawerSources: DetailTab[] = ['mdt']
 
 function DetailContent({ caseId }: { caseId: string }) {
   const { t } = useTranslation()
@@ -74,8 +76,8 @@ function DetailContent({ caseId }: { caseId: string }) {
   const unresolved = openFindings.length
   const fields = handover.data ? handoverFields(handover.data) : {}
   // Clinical tabs keep the existing fixed source column on wide screens.
-  const split = !!wide && !noSources.includes(tab)
-  const source = selection && <SourcePanel key={JSON.stringify(selection)} document={selectedDocument || undefined} evidence={evidence} close={closeSource}
+  const split = !!wide && !noSources.includes(tab) && !drawerSources.includes(tab)
+  const source = selection && <SourcePanel key={JSON.stringify(selection)} document={selectedDocument || undefined} evidence={evidence} close={closeSource} forceDrawer={!!wide && drawerSources.includes(tab)}
     fallback={documents.isPending ? <LoadingState rows={3} /> : documents.isError ? <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} /> : undefined} />
   const handoverError = handover.isError && (handover.error instanceof ApiError && handover.error.status === 404
     ? <EmptyState title={t('caseDetail.noHandover')} retry={() => { void handover.refetch() }} />
@@ -120,7 +122,7 @@ function DetailContent({ caseId }: { caseId: string }) {
         </Grid.Col>
         {split && <Grid.Col span={5}>{source || <SourcePlaceholder />}</Grid.Col>}
       </Grid>
-      {!wide && source}
+      {!split && source}
     </Tabs>
   </Stack>
 }

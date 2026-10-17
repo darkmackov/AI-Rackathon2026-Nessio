@@ -33,11 +33,13 @@ export default function RecordSection({ item, actorId, record, retry, editable, 
         <RecordEditor key={draft?.version ?? 0} record={record.data} rows={draft?.rows} actorId={actorId} close={() => close(false)} saved={() => close(true)} />
       </Stack></Paper>
       : <>
-        {editable && <Text size="sm" c="dimmed">{t('mdt.recordEditHelp')}</Text>}
-        <Group gap="xs" align="flex-start">
-          {editable && <Button variant="outline" size="compact-sm" leftSection={<IconPencil size={14} aria-hidden />} pending={busy} onClick={() => { setSaved(false); setEditing(true) }}>{t('mdt.editRecord')}</Button>}
-          <PdfDownload caseId={item.id} actorId={actorId} kind="record" />
-        </Group>
+        <Stack gap={4}>
+          <Group gap="xs" align="flex-start">
+            {editable && <Button variant="outline" size="compact-sm" leftSection={<IconPencil size={14} aria-hidden />} pending={busy} onClick={() => { setSaved(false); setEditing(true) }}>{t('mdt.editRecord')}</Button>}
+            <PdfDownload caseId={item.id} actorId={actorId} kind="record" />
+          </Group>
+          {editable && <Text size="sm" c="dimmed">{t('mdt.recordEditHelp')}</Text>}
+        </Stack>
         <RecordView record={record.data} />
       </>}
   </Stack>

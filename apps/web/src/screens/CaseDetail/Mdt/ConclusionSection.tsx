@@ -69,15 +69,17 @@ export default function ConclusionSection({ caseId, actorId, record, conclusion,
     {editing === 'write'
       ? <WriteConclusion caseId={caseId} actorId={actorId} record={record} conclusion={value} close={() => close(false)} saved={() => close(true)} />
       : <>
-        <Group gap="xs"><Text size="sm" c="dimmed">{t('mdt.confirmation')}:</Text><StampView stamp={value.confirmed} /></Group>
-        <Group gap="xs" align="flex-start">
-          {editable && <Button variant="outline" size="compact-sm" leftSection={<IconPencil size={14} aria-hidden />} pending={busy || pending} onClick={() => { setSaved(false); setEditing('write') }}>{t('mdt.editConclusion')}</Button>}
-          {editable && <Button variant="subtle" size="compact-sm" leftSection={<IconFileUpload size={14} aria-hidden />} pending={busy || pending} aria-expanded={editing === 'upload'} onClick={() => { setSaved(false); setEditing(editing === 'upload' ? null : 'upload') }}>{t('mdt.uploadOther')}</Button>}
-          {value.document_id && <Button variant="subtle" size="compact-sm" disabled={!source} onClick={(event) => { if (value.document_id) sources.openSource({ documentId: value.document_id }, event.currentTarget) }}>{t('mdt.source')}</Button>}
-          <PdfDownload caseId={caseId} actorId={actorId} kind="conclusion" />
+        <Group justify="space-between" align="flex-start" gap="sm">
+          <Group gap="xs" align="flex-start">
+            {editable && <Button variant="outline" size="compact-sm" leftSection={<IconPencil size={14} aria-hidden />} pending={busy || pending} onClick={() => { setSaved(false); setEditing('write') }}>{t('mdt.editConclusion')}</Button>}
+            {editable && <Button variant="subtle" size="compact-sm" leftSection={<IconFileUpload size={14} aria-hidden />} pending={busy || pending} aria-expanded={editing === 'upload'} onClick={() => { setSaved(false); setEditing(editing === 'upload' ? null : 'upload') }}>{t('mdt.uploadOther')}</Button>}
+            {value.document_id && <Button variant="subtle" size="compact-sm" disabled={!source} onClick={(event) => { if (value.document_id) sources.openSource({ documentId: value.document_id }, event.currentTarget) }}>{t('mdt.source')}</Button>}
+            <PdfDownload caseId={caseId} actorId={actorId} kind="conclusion" />
+          </Group>
+          <Group gap="xs"><Text size="sm" c="dimmed">{t('mdt.confirmation')}:</Text><StampView stamp={value.confirmed} /></Group>
         </Group>
-        {source === false && <Alert color="orange" role="status">{t('mdt.noSource')}</Alert>}
         {editable && value.confirmed && <Text size="sm" c="dimmed">{t('mdt.correctionHelp')}</Text>}
+        {source === false && <Alert color="orange" role="status">{t('mdt.noSource')}</Alert>}
         {editing === 'upload' && <ConclusionUpload caseId={caseId} actorId={actorId} processing={pending} />}
         <ConclusionView conclusion={value} />
       </>}

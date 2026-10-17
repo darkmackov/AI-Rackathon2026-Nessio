@@ -124,6 +124,16 @@ describe('case detail', () => {
 })
 
 describe('source panel', () => {
+  it('opens MDT value sources in a drawer instead of keeping an empty source column', async () => {
+    wideScreen()
+    const { user } = await openReferenceCase()
+    const panel = await openTab(user, 'MDT')
+    expect(screen.queryByText('Vyberte zdroj u hodnoty')).not.toBeInTheDocument()
+    await user.click((await within(panel).findAllByRole('button', { name: /^Zdroj 1/ }))[0])
+    expect(await screen.findByRole('dialog', { name: 'Zdrojový dokument' })).toBeVisible()
+    expect(screen.queryByRole('complementary', { name: 'Zdrojový dokument' })).not.toBeInTheDocument()
+  })
+
   it('closes a desktop source on Escape, returns focus and disappears when the reference is reset', async () => {
     wideScreen()
     const { router, user } = await openReferenceCase()

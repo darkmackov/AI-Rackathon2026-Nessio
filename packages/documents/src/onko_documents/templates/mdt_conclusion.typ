@@ -50,11 +50,7 @@
 #if record != none [
   == Výsledky stávajících vyšetření
 
-  #if record.results.len() == 0 { missing }
-  #for r in record.results [
-    #strong[#r.examination (#date(r.date)):] #or-missing(r.result)
-
-  ]
+  #result-list(record.results)
 
   *Komorbidity:* #or-missing(record.comorbidities.join(", "))
 ]

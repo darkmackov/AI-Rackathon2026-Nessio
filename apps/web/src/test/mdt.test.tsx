@@ -66,7 +66,20 @@ describe('S5 coordinator MDT workflow', () => {
     expect(screen.queryByRole('region', { name: 'Upravit zápis' })).not.toBeInTheDocument()
     expect(screen.getByText('Úplný fiktivní text výsledku.')).toBeVisible()
     expect(demoState.mdt.snapshot(s4CaseId)).toEqual(original)
+    // Results read as a list of examinations, members as people, and the question as its own callout.
+    const results = screen.getByRole('region', { name: 'Výsledky stávajících vyšetření' })
+    expect(within(results).queryByRole('table')).not.toBeInTheDocument()
+    expect(within(results).getByText('Fiktivní kontrola')).toBeVisible()
+    expect(within(results).getByText('20. 10. 2026')).toBeVisible()
+    const member = demoState.mdt.record(s4CaseId)?.members[0]
+    if (member) {
+      const members = screen.getByRole('region', { name: 'Členové MDT' })
+      expect(within(members).getAllByRole('listitem')).toHaveLength(demoState.mdt.record(s4CaseId)?.members.length ?? 0)
+      expect(within(members).getByText(member.specialty)).toBeVisible()
+    }
+    expect(within(screen.getByRole('region', { name: 'Požadavek / otázka na MDT' })).getByText('Fiktivní otázka ke kontrole.')).toBeVisible()
   })
+
 
   it('separates saving a conclusion from human confirmation and preserves Czech data when switching languages', async () => {
     await prepare()
@@ -75,8 +88,10 @@ describe('S5 coordinator MDT workflow', () => {
     const dialog = await screen.findByRole('region', { name: 'Zapsat závěr' })
     fireEvent.change(within(dialog).getByLabelText('Závěr MDT'), { target: { value: 'Fiktivní závěr bez klinického doporučení.' } })
     fireEvent.change(within(dialog).getByLabelText('Definitivní kód (MKN-10)'), { target: { value: 'Z00.0' } })
+    fireEvent.change(within(dialog).getByLabelText('Doporučení MDT'), { target: { value: ['Fiktivní krok 1', 'Fiktivní krok 2'].join('\n') } })
     await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
     expect(await screen.findByRole('heading', { level: 2, name: /Závěr MDT\s*Čeká na potvrzení/ })).toBeVisible()
+    expect(within(screen.getByRole('region', { name: 'Doporučení MDT' })).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Fiktivní krok 1', 'Fiktivní krok 2'])
     expect(screen.getByText('Fiktivní závěr bez klinického doporučení.')).toBeVisible()
     expect(demoState.mdt.conclusion(s4CaseId)?.confirmed).toBeNull()
     expect(demoState.getCases().find((item) => item.id === s4CaseId)?.state).toBe('pripraveno_k_mdt')

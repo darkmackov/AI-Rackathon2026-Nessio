@@ -95,3 +95,20 @@
   table.header(..header.map(h => text(weight: "bold", fill: brand, h))),
   ..rows.flatten(),
 )
+
+// Examination results as a list: examination and date on the header line, the result under it.
+// A long result breaks across pages; a thin rule separates the rows.
+#let result-list(rows) = {
+  if rows.len() == 0 { return missing }
+  for (i, row) in rows.enumerate() {
+    if i > 0 { line(length: 100%, stroke: 0.5pt + rule) }
+    block(breakable: true, width: 100%, above: 3mm, below: 3mm, grid(
+      columns: (1fr, auto),
+      column-gutter: 4mm,
+      row-gutter: 2mm,
+      text(weight: "bold", or-missing(row.examination)),
+      text(fill: dimmed, date(row.date)),
+      grid.cell(colspan: 2, or-missing(row.result)),
+    ))
+  }
+}

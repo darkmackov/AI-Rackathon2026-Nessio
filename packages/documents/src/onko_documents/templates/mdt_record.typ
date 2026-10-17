@@ -52,13 +52,7 @@
 
 == 5 Výsledky stávajících vyšetření
 
-#if record.results.len() == 0 { missing } else {
-  grid-table(
-    ([Datum], [Vyšetření], [Výsledek]),
-    (16%, 26%, 58%),
-    record.results.map(r => (date(r.date), or-missing(r.examination), or-missing(r.result))),
-  )
-}
+#result-list(record.results)
 
 === Požadavek / otázka na MDT
 
