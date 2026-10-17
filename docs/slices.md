@@ -131,7 +131,7 @@ flowchart LR
   - Epikríza side by side (verbatim vs AI summary) and the MDT question editor.
   - *Připravit podklad pro MDT*, blocked with 409 until blockers are resolved or overridden.
   - MDT record view/PDF; conclusion editor or upload; definitive MKN-10.
-- **Modules:** `documents.render_pdf` (MDT_zapis / MDT_zaver layouts, fpdf2), `cases.mdt` (snapshot, record, conclusion), `ai` drafts, `repository` `app_mdt_record`.
+- **Modules:** `documents.render_pdf` (MDT_zapis / MDT_zaver layouts, Typst), `cases.mdt` (snapshot, record, conclusion), `ai` drafts, `repository` `app_mdt_record`.
 - **Done when:** demo steps 9, 11, 12. The MDT record matches the `MDT_zapis` layout, and the snapshot excludes reports received after 21. 10.
 
 ## S6: Feedback loop

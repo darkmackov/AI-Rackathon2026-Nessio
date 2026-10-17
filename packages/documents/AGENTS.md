@@ -11,4 +11,4 @@ Root rules: [AGENTS.md](../../AGENTS.md). Conventions: [docs/conventions/](../..
 **Rules:**
 - One parser per format in `adapters/` (`office.py`, `pdf.py`), registered in `PARSERS` (`service.py`) by MIME type.
 - Parsers keep tables as Markdown and never drop clinical text.
-- Rendering uses fpdf2 with the bundled DejaVu fonts (Q-K13). Its HTML tables take plain text cells only (newlines for line breaks); missing values print as 'neuvedeno'.
+- Rendering uses Typst (`typst` package) with the bundled DejaVu fonts (Q-K13). One template per output kind in `templates/<kind>.typ` (shared helpers in `common.typ`); Python passes the contract models as JSON and keeps business rules (e.g. only a confirmed conclusion), the template owns the layout. Never build Typst markup from user text. Missing values print as 'neuvedeno'.
