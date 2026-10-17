@@ -1,7 +1,8 @@
 import Notifications from '../components/workflow/Notifications'
-import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title, VisuallyHidden } from '@mantine/core'
+import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Switch, Text, Title, VisuallyHidden } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { IconInbox, IconPlayerPause, IconProgress, type Icon } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../api'
@@ -38,6 +39,7 @@ function CaseCard({ item }: { item: Case }) {
 export default function CoordinatorDashboard() {
   const { t } = useTranslation()
   const { actor } = useSession()
+  const [showClosed, setShowClosed] = useState(false)
   const cases = useQuery({
     ...listCasesOptions({ headers: actorHeaders(actor?.id ?? ''), query: { koc_id: actor?.organization_id } }),
     enabled: !!actor?.organization_id,
@@ -45,8 +47,9 @@ export default function CoordinatorDashboard() {
   const actors = useQuery(listActorsOptions())
   const organizations = useQuery(listOrganizationsOptions())
   if (!actor) return null
+  const shown = (cases.data ?? []).filter((item) => showClosed || item.state !== 'uzavreno')
   return <Stack>
-    <Group justify="space-between" align="flex-start"><div><PageHeading>{t('dashboardTitle')}</PageHeading><Text c="dimmed" mt="xs">{t('dashboardDescription')}</Text></div><Notifications /></Group>
+    <Group justify="space-between" align="flex-start"><div><PageHeading>{t('dashboardTitle')}</PageHeading><Text c="dimmed" mt="xs">{t('dashboardDescription')}</Text></div><Group gap="md"><Switch label={t('messages.showClosed')} checked={showClosed} onChange={(event) => setShowClosed(event.currentTarget.checked)} /><Notifications /></Group></Group>
     {!actor.organization_id && <EmptyState title={t('missingOrganization')} />}
     {actor.organization_id && (cases.isPending || actors.isPending || organizations.isPending) && <LoadingState />}
     {cases.isError && <QueryError error={cases.error} retry={() => { void cases.refetch() }} />}
@@ -59,10 +62,10 @@ export default function CoordinatorDashboard() {
           <Group gap="xs">
             <ColumnIcon size={18} aria-hidden />
             <Title order={2} size="h4" id={`queue-${column}`}>{t(`queue.${column}`)}</Title>
-            <Badge variant="light" color="gray" c="dark.9">{cases.data.filter((item) => item.queue === column).length}</Badge>
+            <Badge variant="light" color="gray" c="dark.9">{shown.filter((item) => item.queue === column).length}</Badge>
           </Group>
-          {cases.data.filter((item) => item.queue === column).map((item) => <CaseCard key={item.id} item={item} />)}
-          {!cases.data.some((item) => item.queue === column) && <Text size="sm" c="dimmed">{t('emptyColumn')}</Text>}
+          {shown.filter((item) => item.queue === column).map((item) => <CaseCard key={item.id} item={item} />)}
+          {!shown.some((item) => item.queue === column) && <Text size="sm" c="dimmed">{t('emptyColumn')}</Text>}
         </Stack>)}
       </SimpleGrid>)}
   </Stack>

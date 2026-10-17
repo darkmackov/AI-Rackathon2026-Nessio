@@ -16,7 +16,7 @@ export type WorkflowValues = Record<string, string>
 export function WorkflowError({ error }: { error: unknown }) {
   const { t } = useTranslation()
   if (error instanceof ApiError && error.detail && typeof error.detail === 'object' && 'detail' in error.detail) {
-    const messages: Record<string, string> = { 'task set already started for this case': 'duplicateSet', 'transition is not allowed': 'invalidTransition', 'dependency cycle': 'cycle', 'duplicate dependency key': 'duplicateKey', 'dependency not found in this case or task set': 'missingDependency', 'result document must belong to this case': 'wrongDocument', 'case is not editable before MDT': 'locked' }
+    const messages: Record<string, string> = { 'task set already started for this case': 'duplicateSet', 'transition is not allowed': 'invalidTransition', 'dependency cycle': 'cycle', 'duplicate dependency key': 'duplicateKey', 'dependency not found in this case or task set': 'missingDependency', 'result document must belong to this case': 'wrongDocument', 'case is not editable before MDT': 'locked', 'the feedback has already been sent': 'alreadySent', 'the MDT conclusion is not confirmed': 'notConfirmed' }
     const key = typeof error.detail.detail === 'string' ? messages[error.detail.detail] : undefined
     if (key) return <Alert color="red" role="alert">{t(`workflow.${key}`)}</Alert>
   }
@@ -24,9 +24,9 @@ export function WorkflowError({ error }: { error: unknown }) {
 }
 
 /** Only form drafts live here; server models remain in Query. */
-export default function WorkflowForm({ fields, initial, submit, onSaved, submitLabel, help, children }: {
+export default function WorkflowForm({ fields, initial, submit, onSaved, submitLabel, submitDisabled = false, help, children }: {
   fields: WorkflowField[]; initial: WorkflowValues; submit: (values: WorkflowValues) => Promise<unknown>; onSaved: () => void;
-  submitLabel?: string; help?: string; children?: ReactNode;
+  submitLabel?: string; submitDisabled?: boolean; help?: string; children?: ReactNode;
 }) {
   const { t } = useTranslation()
   const busy = useIsMutating() > 0
@@ -44,6 +44,7 @@ export default function WorkflowForm({ fields, initial, submit, onSaved, submitL
     return errors
   } })
   return <form noValidate onSubmit={form.onSubmit(async (values) => {
+    if (submitDisabled || busy) return
     setSubmitted(true); setError(null)
     try { await submit(values); onSaved() } catch (error) { setError(error) }
   }, () => setSubmitted(true))}>
@@ -60,7 +61,7 @@ export default function WorkflowForm({ fields, initial, submit, onSaved, submitL
       })}
       {children}
       {error != null && <WorkflowError error={error} />}
-      <Group justify="flex-end"><Button type="submit" loading={busy}>{submitLabel ?? t('workflow.save')}</Button></Group>
+      <Group justify="flex-end"><Button type="submit" loading={busy} disabled={submitDisabled}>{submitLabel ?? t('workflow.save')}</Button></Group>
     </Stack>
   </form>
 }

@@ -1,6 +1,7 @@
-import { Anchor, Badge, Group, Paper, Stack, Text, Title } from '@mantine/core'
+import { Anchor, Badge, Group, Paper, Stack, Switch, Text, Title } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import PageHeading from '../components/PageHeading'
 import { actorHeaders } from '../api'
@@ -9,23 +10,28 @@ import LoadingState, { EmptyState, QueryError } from '../components/DataState'
 import { DueDate } from '../components/CaseTime'
 import PersonChip from '../components/PersonChip'
 import CreateReferral from './Referral/CreateReferral'
+import Inbox from './Inbox/Inbox'
 import { useSession } from '../session'
 
 export default function ReferrerHome() {
   const { t } = useTranslation()
   const { actor, actorId } = useSession()
+  const [showClosed, setShowClosed] = useState(false)
   const cases = useQuery({ ...listCasesOptions({ headers: actorHeaders(actorId ?? ''), query: { referring_doctor_id: actorId ?? '' } }), enabled: !!actorId })
   const kocs = useQuery(listOrganizationsOptions({ query: { kind: 'koc' } }))
   if (!actor) return null
-  const ownCases = cases.data?.filter((item) => item.referring_doctor_id === actor.id) ?? []
+  const allCases = cases.data?.filter((item) => item.referring_doctor_id === actor.id) ?? []
+  const ownCases = showClosed ? allCases : allCases.filter((item) => item.state !== 'uzavreno')
   return <Stack gap="lg">
     <PageHeading size="h2">{t('referrerWelcome', { name: actor.name })}</PageHeading>
-    <Group justify="space-between"><Title order={2} size="h3">{t('referral.title')}</Title><CreateReferral actorId={actor.id} /></Group>
+    <Inbox actorId={actor.id} />
+    <Group justify="space-between"><Title order={2} size="h3">{t('referral.title')}</Title><Group gap="md"><Switch label={t('messages.showClosed')} checked={showClosed} onChange={(event) => setShowClosed(event.currentTarget.checked)} /><CreateReferral actorId={actor.id} /></Group></Group>
     {kocs.isPending && <LoadingState />}
     {kocs.isError && <QueryError error={kocs.error} pending={kocs.isFetching} retry={() => { void kocs.refetch() }} />}
     {cases.isPending && <LoadingState rows={3} />}
     {cases.isError && <QueryError error={cases.error} pending={cases.isFetching} retry={() => { void cases.refetch() }} />}
-    {cases.isSuccess && !ownCases.length && <EmptyState title={t('referral.empty')} description={t('referral.emptyHelp')} />}
+    {cases.isSuccess && !allCases.length && <EmptyState title={t('referral.empty')} description={t('referral.emptyHelp')} />}
+    {cases.isSuccess && allCases.length > 0 && !ownCases.length && <Text size="sm" c="dimmed">{t('messages.onlyClosed')}</Text>}
     {ownCases.map((item) => <Paper component="article" withBorder p="md" key={item.id}><Stack gap="xs">
       <Group justify="space-between" align="flex-start">
         <Anchor renderRoot={(props) => <Link {...props} to="/referrer/cases/$caseId" params={{ caseId: item.id }} />} fw={600} style={{ overflowWrap: 'anywhere' }}>{item.patient_name || t('referral.unnamed')}</Anchor>

@@ -139,6 +139,7 @@ flowchart LR
 - **Status:** backend done (all endpoints below work; rules in [api.md](api.md) › Conventions › Feedback). The UI is still to do.
 - **Endpoints:** `sendFeedback`, `listInbox`, `confirmReceipt`, `listCaseReceipts` (proof of delivery), `listCaseMessages`, `createPatientNotice`.
 - **Modules:** `repository`: `app_message_recipient` so `listInbox` is an indexed lookup by recipient (Q-I26).
+- **Status:** backend not started (all six endpoints 501). The web UI is done on a contract-shaped MSW dummy backend (Q-W16): the coordinator's *Komunikace* tab (history, receipt status, *Odeslat PL*, *Informovat pacienta*), the GP's inbox above their referrals, and *Zobrazit uzavřené* on both lists.
 - **UI:**
   - *Odeslat PL* (send to the GP).
   - The GP's inbox with the result + original context and *Potvrzuji převzetí*.

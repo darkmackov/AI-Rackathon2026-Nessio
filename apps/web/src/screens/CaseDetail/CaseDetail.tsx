@@ -2,7 +2,7 @@ import { Badge, Grid, Stack, Tabs } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { IconHistory, IconChecklist, IconClipboardText, IconFiles, IconLayoutDashboard, IconListSearch, IconUsersGroup, type Icon } from '@tabler/icons-react'
+import { IconHistory, IconChecklist, IconClipboardText, IconFiles, IconLayoutDashboard, IconListSearch, IconMessages, IconUsersGroup, type Icon } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, actorHeaders } from '../../api'
@@ -24,8 +24,11 @@ import OverviewTab from './OverviewTab'
 import SourcePanel, { SourcePlaceholder } from '../../components/handover/SourcePanel'
 import TasksTab from './TasksTab'
 import MdtTab from './Mdt/MdtTab'
+import CommunicationTab from './CommunicationTab'
 
-const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles, audit: IconHistory, mdt: IconUsersGroup }
+const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles, audit: IconHistory, mdt: IconUsersGroup, communication: IconMessages }
+// Tabs without clinical values have no source column.
+const noSources: DetailTab[] = ['overview', 'audit', 'communication']
 
 function DetailContent({ caseId }: { caseId: string }) {
   const { t } = useTranslation()
@@ -52,8 +55,7 @@ function DetailContent({ caseId }: { caseId: string }) {
   const { selection, setSelection, openSource, closeSource, evidence, selectedDocument, sources } = useDocumentSources(handover.data, documents.data, findings.data)
   const switchTab = (value: string | null) => {
     const next = detailTabs.find((entry) => entry === value)
-    // The overview and audit have no source column.
-    if (next === 'overview' || next === 'audit') setSelection(null)
+    if (next && noSources.includes(next)) setSelection(null)
     if (next) void navigate({ search: { tab: next } })
   }
   const showField = (path: string) => {
@@ -71,7 +73,7 @@ function DetailContent({ caseId }: { caseId: string }) {
   const unresolved = openFindings.length
   const fields = handover.data ? handoverFields(handover.data) : {}
   // Clinical tabs keep the existing fixed source column on wide screens.
-  const split = !!wide && tab !== 'overview' && tab !== 'audit'
+  const split = !!wide && !noSources.includes(tab)
   const source = selection && <SourcePanel key={JSON.stringify(selection)} document={selectedDocument || undefined} evidence={evidence} close={closeSource}
     fallback={documents.isPending ? <LoadingState rows={3} /> : documents.isError ? <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} /> : undefined} />
   const handoverError = handover.isError && (handover.error instanceof ApiError && handover.error.status === 404
@@ -108,6 +110,7 @@ function DetailContent({ caseId }: { caseId: string }) {
           </Tabs.Panel>
           <Tabs.Panel value="tasks">{seen('tasks') && <TasksTab caseId={caseId} openSource={openSource} showFinding={showFinding} />}</Tabs.Panel>
           <Tabs.Panel value="mdt">{seen('mdt') && <MdtTab item={current} handover={handover.data} handoverState={handover.isPending ? <LoadingState rows={2} /> : handoverError} documents={documents.data ?? []} names={names} sources={sources} showFindings={() => { void navigate({ search: { tab: 'findings' } }) }} />}</Tabs.Panel>
+          <Tabs.Panel value="communication">{seen('communication') && <CommunicationTab item={current} />}</Tabs.Panel>
           <Tabs.Panel value="audit">{seen('audit') && <AuditTab caseId={caseId} />}</Tabs.Panel>
           <Tabs.Panel value="documents">{seen('documents') && <DocumentsTab item={current} names={names} openSource={openSource} />}</Tabs.Panel>
         </Grid.Col>

@@ -33,7 +33,7 @@ The Vite dev server proxies `/api` to FastAPI at `http://localhost:8000`. Produc
 ## Pages and session lifetime
 
 - `/`: role and person selection, verified through `/me` before entering the app.
-- `/referrer`: identity, organisation and available contacts only. Referral preparation arrives in S3 and the inbox in S6.
+- `/referrer`: the doctor's inbox (S6), referrals and **Nová žádost** (S3). Closed referrals are hidden until **Zobrazit uzavřené** is enabled.
 - `/coordinator`: the existing provisional S1 read-only queue filtered by the selected person's KOC. Completing the dashboard and case detail remains S1 work. S0 supplies the common shell and role-based destination.
 - Wrong-role addresses return to the current role's home; unidentified visitors return to selection. Unknown addresses have a not-found page.
 
@@ -115,3 +115,15 @@ The **MDT** tab runs the same rules in mock and real mode. The MSW mock mirrors 
 4. **Conclusion:** write it or upload the MDT's report. The report becomes a case document with normal processing and stays the source when fields are typed in. Confirmation writes the definitive diagnosis into the handover and resolves no findings. After the meeting, the conclusion can still be corrected, which needs a new confirmation.
 
 Mock PDFs remain a labelled fixture, except that an uploaded PDF report is served as uploaded.
+
+## S6 feedback workflow (Q-W16)
+
+S6 uses the existing API contracts through MSW only. Its six Python endpoints remain 501; real mode shows that error without fallback. The shared shell, S0–S2 styling and document controls are preserved.
+
+1. After confirming the MDT conclusion, open **Komunikace** and **Odeslat PL**. Review the patient, recipient, confirmed conclusion and frozen MDT input; optionally add a note and confirm sending. An unavailable input or uploaded conclusion document prevents sending. The result can be sent once, then the conclusion is locked and the GP is on the move.
+2. Switch to the referring doctor. **Doručená pošta**, above the referrals, shows results and returned referrals. Expand a result to read the conclusion, recommendations and note, show the frozen MDT input, and download both PDFs. Receipt errors show a retry; no confirmation status is inferred from missing data.
+3. **Potvrzuji převzetí** requires confirmation and closes the case. Both roles can inspect the receipt; repeated confirmation returns the original receipt without another audit event. Returned referrals link to the existing correction flow and never close a case.
+4. Closed cases disappear from the regular lists; **Zobrazit uzavřené** brings them back. Inbox messages remain visible. Tasks are retained, and later uploads update only the live case, leaving the MDT input unchanged.
+5. **Informovat pacienta** records a subject and body with `simulated=true`, no recipients and no external delivery. It is available from triage through feedback sent, excluding returned referrals, and never changes the case state.
+
+Sending, receipt confirmation and patient notices appear in **Audit** with the demo-clock timestamp. Reset clears messages and receipts; identity switching removes the previous person's cached queries. Offline checks live in `feedback-api.test.ts` and `feedback.test.tsx`.

@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import type { Case, Handover, Message, SourcedStr, Stamp } from '../client/types.gen'
+import type { Case, Handover, SourcedStr, Stamp } from '../client/types.gen'
 import { validDocumentDate } from '../components/documents/document-utils'
 import { actors, organizations } from './directory'
 import type { createDemoState } from './handlers'
@@ -138,18 +138,15 @@ export function createReferralHandlers(state: DemoState) {
       if (!found.handover.validated_by_referrer) return fail('validate the handover first', 409)
       const returnedAt = state.getMessages().filter((message) => message.case_id === found.item.id && message.kind === 'case_returned').map((message) => message.sent_at ?? '').sort().at(-1)
       if (found.item.state === 'vraceno_lekari' && returnedAt && found.handover.validated_by_referrer.at <= returnedAt) return fail('validate the handover again after the return', 409)
-      const item: Case = { ...found.item, state: found.item.state === 'vraceno_lekari' ? 'v_triage' : 'odeslano',
-        milestones: { ...found.item.milestones, referred_at: found.item.milestones?.referred_at ?? state.clock().now } }
+      const item: Case = {
+        ...found.item, state: found.item.state === 'vraceno_lekari' ? 'v_triage' : 'odeslano',
+        milestones: { ...found.item.milestones, referred_at: found.item.milestones?.referred_at ?? state.clock().now }
+      }
       state.saveCase(item)
       // Queue, owner and next step are recomputed like after any other workflow change.
       state.coordinator.sync(item.id)
       state.coordinator.record(item.id, found.actor.id, state.clock().now, 'referral_sent')
       return HttpResponse.json<Case>(state.getCases().find((entry) => entry.id === item.id) ?? item)
-    }),
-    http.get('*/api/inbox', ({ request }) => {
-      const user = currentUser(request)
-      if (user.error) return user.error
-      return HttpResponse.json<Message[]>(state.getMessages().filter((message) => message.recipient_ids.includes(user.actor.id)))
     }),
   ]
 }
