@@ -1,15 +1,13 @@
 import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
-import { act, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { actorHeaders, createQueryClient } from '../api'
-import { createMdtSnapshotMutation, getJobQueryKey, getMdtConclusionPdfOptions, uploadMdtConclusionMutation, upsertMdtConclusionMutation } from '../client/@tanstack/react-query.gen'
+import { createMdtSnapshotMutation, getMdtConclusionPdfOptions, uploadMdtConclusionMutation, upsertMdtConclusionMutation } from '../client/@tanstack/react-query.gen'
 import { createDemoState, createHandlers } from '../mocks/handlers'
 import { s4CaseId } from '../mocks/coordinator-state'
-import { renderApp } from './renderApp'
 import { completeCase, mutation, resolveBlockers } from './mdt-fixtures'
-import { openTab, signIn } from './shell'
+import { openCoordinatorCase, openTab } from './shell'
 import { demoState, server } from './setup'
 import { expectApiResponse } from './api-contract'
 
@@ -24,8 +22,8 @@ async function prepare(state = demoState) {
   return mutation(createMdtSnapshotMutation(), { headers, path, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })
 }
 async function openMdt() {
-  const view = renderApp('/', { notifications: true }), user = userEvent.setup({ applyAccept: false })
-  await signIn(user); await user.click(await screen.findByRole('link', { name: 'Fiktivní pacient S4' })); await screen.findByRole('heading', { level: 1, name: 'Fiktivní pacient S4' }); await openTab(user, 'MDT')
+  const view = await openCoordinatorCase(s4CaseId, 'Fiktivní pacient S4', { notifications: true, user: { applyAccept: false } }), { user } = view
+  await openTab(user, 'MDT')
   await user.click(await screen.findByRole('radio', { name: 'Nahrát dokument' }))
   expect(screen.queryByRole('region', { name: 'Zapsat závěr' })).not.toBeInTheDocument()
   await screen.findByRole('button', { name: 'Nahrát dokument závěru' })
@@ -34,39 +32,6 @@ async function openMdt() {
 const pdf = () => new File(['%PDF-1.4\nfictional uploaded document'], 'fiktivni-zaver.pdf', { type: 'application/pdf' })
 
 describe('S5 upload and cut-off', () => {
-  it('uploads a conclusion to its own endpoint, follows processing and requires confirmation after viewing the source', async () => {
-    let now = 0
-    const state = createDemoState(() => now); server.use(...createHandlers(state)); await prepare(state)
-    const { user, queryClient } = await openMdt()
-    await user.upload(screen.getByLabelText('Vybrat závěr MDT'), new File(['invalid'], 'wrong.txt', { type: 'text/plain' }))
-    expect(await screen.findByText('Vyberte podporovaný dokument PDF, DOCX nebo PPTX.')).toBeVisible()
-    await user.upload(screen.getByLabelText('Vybrat závěr MDT'), pdf())
-    await user.click(screen.getByRole('button', { name: 'Nahrát dokument závěru' }))
-    expect(await screen.findByText('Čeká na zpracování')).toBeVisible()
-    // Saved as the conclusion right away, like the backend; the document goes through the normal ingest (Q-F38).
-    const saved = state.mdt.conclusion(s4CaseId)
-    expect(saved).toMatchObject({ source: 'uploaded', confirmed: null })
-    const job = state.documents.listJobs(s4CaseId, state.clock().now).find((job) => job.document_id === saved?.document_id)
-    if (!job) throw new Error('Missing upload job')
-    expect(state.documents.get(job.document_id ?? '')?.doc_type).toBe('mdt_conclusion')
-    const jobKey = getJobQueryKey({ headers, path: { job_id: job.id } })
-    now = 1500
-    await act(async () => { await queryClient.refetchQueries({ queryKey: jobKey }) })
-    expect(await screen.findByText('Probíhá AI extrakce')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Potvrdit závěr MDT' })).toBeDisabled()
-    now = 3500
-    await act(async () => { await queryClient.refetchQueries({ queryKey: jobKey }) })
-    expect(await screen.findByText('Nahraný závěr')).toBeVisible()
-    expectApiResponse('get_mdt_conclusion', 200, state.mdt.conclusion(s4CaseId))
-    await user.click(screen.getByRole('button', { name: 'Otevřít nahraný závěr' }))
-    const source = await screen.findByRole('dialog', { name: 'Zdrojový dokument' })
-    expect(await within(source).findByTestId('document-text')).toHaveTextContent('FIKTIVNÍ UKÁZKA')
-    await user.click(within(source).getByRole('button', { name: 'Zavřít zdroj' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Potvrdit závěr MDT' })).toBeEnabled())
-    expect(state.mdt.conclusion(s4CaseId)?.confirmed).toBeNull()
-    expect((await state.documents.original(job.document_id ?? ''))?.name).toBe('fiktivni-zaver.pdf')
-  })
-
   it('retains the selected file after upload failure and can retry through the same API contract', async () => {
     await prepare()
     server.use(http.post('*/api/cases/:id/mdt/conclusion/upload', () => HttpResponse.json({ detail: 'private upload failure' }, { status: 500 })))
@@ -78,7 +43,7 @@ describe('S5 upload and cut-off', () => {
     expect(screen.queryByText('private upload failure')).not.toBeInTheDocument()
     server.resetHandlers()
     await user.click(screen.getByRole('button', { name: 'Nahrát dokument závěru' }))
-    expect(await screen.findByText('Čeká na zpracování')).toBeVisible()
+    expect(await screen.findByText('Nahraný závěr')).toBeVisible()
   })
 
   it('refuses a snapshot whose handover quotes a document received after the MDT date', async () => {

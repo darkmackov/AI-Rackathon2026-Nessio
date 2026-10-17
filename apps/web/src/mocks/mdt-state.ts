@@ -1,5 +1,6 @@
 import type { Actor, ConclusionPrefill, DocumentMeta, Handover, Job, MdtBoard, MdtConclusion, MdtRecord, MdtResultRow, Organization, Stamp } from '../client/types.gen'
 import { boards } from './directory'
+import { defaultJobDelays, type JobDelays } from './job-delays'
 import type { SourcedValue } from '../components/handover/clinical'
 
 // S5 demo server only. It mirrors the backend rules (onko_cases.mdt, Q-F34–Q-F40); no extraction,
@@ -67,7 +68,7 @@ export function conclusionPrefill(record: MdtRecord, koc: Organization | undefin
     copy_to: referrer ? [[referrer.name, practice?.address].filter(Boolean).join(', ')] : [] }
 }
 
-export function createMdtState(readNow: () => number) {
+export function createMdtState(readNow: () => number, delays: JobDelays = defaultJobDelays) {
   const records = new Map<string, MdtRecord>(), snapshots = new Map<string, Handover>(), conclusions = new Map<string, MdtConclusion>(), teams = new Map<string, MdtBoard>()
   const jobs = new Map<string, { job: Job; done: Partial<Job>; start: number }>()
   return {
@@ -80,14 +81,14 @@ export function createMdtState(readNow: () => number) {
     saveConclusion: (item: MdtConclusion) => conclusions.set(item.case_id, structuredClone(item)),
     boards: () => structuredClone([...teams.values()]),
     saveBoard: (item: MdtBoard) => teams.set(item.id, structuredClone(item)),
-    /** A draft job: queued, running after 1 s, done after 3 s with `done` (e.g. its `draft`). */
+    /** A draft job: queued, then running and done after `delays`, with `done` (e.g. its `draft`). */
     addJob: (job: Job, done: Partial<Job>) => { jobs.set(job.id, { job: structuredClone(job), done: structuredClone(done), start: readNow() }); return structuredClone(job) },
     job: (id: string, now: string) => {
       const entry = jobs.get(id)
       if (!entry) return undefined
       const elapsed = readNow() - entry.start
-      if (entry.job.status === 'queued' && elapsed >= 1000) entry.job = { ...entry.job, status: 'running', started_at: now }
-      if (entry.job.status === 'running' && elapsed >= 3000) entry.job = { ...entry.job, ...entry.done, status: 'done', finished_at: now }
+      if (entry.job.status === 'queued' && elapsed >= delays.running) entry.job = { ...entry.job, status: 'running', started_at: now }
+      if (entry.job.status === 'running' && elapsed >= delays.done) entry.job = { ...entry.job, ...entry.done, status: 'done', finished_at: now }
       return structuredClone(entry.job)
     },
     jobs: (caseId: string) => structuredClone([...jobs.values()].map((entry) => entry.job).filter((job) => job.case_id === caseId)),

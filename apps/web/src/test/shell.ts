@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react'
-import type userEvent from '@testing-library/user-event'
+import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
+import { renderApp } from './renderApp'
 
 export type User = ReturnType<typeof userEvent.setup>
 
@@ -31,12 +32,34 @@ export async function signIn(user: User, role: 'coordinator' | 'referring_doctor
   await screen.findByRole('heading', { level: 1, name: role === 'coordinator' ? 'Pracovní fronta koordinátora' : `Vítejte, ${people[id] ?? ''}` })
 }
 
-/** Signs in as the reference coordinator and opens the reference case on its overview. */
-export async function openReferenceCase(user: User) {
-  await signIn(user)
-  await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
-  await screen.findByRole('heading', { level: 1, name: 'Alena Procházková' })
+type OpenOptions = { notifications?: boolean; user?: Parameters<typeof userEvent.setup>[0] }
+
+/**
+ * Renders `path` already signed in as `actorId` (as after a reload of the tab, Q-W8) and waits for its heading.
+ * Use signIn instead where choosing the person is what the test checks.
+ */
+export async function openAs(actorId: string, path: string, heading: string, options: OpenOptions = {}) {
+  const view = renderApp(path, { notifications: options.notifications, as: actorId })
+  const user = userEvent.setup({ delay: null, ...options.user })
+  await screen.findByRole('heading', { level: 1, name: heading })
+  return { ...view, user }
+}
+
+/** Opens a case as the reference coordinator. */
+export function openCoordinatorCase(caseId: string, name: string, options: OpenOptions = {}) {
+  return openAs('koordinator', `/coordinator/cases/${caseId}`, name, options)
+}
+
+/** Opens a case as the reference referring doctor. */
+export function openReferrerCase(caseId: string, name: string, options: OpenOptions = {}) {
+  return openAs('pl-reznicek', `/referrer/cases/${caseId}`, name, options)
+}
+
+/** Opens the reference case on its overview as the reference coordinator. */
+export async function openReferenceCase(options: OpenOptions = {}) {
+  const view = await openCoordinatorCase('vzp-prochazkova', 'Alena Procházková', options)
   await screen.findByRole('heading', { name: 'Údaje o případu' })
+  return view
 }
 
 export async function openTab(user: User, name: RegExp | string) {

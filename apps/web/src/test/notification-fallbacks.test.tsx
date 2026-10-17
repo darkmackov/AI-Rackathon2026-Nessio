@@ -13,7 +13,7 @@ import { createAppRouter } from '../router'
 
 describe('popup-only technical failures', () => {
     it('shows clipboard failures only in a dismissible popup and permits another copy attempt', async () => {
-        const user = userEvent.setup()
+        const user = userEvent.setup({ delay: null })
         const copy = vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('private clipboard failure'))
         render(<MantineProvider><I18nextProvider i18n={i18n}>
             <CopySection text={() => 'Clinical text'} /><AppNotifications />
@@ -37,7 +37,7 @@ describe('popup-only technical failures', () => {
             <DownloadFile load={load} pending={false} filename="test.pdf" label="Download" />
             <AppNotifications />
         </I18nextProvider></MantineProvider>)
-        const user = userEvent.setup()
+        const user = userEvent.setup({ delay: null })
         await user.click(screen.getByRole('button', { name: 'Download' }))
         expect(await screen.findAllByRole('alert')).toHaveLength(1)
         expect(document.body).not.toHaveTextContent('private download failure')
@@ -67,7 +67,7 @@ describe('popup-only technical failures', () => {
         expect(screen.getAllByRole('alert')).toHaveLength(1)
         expect(document.querySelector('.mantine-Alert-root')).not.toBeInTheDocument()
         expect(document.body).not.toHaveTextContent('private route failure')
-        const user = userEvent.setup()
+        const user = userEvent.setup({ delay: null })
         await user.click(screen.getByRole('button', { name: 'Zavřít oznámení' }))
         await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
         failing = false

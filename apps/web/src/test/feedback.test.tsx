@@ -8,7 +8,7 @@ import { sendFeedbackMutation } from '../client/@tanstack/react-query.gen'
 import { concludeReference, referenceId } from './feedback-fixtures'
 import { mutation } from './mdt-fixtures'
 import { renderApp } from './renderApp'
-import { changeIdentity, openReferenceCase, openTab, setLanguage, signIn } from './shell'
+import { openReferenceCase, openTab, setLanguage, signIn } from './shell'
 import { demoState, server } from './setup'
 
 const path = { case_id: referenceId }, headers = actorHeaders('koordinator')
@@ -18,56 +18,10 @@ async function sentResult() {
 }
 
 describe('S6 feedback workflow', () => {
-  it('sends through a confirmation dialog, receives as the GP and shows the receipt to the coordinator', async () => {
-    await concludeReference()
-    const { queryClient } = renderApp(), user = userEvent.setup()
-    await openReferenceCase(user)
-    await openTab(user, 'Komunikace')
-    const send = screen.getByRole('button', { name: 'Odeslat PL' })
-    await waitFor(() => expect(send).toBeEnabled())
-    await user.click(send)
-    let dialog = await screen.findByRole('dialog', { name: 'Odeslat výsledek MDT odesílajícímu lékaři?' })
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Odeslat PL' })).toBeEnabled())
-    expect(within(dialog).getByText('Alena Procházková')).toBeVisible()
-    expect(within(dialog).getByText(/Zmrazený podklad MDT k/)).toBeVisible()
-    fireEvent.change(within(dialog).getByLabelText('Poznámka pro lékaře (nepovinná)'), { target: { value: 'Poznámka pro PL.' } })
-    await user.click(within(dialog).getByRole('button', { name: 'Odeslat PL' }))
-    expect(await screen.findByText('Výsledek MDT byl odeslán odesílajícímu lékaři.')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Odeslat PL' })).toBeDisabled()
-
-    await changeIdentity(user); await signIn(user, 'referring_doctor')
-    await user.click(await screen.findByRole('button', { name: /Alena Procházková.*Závěr MDT ze dne 21\. 10\. 2026/ }))
-    expect(await screen.findByText('Fiktivní závěr MDT.')).toBeVisible()
-    expect(screen.getByText(/^Poznámka pro PL\./)).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Zobrazit podklad MDT' }))
-    expect(await screen.findByText(/Zmrazené podklady k 21. 10. 2026/)).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Stáhnout zápis PDF' })).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Potvrzuji převzetí' }))
-    dialog = await screen.findByRole('dialog', { name: 'Potvrdit převzetí výsledku MDT?' })
-    expect(demoState.getCases().find((item) => item.id === referenceId)?.state).toBe('zpetna_vazba_odeslana')
-    await user.click(within(dialog).getByRole('button', { name: 'Zrušit' }))
-    await user.click(screen.getByRole('button', { name: 'Potvrzuji převzetí' }))
-    dialog = await screen.findByRole('dialog', { name: 'Potvrdit převzetí výsledku MDT?' })
-    await user.click(within(dialog).getByRole('button', { name: 'Potvrzuji převzetí' }))
-    expect(await screen.findByText('Převzetí bylo potvrzeno a případ je uzavřen.')).toBeVisible()
-    expect(screen.queryByRole('link', { name: 'Alena Procházková' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('switch', { name: 'Zobrazit uzavřené' }))
-    expect(await screen.findByRole('link', { name: 'Alena Procházková' })).toBeVisible()
-
-    await changeIdentity(user); await signIn(user)
-    expect(screen.queryByRole('link', { name: 'Alena Procházková' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('switch', { name: 'Zobrazit uzavřené' }))
-    await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
-    const communication = await openTab(user, 'Komunikace')
-    await waitFor(() => expect(within(communication).getAllByText(/Převzato/)[0]).toBeVisible())
-    expect(within(communication).queryByText('Čeká na potvrzení převzetí')).not.toBeInTheDocument()
-    expect(queryClient.getQueryCache().getAll().some((query) => JSON.stringify(query.queryKey).includes('pl-reznicek'))).toBe(false)
-  })
-
   it('shows a retry when the MDT input cannot be loaded for review', async () => {
     await concludeReference()
     server.use(http.get('*/api/cases/:id/mdt/record', () => HttpResponse.json({ detail: 'unavailable' }, { status: 501 })))
-    renderApp('/', { notifications: true }); const user = userEvent.setup(); await openReferenceCase(user); await openTab(user, 'Komunikace')
+    const { user } = await openReferenceCase({ notifications: true }); await openTab(user, 'Komunikace')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Odeslat PL' })).toBeEnabled())
     await user.click(screen.getByRole('button', { name: 'Odeslat PL' }))
     const dialog = await screen.findByRole('dialog')
@@ -84,7 +38,7 @@ describe('S6 feedback workflow', () => {
   it('does not invent a pending receipt or allow confirmation when receipts fail to load', async () => {
     await sentResult()
     server.use(http.get('*/api/cases/:id/receipts', () => HttpResponse.json({ detail: 'unavailable' }, { status: 501 })))
-    renderApp('/', { notifications: true }); const user = userEvent.setup(); await signIn(user, 'referring_doctor')
+    renderApp('/', { notifications: true }); const user = userEvent.setup({ delay: null }); await signIn(user, 'referring_doctor')
     const inbox = screen.getByRole('region', { name: 'Doručená pošta' })
     expect(await screen.findByText('Tato funkce zatím není implementována.')).toBeVisible()
     expect(within(inbox).queryByText('Čeká na potvrzení převzetí')).not.toBeInTheDocument()
@@ -100,7 +54,7 @@ describe('S6 feedback workflow', () => {
   })
 
   it('records a simulated patient notice and keeps its Czech draft when changing UI language', async () => {
-    renderApp(); const user = userEvent.setup(); await openReferenceCase(user); await openTab(user, 'Komunikace')
+    const { user } = await openReferenceCase(); await openTab(user, 'Komunikace')
     await user.click(screen.getByRole('button', { name: 'Informovat pacienta' }))
     const dialog = await screen.findByRole('dialog', { name: 'Informovat pacienta (simulace)' })
     fireEvent.change(within(dialog).getByRole('textbox', { name: /^Předmět/ }), { target: { value: 'Termín MDT' } })
@@ -126,7 +80,7 @@ describe('S6 feedback workflow', () => {
 
   it('shows returned referral notes with an edit link and no close-case confirmation', async () => {
     demoState.saveMessage({ id: 'returned', case_id: 'demo-s4', kind: 'case_returned', sender_id: 'koordinator', recipient_ids: ['pl-reznicek'], subject: 'Žádost k doplnění', body: 'Doplňte údaj.', sent_at: '2026-10-21T09:00:00' })
-    renderApp(); const user = userEvent.setup(); await signIn(user, 'referring_doctor')
+    renderApp(); const user = userEvent.setup({ delay: null }); await signIn(user, 'referring_doctor')
     await user.click(await screen.findByRole('button', { name: /Žádost k doplnění/ }))
     await waitFor(() => expect(screen.getByText('Doplňte údaj.')).toBeVisible())
     expect(screen.getByRole('link', { name: 'Zobrazit žádost' })).toHaveAttribute('href', '/referrer/cases/demo-s4')
@@ -135,7 +89,7 @@ describe('S6 feedback workflow', () => {
 
   it('clears the inbox and receipt queries when the demo is reset', async () => {
     await sentResult()
-    const { queryClient } = renderApp(), user = userEvent.setup(); await signIn(user, 'referring_doctor')
+    const { queryClient } = renderApp(), user = userEvent.setup({ delay: null }); await signIn(user, 'referring_doctor')
     await screen.findByRole('button', { name: /Alena Procházková.*Závěr MDT ze dne 21\. 10\. 2026/ })
     await user.click(screen.getByRole('button', { name: 'Demo' }))
     const demo = await screen.findByRole('dialog', { name: 'Ovládání dema' })

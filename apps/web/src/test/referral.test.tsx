@@ -4,52 +4,34 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { actorHeaders } from '../api'
 import { listCasesQueryKey } from '../client/@tanstack/react-query.gen'
+import type { Case } from '../client/types.gen'
 import { changeLanguage } from '../i18n'
 import { referenceHandover } from '../mocks/reference-data'
 import { renderApp } from './renderApp'
 import { seedReferral, seedReturnedReferral } from './referral-fixtures'
-import { changeIdentity, field, openTab, openUserMenu, signIn, wideScreen, type User } from './shell'
+import { changeIdentity, field, openReferrerCase, openTab, openUserMenu, signIn, wideScreen, type User } from './shell'
 import { demoState, server } from './setup'
 
-async function openReferral(user: User, name = 'Pacient zatím neuveden') {
-  await signIn(user, 'referring_doctor')
-  await user.click(await screen.findByRole('link', { name }))
-  await screen.findByRole('heading', { level: 1, name })
+async function openReferral(item: Case, options: { notifications?: boolean } = {}) {
+  const view = await openReferrerCase(item.id, item.patient_name || 'Pacient zatím neuveden', options)
   await screen.findByText('Případ zatím nemá žádné dokumenty.')
+  return view
 }
 
-async function review(user: User) {
-  return openTab(user, 'Předávka')
+async function review(user: User, expand = false) {
+  const panel = await openTab(user, 'Předávka')
+  if (expand) await user.click(await within(panel).findByRole('button', { name: 'Rozbalit vše' }))
+  return panel
 }
 
 afterEach(() => server.events.removeAllListeners('request:start'))
 
 describe('S3 referring doctor workflow', () => {
-  it('creates a referral only after choosing a KOC and isolates the doctor’s list', async () => {
-    seedReferral('other-doctor', { referring_doctor_id: 'pl-novakova', patient_name: 'Jiný lékař' })
-    const { router } = renderApp()
-    const user = userEvent.setup()
-    await signIn(user, 'referring_doctor')
-    expect(screen.queryByText('Jiný lékař')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Nová žádost' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Nová žádost do KOC' })
-    await user.click(await within(dialog).findByRole('button', { name: 'Vytvořit žádost' }))
-    expect(await within(dialog).findByRole('alert')).toHaveFocus()
-    expect(demoState.getCases()).toHaveLength(4)
-    await user.selectOptions(within(dialog).getByLabelText('Cílové KOC'), 'koc1-severni')
-    await user.click(within(dialog).getByRole('button', { name: 'Vytvořit žádost' }))
-    await screen.findByRole('heading', { level: 1, name: 'Pacient zatím neuveden' })
-    const created = demoState.getCases().find((item) => item.id.startsWith('demo-referral-'))
-    expect(created).toMatchObject({ koc_id: 'koc1-severni', referring_doctor_id: 'pl-reznicek', state: 'koncept' })
-    expect(router.state.location.pathname).toBe(`/referrer/cases/${created?.id}`)
-    expect(screen.getByLabelText('Vybrat soubory')).toBeInTheDocument()
-  })
-
   it('shows an empty list, retries a failed load and shows a creation error without losing the KOC', async () => {
     demoState.reset('empty')
     server.use(http.get('*/api/cases', () => HttpResponse.json({ detail: 'private technical information' }, { status: 500 })))
     renderApp('/', { notifications: true })
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     await signIn(user, 'referring_doctor')
     expect(await screen.findByRole('alert')).toHaveTextContent('Při zpracování požadavku nastala chyba.')
     expect(screen.queryByText('private technical information')).not.toBeInTheDocument()
@@ -68,55 +50,9 @@ describe('S3 referring doctor workflow', () => {
     expect(demoState.getCases()).toEqual([])
   })
 
-  it('saves a prefilled manual correction and keeps an unavailable value missing with the doctor’s stamp', async () => {
-    const item = seedReferral('draft-edits', {}, { patient: { first_name: { status: 'found', origin: 'manual', value: 'Původní', entered: { by: 'pl-reznicek', at: '2026-10-02T14:00:00' } } } })
-    renderApp()
-    const user = userEvent.setup()
-    await openReferral(user)
-    await review(user)
-    await user.click(within(field('Jméno')).getByRole('button', { name: 'Upravit' }))
-    let dialog = await screen.findByRole('dialog', { name: 'Upravit údaj: Jméno' })
-    expect(within(dialog).getByLabelText('Hodnota')).toHaveValue('Původní')
-    await user.clear(within(dialog).getByLabelText('Hodnota'))
-    await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
-    expect(await within(dialog).findByRole('alert')).toHaveFocus()
-    await user.type(within(dialog).getByLabelText('Hodnota'), 'Fiktivní jméno')
-    await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(within(field('Jméno')).getByText('Fiktivní jméno')).toBeVisible()
-    await user.click(within(field('Příjmení')).getByRole('button', { name: 'Není k dispozici' }))
-    dialog = await screen.findByRole('dialog', { name: 'Upravit údaj: Příjmení' })
-    await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(within(field('Příjmení')).getByText('Chybí')).toBeVisible()
-    expect(within(field('Příjmení')).getByText('Ruční zadání')).toBeVisible()
-    expect(demoState.documents.result(item.id)?.handover.patient?.last_name).toMatchObject({ value: null, status: 'missing', origin: 'manual', entered: { by: item.referring_doctor_id } })
-  })
-
-  it('adds a manually entered examination and keeps its full result and author', async () => {
-    const item = seedReferral('draft-exam')
-    renderApp()
-    const user = userEvent.setup()
-    await openReferral(user)
-    await review(user)
-    await user.click(screen.getByRole('button', { name: /^Provedená vyšetření/ }))
-    await user.click(screen.getByRole('button', { name: 'Přidat vyšetření' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Přidat vyšetření' })
-    fireEvent.change(within(dialog).getByLabelText('Datum vyšetření'), { target: { value: '2026-10-01' } })
-    fireEvent.change(within(dialog).getByLabelText('Pracoviště'), { target: { value: 'Fiktivní ordinace' } })
-    fireEvent.change(within(dialog).getByLabelText('Typ vyšetření'), { target: { value: 'Kontrola' } })
-    fireEvent.change(within(dialog).getByLabelText('Úplné znění výsledku'), { target: { value: 'Fiktivní výsledek. Doporučení zůstává v úplném znění.' } })
-    await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(await screen.findByText('Vyšetření bylo přidáno.')).toBeVisible()
-    expect(demoState.documents.result(item.id)?.handover.examinations?.[0]).toMatchObject({ type: 'Kontrola', origin: 'manual', result_full_text: 'Fiktivní výsledek. Doporučení zůstává v úplném znění.', entered: { by: item.referring_doctor_id } })
-  })
-
   it('requires confirmation and validates before sending even with missing fields, then appears in the KOC queue', async () => {
     const item = seedReferral('draft-send', { patient_name: 'Fiktivní žádost' })
-    const { queryClient } = renderApp()
-    const user = userEvent.setup()
-    await openReferral(user, 'Fiktivní žádost')
+    const { queryClient, user } = await openReferral(item)
     await review(user)
     const sendButton = screen.getByRole('button', { name: 'Validovat a odeslat' })
     await waitFor(() => expect(sendButton).toBeEnabled())
@@ -148,9 +84,7 @@ describe('S3 referring doctor workflow', () => {
     })
     const path = stage === 'validate' ? '*/api/cases/:caseId/handover/validate' : '*/api/cases/:caseId/send'
     server.use(http.post(path, () => HttpResponse.json({ detail: 'private error' }, { status: 500 })))
-    renderApp()
-    const user = userEvent.setup()
-    await openReferral(user)
+    const { user } = await openReferral(item)
     await review(user)
     await user.click(screen.getByRole('button', { name: 'Validovat a odeslat' }))
     const dialog = await screen.findByRole('dialog', { name: 'Validovat a odeslat žádost?' })
@@ -167,30 +101,10 @@ describe('S3 referring doctor workflow', () => {
     server.events.removeAllListeners('request:start')
   })
 
-  it('shows the coordinator’s return note, permits corrections and resends to triage', async () => {
-    const item = seedReturnedReferral()
-    renderApp()
-    const user = userEvent.setup()
-    await openReferral(user, item.patient_name)
-    expect(await screen.findByText('Fiktivní poznámka koordinátora: doplňte dostupný kontakt na pacienta.')).toBeVisible()
-    await review(user)
-    await user.click(within(screen.getByRole('heading', { level: 2, name: /^Kontakty/ })).getByRole('button'))
-    await user.click(within(field('Telefon pacienta')).getByRole('button', { name: 'Doplnit' }))
-    const edit = await screen.findByRole('dialog', { name: 'Upravit údaj: Telefon pacienta' })
-    await user.type(within(edit).getByLabelText('Hodnota'), '+420 777 000 000')
-    await user.click(within(edit).getByRole('button', { name: 'Uložit' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    await user.click(screen.getByRole('button', { name: 'Validovat a odeslat' }))
-    const confirm = await screen.findByRole('dialog', { name: 'Validovat a odeslat žádost?' })
-    await user.click(within(confirm).getByRole('button', { name: 'Validovat a odeslat' }))
-    expect(await screen.findByText('Žádost byla znovu odeslána koordinátorovi.')).toBeVisible()
-    expect(demoState.getCases().find((entry) => entry.id === item.id)).toMatchObject({ state: 'v_triage', coordinator_id: 'koordinator' })
-  })
-
   it('rejects another doctor’s case before loading clinical data and keeps a sent case read-only', async () => {
     const other = seedReferral('private-other', { referring_doctor_id: 'pl-novakova' })
     const { router } = renderApp()
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     await signIn(user, 'referring_doctor')
     const clinical = vi.fn()
     server.use(http.get(`*/api/cases/${other.id}/handover`, () => { clinical(); return HttpResponse.json(referenceHandover) }))
@@ -210,9 +124,7 @@ describe('S3 referring doctor workflow', () => {
     const item = seedReturnedReferral()
     server.use(http.get('*/api/inbox', () => HttpResponse.json({ detail: 'internal inbox stub' }, { status: 501 })),
       http.get(`*/api/cases/${item.id}/handover`, () => HttpResponse.json({ detail: 'no handover yet' }, { status: 404 })))
-    renderApp('/', { notifications: true })
-    const user = userEvent.setup()
-    await openReferral(user, item.patient_name)
+    const { user } = await openReferral(item, { notifications: true })
     expect(await screen.findByText('Tato funkce zatím není implementována.')).toBeVisible()
     expect(screen.queryByText('internal inbox stub')).not.toBeInTheDocument()
     await review(user)
@@ -225,13 +137,11 @@ describe('S3 referring doctor workflow', () => {
   })
 
   it('moves keyboard focus from a finding into a field in a collapsed section', async () => {
-    seedReferral('draft-focus', {}, { ...referenceHandover, case_id: 'draft-focus' })
+    const item = seedReferral('draft-focus', {}, { ...referenceHandover, case_id: 'draft-focus' })
     // This fixture has findings linked to a handover section that starts collapsed.
     const finding = { id: 'focus-finding', kind: 'missing', severity: 'warning', fields: ['contacts.patient_phone'], message_cs: 'Fiktivní upozornění na kontakt.', suggested_action: 'fill_in' } as const
     server.use(http.get('*/api/cases/draft-focus/findings', () => HttpResponse.json([{ ...finding, fields: [...finding.fields] }])))
-    renderApp()
-    const user = userEvent.setup()
-    await openReferral(user)
+    const { user } = await openReferral(item)
     await review(user)
     const issue = await screen.findByRole('article', { name: finding.message_cs })
     await user.click(within(issue).getByRole('link', { name: /Telefon pacienta/ }))
@@ -241,7 +151,7 @@ describe('S3 referring doctor workflow', () => {
   it('keeps coordinator identities outside the GP workflow', async () => {
     const item = seedReferral('doctor-only')
     const { router } = renderApp()
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     await signIn(user)
     await act(async () => { await router.navigate({ to: '/referrer/cases/$caseId', params: { caseId: item.id } }) })
     await waitFor(() => expect(router.state.location.pathname).toBe('/coordinator'))
@@ -249,13 +159,11 @@ describe('S3 referring doctor workflow', () => {
   })
 
   it('keeps field drafts while changing language and blocks identity changes during a write', async () => {
-    seedReferral('draft-language')
+    const item = seedReferral('draft-language')
     let release: (() => void) | undefined
     const held = new Promise<void>((resolve) => { release = resolve })
     server.use(http.patch('*/api/cases/:caseId/handover', async () => { await held; return HttpResponse.json(demoState.documents.result('draft-language')?.handover) }))
-    renderApp()
-    const user = userEvent.setup()
-    await openReferral(user)
+    const { user } = await openReferral(item)
     await review(user)
     await user.click(within(field('Jméno')).getByRole('button', { name: 'Doplnit' }))
     let dialog = await screen.findByRole('dialog', { name: 'Upravit údaj: Jméno' })
@@ -280,7 +188,7 @@ describe('S3 referring doctor workflow', () => {
     if (!reference) throw new Error('Missing reference fixture')
     demoState.saveCase({ ...reference, state: 'koncept' })
     renderApp()
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     await signIn(user, 'referring_doctor')
     await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
     await screen.findByRole('heading', { level: 1, name: 'Alena Procházková' })

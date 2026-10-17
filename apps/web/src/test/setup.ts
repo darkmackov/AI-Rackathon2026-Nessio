@@ -7,7 +7,9 @@ import { changeLanguage } from '../i18n'
 import { createDemoState, createHandlers } from '../mocks/handlers'
 import { clearNotifications } from '../notifications/notify'
 
-export const demoState = createDemoState()
+// Jobs finish in a fraction of a second and are polled quickly, so tests don't wait in real time.
+vi.mock('../polling', () => ({ JOB_POLL_MS: 20 }))
+export const demoState = createDemoState(Date.now, { running: 40, done: 120 })
 export const server = setupServer(...createHandlers(demoState))
 
 // Narrow layout by default; a test opts into the wide layout with wideScreen() from ./shell.

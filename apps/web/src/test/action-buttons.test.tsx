@@ -26,7 +26,7 @@ describe('stable action feedback', () => {
     const button = screen.getByRole('button', { name: 'Potvrdit a připravit' })
     const label = button.querySelector('.mantine-Button-label')
     const icon = screen.getByTestId('icon')
-    await userEvent.setup().dblClick(button)
+    await userEvent.setup({ delay: null }).dblClick(button)
     expect(click).toHaveBeenCalledOnce()
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('aria-busy', 'true')
@@ -36,7 +36,7 @@ describe('stable action feedback', () => {
     expect(button).toHaveTextContent('Potvrdit a připravit')
     expect(button).not.toHaveAttribute('data-loading')
     expect(button.querySelector('.mantine-Button-loader')).not.toBeInTheDocument()
-    await userEvent.setup().keyboard('{Enter} ')
+    await userEvent.setup({ delay: null }).keyboard('{Enter} ')
     expect(click).toHaveBeenCalledOnce()
   })
 

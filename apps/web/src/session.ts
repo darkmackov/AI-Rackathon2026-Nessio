@@ -23,7 +23,7 @@ const actorKey = 'onko.actorId'
 export function storedActorId(): string | null {
   try { return sessionStorage.getItem(actorKey) } catch { return null }
 }
-function storeActorId(id: string | null) {
+export function storeActorId(id: string | null) {
   try {
     if (id === null) sessionStorage.removeItem(actorKey)
     else sessionStorage.setItem(actorKey, id)

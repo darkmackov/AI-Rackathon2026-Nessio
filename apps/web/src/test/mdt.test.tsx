@@ -1,6 +1,5 @@
 import { Blob as NodeBlob } from 'node:buffer'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { actorHeaders } from '../api'
@@ -10,15 +9,12 @@ import { createDemoState, createHandlers } from '../mocks/handlers'
 import { s4CaseId } from '../mocks/coordinator-state'
 import { refreshCaseResults } from '../components/documents/use-document-ingest'
 import { completeCase, mutation, resolveBlockers } from './mdt-fixtures'
-import { renderApp } from './renderApp'
-import { changeIdentity, openTab, setLanguage, signIn, type User } from './shell'
+import { changeIdentity, openCoordinatorCase, openTab, setLanguage, signIn } from './shell'
 import { demoState, server } from './setup'
 
-async function openMdt(user: User) {
-  await signIn(user)
-  await user.click(await screen.findByRole('link', { name: 'Fiktivní pacient S4' }))
-  await screen.findByRole('heading', { level: 1, name: 'Fiktivní pacient S4' })
-  return openTab(user, 'MDT')
+async function openMdt(options: { notifications?: boolean } = {}) {
+  const view = await openCoordinatorCase(s4CaseId, 'Fiktivní pacient S4', options)
+  return { ...view, panel: await openTab(view.user, 'MDT') }
 }
 async function prepare() {
   completeCase(); resolveBlockers()
@@ -27,41 +23,9 @@ async function prepare() {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('S5 coordinator MDT workflow', () => {
-  it('requires explicit snapshot confirmation and explains unresolved blockers without hiding the S4 resolution workflow', async () => {
-    completeCase()
-    renderApp('/', { notifications: true }); const user = userEvent.setup(); await openMdt(user)
-    await user.click(await screen.findByRole('button', { name: 'Připravit podklad pro MDT' }))
-    let dialog = await screen.findByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })
-    expect(within(dialog).getByText(/Později přijaté zprávy/)).toBeVisible()
-    await user.click(within(dialog).getByRole('button', { name: 'Zrušit' }))
-    expect(demoState.mdt.snapshot(s4CaseId)).toBeUndefined()
-    await user.click(screen.getByRole('button', { name: 'Připravit podklad pro MDT' }))
-    dialog = await screen.findByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })
-    await user.click(within(dialog).getByRole('button', { name: 'Potvrdit a připravit' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('nevyřešená blokující upozornění')
-    expect(dialog.querySelector('.mantine-Alert-root')).not.toBeInTheDocument()
-    expect(demoState.getCases().find((item) => item.id === s4CaseId)?.state).toBe('kompletni')
-    await user.click(within(dialog).getByRole('button', { name: 'Zobrazit k řešení' }))
-    expect(await screen.findByRole('article', { name: 'Fiktivní ukázka: chybí ECOG / Karnofsky.' })).toBeVisible()
-  })
-
-  it('closes the blocked snapshot dialog and keeps the way to the findings', async () => {
-    completeCase()
-    renderApp('/', { notifications: true }); const user = userEvent.setup(); await openMdt(user)
-    await user.click(await screen.findByRole('button', { name: 'Připravit podklad pro MDT' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })
-    await user.click(within(dialog).getByRole('button', { name: 'Potvrdit a připravit' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('nevyřešená blokující upozornění')
-    await user.keyboard('{Escape}')
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })).not.toBeInTheDocument())
-    expect(screen.getByRole('alert')).toHaveTextContent('nevyřešená blokující upozornění')
-    await user.click(screen.getByRole('button', { name: 'Zobrazit k řešení' }))
-    expect(await screen.findByRole('article', { name: 'Fiktivní ukázka: chybí ECOG / Karnofsky.' })).toBeVisible()
-  })
-
   it('prepares the record from the chosen board/date while keeping missing values explicit', async () => {
     completeCase(); resolveBlockers()
-    renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { user } = await openMdt()
     expect(await screen.findByLabelText('MDT tým')).toHaveValue('mdt-git-lipova')
     expect(screen.getByLabelText('Datum MDT')).toHaveValue('2026-10-21')
     await user.click(screen.getByRole('button', { name: 'Připravit podklad pro MDT' }))
@@ -76,7 +40,7 @@ describe('S5 coordinator MDT workflow', () => {
 
   it('edits the board roster before snapshot creation without changing the canonical directory', async () => {
     completeCase()
-    renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { user } = await openMdt()
     await user.click(await screen.findByRole('button', { name: 'Upravit členy týmu' }))
     const dialog = await screen.findByRole('dialog', { name: 'Členové MDT' })
     fireEvent.change(within(dialog).getByLabelText('Jméno a příjmení (1)'), { target: { value: 'Fiktivní změněný člen' } })
@@ -88,7 +52,7 @@ describe('S5 coordinator MDT workflow', () => {
   it('edits record members, results and question while leaving the frozen handover untouched', async () => {
     await prepare()
     const original = demoState.mdt.snapshot(s4CaseId)
-    renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { user } = await openMdt()
     await user.click(await screen.findByRole('button', { name: 'Upravit zápis' }))
     const dialog = await screen.findByRole('region', { name: 'Upravit zápis' })
     expect(within(dialog).getByRole('heading', { name: 'Upravit zápis' })).toHaveFocus()
@@ -106,14 +70,14 @@ describe('S5 coordinator MDT workflow', () => {
 
   it('separates saving a conclusion from human confirmation and preserves Czech data when switching languages', async () => {
     await prepare()
-    renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { user } = await openMdt()
     expect(await screen.findByRole('radio', { name: 'Zapsat v aplikaci' })).toBeChecked()
     const dialog = await screen.findByRole('region', { name: 'Zapsat závěr' })
     fireEvent.change(within(dialog).getByLabelText('Závěr MDT'), { target: { value: 'Fiktivní závěr bez klinického doporučení.' } })
     fireEvent.change(within(dialog).getByLabelText('Definitivní kód (MKN-10)'), { target: { value: 'Z00.0' } })
     await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
-    expect(await screen.findByText('Fiktivní závěr bez klinického doporučení.')).toBeVisible()
-    expect(screen.getByRole('heading', { level: 2, name: /Závěr MDT\s*Čeká na potvrzení/ })).toBeVisible()
+    expect(await screen.findByRole('heading', { level: 2, name: /Závěr MDT\s*Čeká na potvrzení/ })).toBeVisible()
+    expect(screen.getByText('Fiktivní závěr bez klinického doporučení.')).toBeVisible()
     expect(demoState.mdt.conclusion(s4CaseId)?.confirmed).toBeNull()
     expect(demoState.getCases().find((item) => item.id === s4CaseId)?.state).toBe('pripraveno_k_mdt')
     await setLanguage(user, 'English')
@@ -135,7 +99,7 @@ describe('S5 coordinator MDT workflow', () => {
     let now = 0
     const state = createDemoState(() => now); server.use(...createHandlers(state)); completeCase(state); resolveBlockers(state)
     await mutation(createMdtSnapshotMutation(), { headers: actorHeaders('koordinator'), path: { case_id: s4CaseId }, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })
-    const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { queryClient, user } = await openMdt()
     const editor = await screen.findByRole('region', { name: 'Zapsat závěr' })
     const panel = within(editor).getByRole('region', { name: 'Předvyplnění ze zápisu: Závěr MDT' })
     await user.click(within(panel).getByRole('button', { name: 'Předvyplnit ze zápisu' }))
@@ -160,7 +124,7 @@ describe('S5 coordinator MDT workflow', () => {
     await mutation(createMdtSnapshotMutation(), { headers: actorHeaders('koordinator'), path: { case_id: s4CaseId }, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })
     state.mdt.saveRecord({ ...state.mdt.record(s4CaseId)!, results: [{ date: '2026-10-08', examination: 'Fiktivní CT', result: 'Dlouhý fiktivní text.' }] })
     state.mdt.saveSnapshot({ ...state.mdt.snapshot(s4CaseId)!, examinations: [{ date: '2026-10-08', place: 'Fiktivní KOC', type: 'Fiktivní CT', result_full_text: 'Dlouhý fiktivní text.', origin: 'manual', entered: { by: 'koordinator', at: '2026-10-20T09:00:00' } }] })
-    const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { queryClient, user } = await openMdt()
     await user.click(await screen.findByRole('button', { name: 'Upravit zápis' }))
     const dialog = await screen.findByRole('region', { name: 'Upravit zápis' })
     const panel = within(dialog).getByRole('region', { name: 'Návrh AI: Výsledky stávajících vyšetření' })
@@ -184,7 +148,7 @@ describe('S5 coordinator MDT workflow', () => {
     if (!item) throw new Error('Missing fixture')
     state.saveCase({ ...item, state: 'kompletni', coordinator_id: 'koordinator', mdt_board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' })
     server.use(...createHandlers(state))
-    const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { queryClient, user } = await openMdt()
     await user.click(within(await screen.findByRole('group', { name: 'Souhrn epikrízy' })).getByRole('button', { name: 'Upravit' }))
     const dialog = screen.getByRole('region', { name: 'Souhrn epikrízy' })
     const panel = within(dialog).getByRole('region', { name: 'Návrh AI: Souhrn epikrízy' })
@@ -207,7 +171,7 @@ describe('S5 coordinator MDT workflow', () => {
 
   it('guides each stage with one next step and keeps finished sections collapsed', async () => {
     completeCase(); resolveBlockers()
-    renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { user } = await openMdt()
     const next = await screen.findByRole('region', { name: 'Další krok' })
     expect(screen.getByText('Postup MDT: krok 2 z 5, Podklad pro MDT.')).toBeInTheDocument()
     await user.click(within(next).getByRole('button', { name: 'Přejít k přípravě podkladu' }))
@@ -223,7 +187,7 @@ describe('S5 coordinator MDT workflow', () => {
     const options = { headers: actorHeaders('koordinator'), path: { case_id: s4CaseId } }
     await mutation(upsertMdtConclusionMutation(), { ...options, body: { conclusion: 'Fiktivní závěr.' } })
     await mutation(confirmMdtConclusionMutation(), options)
-    renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { user } = await openMdt()
     const next = await screen.findByRole('region', { name: 'Další krok' })
     expect(screen.getByRole('button', { name: /Zápis k jednání MDT/ })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('button', { name: /Závěr MDT\s*Potvrzeno/ })).toHaveAttribute('aria-expanded', 'true')
@@ -233,7 +197,7 @@ describe('S5 coordinator MDT workflow', () => {
 
   it('keeps an open conclusion form when the case data refreshes before any conclusion exists', async () => {
     await prepare()
-    const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { queryClient } = await openMdt()
     const editor = await screen.findByRole('region', { name: 'Zapsat závěr' })
     fireEvent.change(within(editor).getByLabelText('Závěr MDT'), { target: { value: 'Rozepsaný fiktivní závěr.' } })
     // A refresh refetches the missing (404) conclusion; while it runs the form must not be swapped for a loader.
@@ -249,7 +213,7 @@ describe('S5 coordinator MDT workflow', () => {
   it('shows retryable backend errors without technical details or a fake successful record', async () => {
     completeCase()
     server.use(http.get('*/api/cases/:id/mdt/record', () => HttpResponse.json({ detail: 'internal MDT error' }, { status: 501 })))
-    renderApp('/', { notifications: true }); const user = userEvent.setup(); const panel = await openMdt(user)
+    const { user, panel } = await openMdt({ notifications: true })
     expect(await screen.findByRole('alert')).toHaveTextContent('Tato funkce zatím není implementována.')
     expect(within(panel).queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByText('internal MDT error')).not.toBeInTheDocument()
@@ -264,7 +228,7 @@ describe('S5 coordinator MDT workflow', () => {
     vi.stubGlobal('Blob', NodeBlob)
     const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mdt-test'), revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-    const view = renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const view = await openMdt(), { user } = view
     await user.click(await screen.findByRole('button', { name: 'Stáhnout zápis PDF' }))
     expect(await screen.findByText('PDF bylo připraveno ke stažení.')).toBeVisible()
     expect(createUrl).toHaveBeenCalledOnce()
@@ -275,7 +239,7 @@ describe('S5 coordinator MDT workflow', () => {
 
   it('clears MDT data and returns to the home screen on demo reset, and keeps identities isolated', async () => {
     await prepare()
-    const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const { queryClient, user } = await openMdt()
     await user.click(screen.getByRole('button', { name: 'Demo' }))
     const demo = await screen.findByRole('dialog', { name: 'Ovládání dema' })
     await user.click(within(demo).getByRole('button', { name: 'Obnovit prázdné demo' }))

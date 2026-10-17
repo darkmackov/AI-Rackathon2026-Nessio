@@ -8,7 +8,7 @@ import { getCaseFhirOptions } from '../client/@tanstack/react-query.gen'
 import { changeLanguage } from '../i18n'
 import { renderApp } from './renderApp'
 import { seedReferral } from './referral-fixtures'
-import { changeIdentity, openReferenceCase, signIn } from './shell'
+import { changeIdentity, openReferenceCase, openReferrerCase, signIn } from './shell'
 import { demoState, server } from './setup'
 
 beforeEach(() => {
@@ -26,16 +26,9 @@ describe('S9 FHIR export', () => {
   it.each(['coordinator', 'referring_doctor'] as const)('downloads on explicit click as %s, using current case/actor and revoking file URLs', async (role) => {
     const requests: Request[] = []
     server.events.on('request:start', ({ request }) => { if (request.url.endsWith('/fhir')) requests.push(request) })
-    const view = renderApp(), user = userEvent.setup()
-    let caseId = 'vzp-prochazkova'
-    if (role === 'coordinator') await openReferenceCase(user)
-    else {
-      caseId = 'another-fhir-case'
-      seedReferral(caseId, { state: 'odeslano', patient_name: 'Fiktivní export' })
-      await signIn(user, role)
-      await user.click(await screen.findByRole('link', { name: 'Fiktivní export' }))
-      await screen.findByRole('heading', { name: 'Fiktivní export', level: 1 })
-    }
+    const caseId = role === 'coordinator' ? 'vzp-prochazkova' : 'another-fhir-case'
+    if (role === 'referring_doctor') seedReferral(caseId, { state: 'odeslano', patient_name: 'Fiktivní export' })
+    const view = role === 'coordinator' ? await openReferenceCase() : await openReferrerCase(caseId, 'Fiktivní export'), { user } = view
     expect(requests).toEqual([])
     const item = structuredClone(demoState.getCases().find((item) => item.id === caseId))
     await user.click(screen.getByRole('button', { name: 'Exportovat FHIR' }))
@@ -69,7 +62,7 @@ describe('S9 FHIR export', () => {
     [0, 'FHIR export se nepodařilo stáhnout. Zkuste to znovu.'],
   ])('shows a safe %s error, creates no file and allows retry', async (status, message) => {
     server.use(http.get('*/api/cases/:id/fhir', () => status === 0 ? HttpResponse.error() : HttpResponse.json({ detail: 'private technical details' }, { status: Number(status) })))
-    renderApp('/', { notifications: true }); const user = userEvent.setup(); await openReferenceCase(user)
+    const { user } = await openReferenceCase({ notifications: true })
     await user.click(screen.getByRole('button', { name: 'Exportovat FHIR' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(message)
     expect(screen.getAllByRole('alert')).toHaveLength(1)
@@ -83,7 +76,7 @@ describe('S9 FHIR export', () => {
   it('follows a new case id and translates labels without reusing the old download', async () => {
     seedReferral('export-a', { patient_name: 'Fiktivní A', state: 'odeslano' })
     seedReferral('export-b', { patient_name: 'Fiktivní B', state: 'odeslano' })
-    const { router } = renderApp(), user = userEvent.setup()
+    const { router } = renderApp(), user = userEvent.setup({ delay: null })
     await signIn(user, 'referring_doctor')
     await user.click(await screen.findByRole('link', { name: 'Fiktivní A' }))
     await screen.findByRole('heading', { name: 'Fiktivní A', level: 1 })
@@ -101,7 +94,7 @@ describe('S9 FHIR export', () => {
   })
 
   it('shows pending state and never downloads stale data when a new request fails', async () => {
-    renderApp('/', { notifications: true }); const user = userEvent.setup(); await openReferenceCase(user)
+    const { user } = await openReferenceCase({ notifications: true })
     await user.click(screen.getByRole('button', { name: 'Exportovat FHIR' }))
     await screen.findAllByText('FHIR soubor byl připraven ke stažení.')
     let release: (() => void) | undefined
@@ -129,7 +122,7 @@ describe('S9 FHIR export', () => {
       await new Promise<void>((resolve) => { release = resolve })
       return new HttpResponse('{}', { headers: { 'Content-Type': 'application/fhir+json' } })
     }))
-    renderApp(); const user = userEvent.setup(); await openReferenceCase(user)
+    const { user } = await openReferenceCase()
     await user.click(screen.getByRole('button', { name: 'Exportovat FHIR' }))
     await waitFor(() => expect(release).toBeDefined())
     try {

@@ -9,7 +9,7 @@ import { server } from './setup'
 describe('coordinator work queue', () => {
   it('shows each case in its queue column with state, owner, next step, due date and time to treatment', async () => {
     const { router } = renderApp()
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     await signIn(user)
     const active = await screen.findByRole('region', { name: 'Aktivní pacient' })
     const card = await within(active).findByRole('article')
@@ -31,7 +31,7 @@ describe('coordinator work queue', () => {
   it('keeps a loaded case visible when directory name resolution fails', async () => {
     server.use(http.get('*/api/directory/organizations', () => HttpResponse.json({ detail: 'unavailable' }, { status: 500 })))
     renderApp('/', { notifications: true })
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     await signIn(user)
     expect(await screen.findByRole('link', { name: 'Alena Procházková' })).toBeVisible()
     expect(await screen.findByText('Při zpracování požadavku nastala chyba. Zkuste to znovu.')).toBeVisible()

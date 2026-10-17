@@ -6,6 +6,7 @@ import type { Job } from '../../../client/types.gen'
 import { terminalJob } from '../../../components/documents/document-utils'
 import { rememberJob } from '../../../components/documents/use-document-ingest'
 import { notifyJobFailure, notifyWarning } from '../../../notifications/notify'
+import { JOB_POLL_MS } from '../../../polling'
 
 /** Questions are read-only jobs: polling must not refresh or change clinical data. */
 export function useAskCase(caseId: string, actorId: string, jobId: string | null) {
@@ -33,7 +34,7 @@ export function useAskCase(caseId: string, actorId: string, jobId: string | null
       if (!context.signal.aborted && previous?.status !== 'done') notifyInvalidAnswer(current)
       return current
     },
-    refetchInterval: (query) => query.state.error || query.state.data && terminalJob(query.state.data) ? false : 1000,
+    refetchInterval: (query) => query.state.error || query.state.data && terminalJob(query.state.data) ? false : JOB_POLL_MS,
   })
   return { create, job, options: { path: { case_id: caseId }, headers: actorHeaders(actorId) } }
 }

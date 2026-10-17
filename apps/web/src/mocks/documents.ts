@@ -7,6 +7,7 @@ import { s4CaseId, type createCoordinatorState } from './coordinator-state'
 import { referenceDocuments, referenceFindings, referenceHandover, referenceTexts } from './reference-data'
 import { s8Documents, s8Findings, s8Handover, s8Texts } from './s8-data'
 import { extraFields, isApiDateTime, objectBody, queryValue, validationResponse } from './validation'
+import { defaultJobDelays, type JobDelays } from './job-delays'
 
 // Explicitly synthetic content. Uploaded bytes are retained only for original-file downloads;
 // no parser, clinical inference or AI runs in the browser. The user authorized S2 HTTP fixtures.
@@ -36,7 +37,7 @@ export function demoExtraction(caseId: string, documentId: string, asOf: string)
   }
 }
 
-export function createDocumentDemoState(readNow: () => number = Date.now) {
+export function createDocumentDemoState(readNow: () => number = Date.now, delays: JobDelays = defaultJobDelays) {
   const documents = new Map<string, DocumentMeta>()
   const originals = new Map<string, File>()
   const jobs = new Map<string, { job: Job; started: number }>()
@@ -55,8 +56,8 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
     const entry = jobs.get(id)
     if (!entry) return undefined
     const elapsed = readNow() - entry.started
-    if (entry.job.status === 'queued' && elapsed >= 1000) entry.job = { ...entry.job, status: 'running', started_at: now }
-    if (entry.job.status === 'running' && elapsed >= 3000) {
+    if (entry.job.status === 'queued' && elapsed >= delays.running) entry.job = { ...entry.job, status: 'running', started_at: now }
+    if (entry.job.status === 'running' && elapsed >= delays.done) {
       entry.job = { ...entry.job, status: 'done', finished_at: now }
       const source = entry.job.document_id ?? Array.from(documents.values()).findLast((item) => item.case_id === entry.job.case_id)?.id
       // A synthetic result never replaces one the case already has (such as the reference extraction).

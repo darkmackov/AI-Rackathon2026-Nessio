@@ -9,6 +9,7 @@ import type { Job } from '../../client/types.gen'
 import { actorHeaders } from '../../api'
 import { i18n } from '../../i18n'
 import { notifyJobFailure, notifyWarning } from '../../notifications/notify'
+import { JOB_POLL_MS } from '../../polling'
 import { terminalJob, usableDraft } from './document-utils'
 
 function notifyInvalidDraft(job: Job) {
@@ -59,7 +60,7 @@ export function useIngestJob(job: Job, actorId: string) {
       }
       return current
     },
-    refetchInterval: (query) => query.state.error || (query.state.data && terminalJob(query.state.data)) ? false : 1000,
+    refetchInterval: (query) => query.state.error || (query.state.data && terminalJob(query.state.data)) ? false : JOB_POLL_MS,
   })
 }
 
