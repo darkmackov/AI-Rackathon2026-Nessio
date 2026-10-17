@@ -1,14 +1,12 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { actorHeaders } from '../api'
 import { getCaseQueryKey } from '../client/@tanstack/react-query.gen'
 import type { Case } from '../client/types.gen'
 import { changeLanguage } from '../i18n'
-import { renderApp } from './renderApp'
 import { seedReferral } from './referral-fixtures'
-import { openTab, signIn } from './shell'
+import { openCoordinatorCase, openTab } from './shell'
 import { demoState, server } from './setup'
 
 const caseId = 'readiness-example'
@@ -22,12 +20,9 @@ async function openCase(state: Case['state'], options: { notifications?: boolean
     handover: { case_id: caseId, as_of: '2026-10-21' },
     findings: [{ id: 'readiness-missing', kind: 'missing', severity: 'blocker', message_cs: 'Fiktivní chybějící údaj.', resolved: false }],
   })
-  const view = renderApp('/', options), user = userEvent.setup()
-  await signIn(user)
-  await act(async () => { await view.router.navigate({ to: '/coordinator/cases/$caseId', params: { caseId }, search: { tab: 'overview' } }) })
-  await screen.findByRole('heading', { name: item.patient_name, level: 1 })
+  const view = await openCoordinatorCase(caseId, item.patient_name, options)
   await screen.findByRole('heading', { name: 'Údaje o případu' })
-  return { ...view, user }
+  return view
 }
 
 afterEach(() => server.events.removeAllListeners('request:start'))

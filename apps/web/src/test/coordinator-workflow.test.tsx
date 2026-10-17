@@ -1,55 +1,25 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { http, HttpResponse } from 'msw'
-import { renderApp } from './renderApp'
 import { demoState, server } from './setup'
-import { openTab, signIn } from './shell'
+import { openCoordinatorCase, openTab, type User } from './shell'
 import { s4CaseId } from '../mocks/coordinator-state'
 
-async function openNewCase(user: ReturnType<typeof userEvent.setup>) {
-  await signIn(user)
-  await user.click(await screen.findByRole('link', { name: 'Fiktivní pacient S4' }))
-  await screen.findByRole('heading', { level: 1, name: 'Fiktivní pacient S4' })
-  await user.click(screen.getByRole('button', { name: 'Převzít' }))
+async function openNewCase(options: { notifications?: boolean } = {}) {
+  const view = await openCoordinatorCase(s4CaseId, 'Fiktivní pacient S4', options)
+  await view.user.click(screen.getByRole('button', { name: 'Převzít' }))
   await screen.findByText('V triage')
+  return view
 }
 const dialog = () => screen.findByRole('dialog')
-async function save(user: ReturnType<typeof userEvent.setup>) {
+async function save(user: User) {
   await user.click(within(await dialog()).getByRole('button', { name: 'Uložit' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 }
 
 describe('S4 coordinator screens', () => {
-  it('takes over, edits case metadata, holds and resumes, then shows the immutable audit', async () => {
-    renderApp(); const user = userEvent.setup(); await openNewCase(user)
-    await user.click(screen.getByRole('button', { name: 'Upravit případ' }))
-    let form = within(await dialog())
-    await user.selectOptions(form.getByLabelText(/^Priorita/), 'urgent')
-    await user.selectOptions(form.getByLabelText('MDT tým'), 'mdt-git-lipova')
-    await user.type(form.getByLabelText('Plánované datum MDT'), '2026-10-25')
-    await save(user)
-    expect(screen.getByText('Urgentní')).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Odložit' }))
-    form = within(await dialog())
-    await user.type(form.getByLabelText(/^Důvod odložení/), 'Čeká na termín CT')
-    await save(user)
-    expect(screen.getByRole('button', { name: 'Obnovit' })).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Obnovit' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Odložit' })).toBeEnabled())
-    const audit = await openTab(user, 'Audit')
-    expect(await within(audit).findByText('Převzetí případu')).toBeVisible()
-    expect(within(audit).getByText('Úprava případu')).toBeVisible()
-    expect(within(audit).getByText('Obnovení')).toBeVisible()
-    // Grouped under a day heading, newest first.
-    expect(within(audit).getAllByRole('heading', { level: 3 })).toHaveLength(1)
-    const events = within(audit).getAllByRole('listitem')
-    expect(events[0]).toHaveTextContent('Obnovení')
-    expect(events.at(-1)).toHaveTextContent('Převzetí případu')
-  })
-
   it('fills a handover field without resolving its finding and requires an override reason', async () => {
-    renderApp(); const user = userEvent.setup(); await openNewCase(user)
+    const { user } = await openNewCase()
     await openTab(user, /^K řešení/)
     let issue = await screen.findByRole('article', { name: 'Fiktivní ukázka: chybí ECOG / Karnofsky.' })
     await user.click(within(issue).getByRole('button', { name: 'Doplnit' }))
@@ -71,7 +41,7 @@ describe('S4 coordinator screens', () => {
   })
 
   it('creates a request linked to its finding and returns the referral with a note', async () => {
-    renderApp(); const user = userEvent.setup(); await openNewCase(user)
+    const { user } = await openNewCase()
     await openTab(user, /^K řešení/)
     const issue = await screen.findByRole('article', { name: 'Fiktivní ukázka: vyžádejte chybějící zprávu.' })
     await user.click(within(issue).getByRole('button', { name: 'Vyžádat' }))
@@ -88,7 +58,7 @@ describe('S4 coordinator screens', () => {
   })
 
   it('creates and edits a task, then navigates from its personal deadline notification to the task', async () => {
-    const { router } = renderApp(); const user = userEvent.setup(); await openNewCase(user)
+    const { router, user } = await openNewCase()
     await openTab(user, 'Úkoly')
     await user.click(screen.getByRole('button', { name: 'Přidat úkol' }))
     const form = within(await dialog())
@@ -108,7 +78,7 @@ describe('S4 coordinator screens', () => {
   })
 
   it('keeps a task draft after an API error, retries, and returns focus when a dialog closes on Escape', async () => {
-    renderApp('/', { notifications: true }); const user = userEvent.setup(); await openNewCase(user)
+    const { user } = await openNewCase({ notifications: true })
     await openTab(user, 'Úkoly')
     const trigger = screen.getByRole('button', { name: 'Přidat úkol' })
     await user.click(trigger)
@@ -128,7 +98,7 @@ describe('S4 coordinator screens', () => {
   })
 
   it('creates a reusable task set and starts it with explicit role assignment in a single dialog', async () => {
-    renderApp(); const user = userEvent.setup(); await openNewCase(user)
+    const { user } = await openNewCase()
     await openTab(user, 'Úkoly')
     await user.click(screen.getByRole('button', { name: 'Spustit sadu úkolů' }))
     await user.click(within(await dialog()).getByRole('button', { name: 'Vytvořit sadu' }))

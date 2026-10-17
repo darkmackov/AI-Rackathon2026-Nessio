@@ -13,16 +13,17 @@ import { createFeedbackHandlers } from './feedback'
 import { createMdtState } from './mdt-state'
 import { createMdtHandlers } from './mdt'
 import { createS8Handlers, createS8State } from './s8'
+import { defaultJobDelays, type JobDelays } from './job-delays'
 import { caseStates, enumError, extraFields, isApiDateTime, objectBody, organizationKinds, queryValue, queueColumns, validateEnumQuery, validationResponse } from './validation'
 
 // Mutable simulated server state is private to this tab (Q-W6, Q-W10).
-export function createDemoState(readNow: () => number = Date.now) {
+export function createDemoState(readNow: () => number = Date.now, jobDelays: JobDelays = defaultJobDelays) {
   const coordinator = createCoordinatorState()
   let simulatedAt: number | null = null
   let anchoredAt = readNow()
-  const documents = createDocumentDemoState(readNow)
-  const mdt = createMdtState(readNow)
-  const s8 = createS8State(readNow)
+  const documents = createDocumentDemoState(readNow, jobDelays)
+  const mdt = createMdtState(readNow, jobDelays)
+  const s8 = createS8State(readNow, jobDelays)
 
   const setTime = (value: string | null) => {
     simulatedAt = value === null ? null : new Date(value).getTime()

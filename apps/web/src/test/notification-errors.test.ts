@@ -41,6 +41,10 @@ describe('safe notification errors', () => {
         expect(normalizeError(new ApiError(200, '<html>secret</html>')).code).toBe('unexpected')
     })
 
+    it.each([[400, 'badInput'], [415, 'fileType'], [422, 'validation'], [501, 'notImplemented'], [500, 'server']] as const)('maps a %s response to the safe %s message', (status, code) => {
+        expect(normalizeError(new ApiError(status, { detail: 'private technical details' })).code).toBe(code)
+    })
+
     it('distinguishes a network failure, unavailable server and timeout', () => {
         expect(normalizeError(new ApiError(undefined, new TypeError('fetch failed'))).code).toBe('network')
         expect(normalizeError(new ApiError(503, 'proxy')).code).toBe('unavailable')

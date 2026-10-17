@@ -7,10 +7,13 @@ import { createAppRouter } from '../router'
 import { createQueryClient } from '../api'
 import { i18n } from '../i18n'
 import SessionProvider from '../SessionProvider'
+import { storeActorId } from '../session'
 import { theme } from '../theme'
 import AppNotifications from '../notifications/AppNotifications'
 
-export function renderApp(path = '/', options: { notifications?: boolean } = {}) {
+/** Renders the app at `path`; `as` starts it signed in as that person, as after a reload of the tab (Q-W8). */
+export function renderApp(path = '/', options: { notifications?: boolean; as?: string } = {}) {
+  if (options.as) storeActorId(options.as)
   const queryClient = createQueryClient()
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }))
   const view = render(<MantineProvider theme={theme} forceColorScheme="light" env="test">

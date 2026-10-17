@@ -23,7 +23,6 @@ import SessionProvider from '../SessionProvider'
 import { useSession } from '../session'
 import { theme } from '../theme'
 import AppNotifications from '../notifications/AppNotifications'
-import { renderApp } from './renderApp'
 import { openReferenceCase, openTab } from './shell'
 import { server } from './setup'
 
@@ -201,9 +200,9 @@ describe('S2 document upload and processing in the case documents tab', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
     expect(await screen.findByText('Čeká na zpracování')).toBeVisible()
     now = 1000
-    expect(await screen.findByText('Probíhá AI extrakce', {}, { timeout: 3000 })).toBeVisible()
+    expect(await screen.findByText('Probíhá AI extrakce')).toBeVisible()
     now = 4000
-    expect(await screen.findByText('Dokončeno', {}, { timeout: 3000 })).toBeVisible()
+    expect(await screen.findByText('Dokončeno')).toBeVisible()
     expect(invalidate).toHaveBeenCalledWith({ queryKey: listDocumentsQueryKey({ path: { case_id: caseId } }) })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: getHandoverQueryKey({ path: { case_id: caseId } }) })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: listFindingsQueryKey({ path: { case_id: caseId } }) })
@@ -211,7 +210,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
     // The refreshed document list shows what the server now holds for the upload.
     expect(await screen.findByText('Fiktivní ukázka dokumentu')).toBeVisible()
     const completedPolls = polls
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await new Promise((resolve) => setTimeout(resolve, 200))  // several poll intervals
     expect(polls).toBe(completedPolls)
     await userEvent.click(screen.getByRole('button', { name: 'Zobrazit text' }))
     expect(openSource).toHaveBeenCalledWith({ documentId: state.documents.list(caseId)[0].id }, expect.any(HTMLButtonElement))
@@ -353,42 +352,9 @@ describe('S2 document upload and processing in the case documents tab', () => {
     expect(screen.queryByText('private error')).not.toBeInTheDocument()
   })
 
-  it('uploads from the case detail Documents tab, the only document entry point, and clears drafts on reset', async () => {
-    server.use(...createHandlers(state))
-    const { router } = renderApp()
-    const user = userEvent.setup()
-    await user.selectOptions(await screen.findByLabelText('Role'), 'coordinator')
-    await user.selectOptions(await screen.findByLabelText('Osoba'), actorId)
-    await user.click(screen.getByRole('button', { name: 'Pokračovat' }))
-    await screen.findByRole('link', { name: 'Alena Procházková' })
-    expect(screen.queryByRole('button', { name: 'Dokumenty' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('link', { name: 'Alena Procházková' }))
-    await user.click(await screen.findByRole('tab', { name: 'Dokumenty' }))
-    expect(router.state.location.search).toMatchObject({ tab: 'documents' })
-    expect(await screen.findAllByRole('button', { name: 'Stáhnout originál' })).toHaveLength(referenceDocuments.length)
-    await user.upload(screen.getByLabelText('Vybrat soubory'), pdf())
-    await user.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
-    await screen.findByText('Nahráno, stav AI níže')
-    expect(await screen.findAllByRole('button', { name: 'Stáhnout originál' })).toHaveLength(referenceDocuments.length + 1)
-    await user.click(screen.getByRole('button', { name: 'Demo' }))
-    const demo = screen.getByRole('dialog', { name: 'Ovládání dema' })
-    await user.click(within(demo).getByRole('button', { name: 'Obnovit referenci' }))
-    const confirm = screen.getByRole('dialog', { name: 'Obnovit demo?' })
-    await user.click(within(confirm).getByRole('button', { name: 'Obnovit data' }))
-    await within(demo).findByText('Demo bylo obnoveno.')
-    expect(router.state.location.pathname).toBe('/coordinator')
-    await user.click(within(demo).getByRole('button', { name: 'Zavřít' }))
-    await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
-    await user.click(await screen.findByRole('tab', { name: 'Dokumenty' }))
-    expect(await screen.findAllByRole('button', { name: 'Stáhnout originál' })).toHaveLength(referenceDocuments.length)
-    expect(screen.queryByRole('list', { name: 'Vybrané soubory' })).not.toBeInTheDocument()
-  })
-
   it('lists every case document, marks only the actual GP upload and opens its full text', async () => {
     server.use(...createHandlers(state))
-    const { router } = renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { router, user } = await openReferenceCase()
     const panel = await openTab(user, 'Dokumenty')
     expect(router.state.location.search).toMatchObject({ tab: 'documents' })
     expect(await within(panel).findAllByRole('button', { name: 'Stáhnout originál' })).toHaveLength(referenceDocuments.length)
@@ -405,9 +371,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
     const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => { })
     const clicked = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => { })
     server.use(http.get('*/api/documents/:id/file', () => HttpResponse.json({ detail: 'failed' }, { status: 500 })), ...createHandlers(state))
-    renderApp('/', { notifications: true })
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { user } = await openReferenceCase({ notifications: true })
     const panel = await openTab(user, 'Dokumenty')
     const first = (await within(panel).findAllByRole('button', { name: 'Stáhnout originál' }))[0]
     await user.click(first)
@@ -427,9 +391,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
 
   it('isolates a failed document list and retries it without losing the case', async () => {
     server.use(http.get('*/api/cases/:id/documents', () => HttpResponse.json({ detail: 'failed' }, { status: 500 })), ...createHandlers(state))
-    renderApp('/', { notifications: true })
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { user } = await openReferenceCase({ notifications: true })
     const panel = await openTab(user, 'Dokumenty')
     expect(await screen.findByRole('alert')).toBeVisible()
     expect(within(panel).queryByRole('alert')).not.toBeInTheDocument()

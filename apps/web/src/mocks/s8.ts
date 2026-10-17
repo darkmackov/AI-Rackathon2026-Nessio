@@ -3,19 +3,20 @@ import type { Case, CaseAnswer, CodeCandidate, Handover, Job } from '../client/t
 import { actors } from './directory'
 import { fail, readBody } from './coordinator-validation'
 import type { createDemoState } from './handlers'
+import { defaultJobDelays, type JobDelays } from './job-delays'
 import { demoEvidence } from './s8-data'
 import { validationResponse } from './validation'
 
 /** Simulated asynchronous questions only; no model, embeddings or clinical inference. */
-export function createS8State(readNow: () => number) {
+export function createS8State(readNow: () => number, delays: JobDelays = defaultJobDelays) {
   const jobs = new Map<string, { job: Job; started: number; answer: CaseAnswer }>()
   let sequence = 0
   function read(id: string, now: string): Job | undefined {
     const entry = jobs.get(id)
     if (!entry) return undefined
     const elapsed = readNow() - entry.started
-    if (elapsed >= 1000 && entry.job.status === 'queued') entry.job = { ...entry.job, status: 'running', started_at: now }
-    if (elapsed >= 3000 && entry.job.status === 'running') entry.job = { ...entry.job, status: 'done', finished_at: now, answer: entry.answer }
+    if (elapsed >= delays.running && entry.job.status === 'queued') entry.job = { ...entry.job, status: 'running', started_at: now }
+    if (elapsed >= delays.done && entry.job.status === 'running') entry.job = { ...entry.job, status: 'done', finished_at: now, answer: entry.answer }
     return structuredClone(entry.job)
   }
   return {

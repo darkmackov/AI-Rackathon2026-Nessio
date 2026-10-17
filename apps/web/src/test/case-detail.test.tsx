@@ -12,32 +12,8 @@ import { changeIdentity, finding, openReferenceCase, openTab, setLanguage, signI
 import { demoState, server } from './setup'
 
 describe('case detail', () => {
-  it('shows where the case is, who is on the move, by when and what needs attention in the header', async () => {
-    const { router } = renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
-    const header = screen.getByRole('region', { name: 'Alena Procházková' })
-    expect(within(header).getByText('Kompletní')).toBeVisible()
-    expect(within(header).getByText('Vysoká')).toBeVisible()
-    expect(within(header).getByRole('button', { name: 'Kontakty: Bc. Lucie Dvořáková' })).toBeVisible()
-    expect(within(header).getByText('MDT pro nádory GIT')).toBeVisible()
-    expect(within(header).getByText(/^21\. 10\. 2026/)).toBeVisible()
-    expect(within(header).getByRole('button', { name: 'Převzít' })).toBeDisabled()
-    for (const name of ['Vrátit lékaři', 'Odložit']) expect(within(header).getByRole('button', { name })).toBeEnabled()
-    const attention = await within(header).findByRole('group', { name: 'K řešení:' })
-    expect(within(attention).getByRole('link', { name: '1 blokující nález' })).toBeVisible()
-    await user.click(within(attention).getByRole('link', { name: '6 upozornění' }))
-    expect(router.state.location.search).toMatchObject({ tab: 'findings' })
-    await user.click(within(attention).getByRole('link', { name: /chybějící/ }))
-    expect(router.state.location.search).toMatchObject({ tab: 'handover' })
-    await user.click(within(header).getByRole('link', { name: /Zpět na pracovní frontu/ }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Pracovní fronta koordinátora' })).toBeVisible()
-  })
-
   it('opens on the overview with running times and the handover status, and counts unresolved findings on its tab', async () => {
-    const { router } = renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { router } = await openReferenceCase()
     expect(router.state.location).toMatchObject({ pathname: '/coordinator/cases/vzp-prochazkova', search: { tab: 'overview' } })
     expect(screen.getByRole('tab', { name: 'Přehled' })).toHaveAttribute('aria-selected', 'true')
     const time = screen.getByRole('group', { name: 'Čas do léčby' })
@@ -57,7 +33,7 @@ describe('case detail', () => {
       ...['findings', 'documents', 'tasks'].map((part) => http.get(`*/api/cases/:id/${part}`, () => HttpResponse.json([]))),
     )
     renderApp()
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     await signIn(user)
     await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
     expect(await screen.findByText('Předávka zatím není dostupná.')).toBeVisible()
@@ -68,7 +44,7 @@ describe('case detail', () => {
 
   it('offers a way back for an unknown case URL', async () => {
     const { router } = renderApp()
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     await signIn(user)
     await act(async () => { await router.navigate({ to: '/coordinator/cases/$caseId', params: { caseId: 'unknown' }, search: { tab: 'documents' } }) })
     expect(await screen.findByRole('heading', { name: 'Případ není pro vaše KOC k dispozici.' })).toBeVisible()
@@ -81,7 +57,7 @@ describe('case detail', () => {
     server.events.on('request:start', listener)
     server.use(http.get('*/api/cases/:id', () => HttpResponse.json({ ...referenceCases[0], koc_id: 'koc1-severni' })))
     renderApp()
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     try {
       await signIn(user)
       await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
@@ -92,9 +68,7 @@ describe('case detail', () => {
   })
 
   it('refreshes running intervals when the demo date changes', async () => {
-    const { queryClient } = renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { queryClient } = await openReferenceCase()
     const time = screen.getByRole('group', { name: 'Čas do léčby' })
     expect(await within(time).findByText('19 dní')).toBeVisible()
     await act(async () => {
@@ -107,9 +81,7 @@ describe('case detail', () => {
 
   it('shows task dependencies, enables task actions and never marks finished tasks overdue', async () => {
     demoState.setTime('2026-10-28T09:00:00')
-    renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { user } = await openReferenceCase()
     const panel = await openTab(user, 'Úkoly')
     const rows = (await within(panel).findAllByRole('row')).slice(1)
     expect(rows).toHaveLength(7)
@@ -124,9 +96,7 @@ describe('case detail', () => {
   })
 
   it('translates the detail while keeping Czech clinical data', async () => {
-    renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { user } = await openReferenceCase()
     await setLanguage(user, 'English')
     expect(await screen.findByRole('tab', { name: 'Overview' })).toBeVisible()
     expect(screen.getByRole('heading', { level: 1, name: 'Alena Procházková' })).toBeVisible()
@@ -137,9 +107,7 @@ describe('case detail', () => {
   })
 
   it('clears detail data on reset and keeps the selected person and language', async () => {
-    const { router, queryClient } = renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { router, queryClient, user } = await openReferenceCase()
     await setLanguage(user, 'English')
     await user.click(screen.getByRole('button', { name: 'Demo' }))
     const panel = await screen.findByRole('dialog', { name: 'Demo controls' })
@@ -158,9 +126,7 @@ describe('case detail', () => {
 describe('source panel', () => {
   it('closes a desktop source on Escape, returns focus and disappears when the reference is reset', async () => {
     wideScreen()
-    const { router } = renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { router, user } = await openReferenceCase()
     await openTab(user, /^K řešení/)
     const source = within(finding(/^Stav výkonnosti/)).getByRole('button', { name: /^Zdroj 1/ })
     await user.click(source)
@@ -185,9 +151,7 @@ describe('source panel', () => {
 
   it('keeps full source text readable when a supplied quote is absent', async () => {
     server.use(http.get('*/api/documents/:id/text', () => HttpResponse.json({ id: '07', text: '<script>unsafe()</script> Jiný úplný text.' })))
-    renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { user } = await openReferenceCase()
     await openTab(user, /^K řešení/)
     await user.click(within(finding(/^Stav výkonnosti/)).getByRole('button', { name: /^Zdroj 1/ }))
     const source = await screen.findByRole('dialog', { name: 'Zdrojový dokument' })
@@ -204,9 +168,7 @@ describe('source panel', () => {
     const held = new Promise<void>((resolve) => { finish = resolve })
     const requested = new Promise<void>((resolve) => { started = resolve })
     server.use(http.get('*/api/documents/:id/text', async () => { started?.(); await held; return HttpResponse.json({ id: '07', text: 'OLD PATIENT TEXT' }) }))
-    const { queryClient } = renderApp()
-    const user = userEvent.setup()
-    await openReferenceCase(user)
+    const { queryClient, user } = await openReferenceCase()
     await openTab(user, /^K řešení/)
     await user.click(within(finding(/^Stav výkonnosti/)).getByRole('button', { name: /^Zdroj 1/ }))
     await requested

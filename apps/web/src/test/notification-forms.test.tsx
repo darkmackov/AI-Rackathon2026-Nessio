@@ -206,7 +206,7 @@ describe('task set, referral and clock validation', () => {
 
     it('labels a missing target KOC on submit without a blur toast', async () => {
         renderApp()
-        const user = userEvent.setup()
+        const user = userEvent.setup({ delay: null })
         await signIn(user, 'referring_doctor')
         await user.click(screen.getByRole('button', { name: i18n.t('referral.create') }))
         const dialog = await screen.findByRole('dialog', { name: i18n.t('referral.createTitle') })
@@ -220,7 +220,7 @@ describe('task set, referral and clock validation', () => {
 
     it('labels the invalid demo time on submit', async () => {
         renderApp()
-        const user = userEvent.setup()
+        const user = userEvent.setup({ delay: null })
         await signIn(user)
         await user.click(screen.getByRole('button', { name: 'Demo' }))
         const drawer = await screen.findByRole('dialog', { name: i18n.t('demoTitle') })

@@ -1,5 +1,4 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
 import { actorHeaders } from '../api'
@@ -9,38 +8,34 @@ import { i18n } from '../i18n'
 import { s4CaseId } from '../mocks/coordinator-state'
 import * as notifications from '../notifications/notify'
 import { completeCase, mutation, resolveBlockers } from './mdt-fixtures'
-import { renderApp } from './renderApp'
-import { openTab, signIn, type User } from './shell'
+import { openCoordinatorCase, openTab } from './shell'
 import { demoState, server } from './setup'
 import * as mdtSteps from '../screens/CaseDetail/Mdt/NextStep'
 
-async function openMdt(user: User) {
-    await signIn(user)
-    await user.click(await screen.findByRole('link', { name: 'Fiktivní pacient S4' }))
-    await screen.findByRole('heading', { level: 1, name: 'Fiktivní pacient S4' })
-    return openTab(user, 'MDT')
+async function openMdt(options: { notifications?: boolean } = {}) {
+    const view = await openCoordinatorCase(s4CaseId, 'Fiktivní pacient S4', options)
+    return { ...view, panel: await openTab(view.user, 'MDT') }
 }
 
-async function openRecord(user: User) {
+async function openRecord() {
     completeCase(); resolveBlockers()
     await mutation(createMdtSnapshotMutation(), { headers: actorHeaders('koordinator'), path: { case_id: s4CaseId }, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })
-    renderApp(); await openMdt(user)
+    const { user } = await openMdt()
     await user.click(await screen.findByRole('button', { name: 'Upravit zápis' }))
-    return within(await screen.findByRole('region', { name: 'Upravit zápis' }))
+    return { user, editor: within(await screen.findByRole('region', { name: 'Upravit zápis' })) }
 }
 
-async function openRoster(user: User) {
-    completeCase(); renderApp(); await openMdt(user)
+async function openRoster() {
+    completeCase()
+    const { user } = await openMdt()
     await user.click(await screen.findByRole('button', { name: 'Upravit členy týmu' }))
-    return within(await screen.findByRole('dialog', { name: 'Členové MDT' }))
+    return { user, roster: within(await screen.findByRole('dialog', { name: 'Členové MDT' })) }
 }
 
 describe('MDT field notifications', () => {
     it.each([409, 500])('keeps background controls stable while snapshot confirmation is pending, then shows the %s error in a popup', async (status) => {
         completeCase()
-        const { queryClient } = renderApp('/', { notifications: true })
-        const user = userEvent.setup()
-        await openMdt(user)
+        const { queryClient, user } = await openMdt({ notifications: true })
         await user.click(await screen.findByRole('button', { name: 'Připravit podklad pro MDT' }))
         const dialog = await screen.findByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })
         const progressRender = vi.spyOn(mdtSteps, 'MdtProgress')
@@ -134,7 +129,7 @@ describe('MDT field notifications', () => {
 
     it('reports every missing record row field without naming valid fields and validates on blur', async () => {
         const warning = vi.spyOn(notifications, 'notifyWarning').mockImplementation(() => { })
-        const user = userEvent.setup(), editor = await openRecord(user)
+        const { user, editor } = await openRecord()
         fireEvent.change(editor.getByLabelText('Jméno a příjmení (1)'), { target: { value: '' } })
         expect(editor.getByLabelText('Jméno a příjmení (1)')).not.toHaveAttribute('aria-invalid', 'true')
         fireEvent.blur(editor.getByLabelText('Jméno a příjmení (1)'))
@@ -166,7 +161,7 @@ describe('MDT field notifications', () => {
 
     it('reports exact roster fields across rows and keeps valid names out of the warning', async () => {
         const warning = vi.spyOn(notifications, 'notifyWarning').mockImplementation(() => { })
-        const user = userEvent.setup(), roster = await openRoster(user)
+        const { user, roster } = await openRoster()
         fireEvent.change(roster.getByLabelText('Odbornost (1)'), { target: { value: '' } })
         expect(roster.getByLabelText('Odbornost (1)')).not.toHaveAttribute('aria-invalid', 'true')
         fireEvent.blur(roster.getByLabelText('Odbornost (1)'))
@@ -186,7 +181,7 @@ describe('MDT field notifications', () => {
 
     it('still saves an empty roster without adding a required-member rule', async () => {
         const warning = vi.spyOn(notifications, 'notifyWarning').mockImplementation(() => { })
-        const user = userEvent.setup(), roster = await openRoster(user)
+        const { user, roster } = await openRoster()
         while (roster.queryAllByLabelText(/^Jméno a příjmení \(/).length) {
             await user.click(roster.getByRole('button', { name: i18n.t('mdt.removeMember', { number: 1 }) }))
         }
@@ -197,7 +192,7 @@ describe('MDT field notifications', () => {
     })
 
     it('maps backend record errors to nested fields and local aliases without losing the draft', async () => {
-        const user = userEvent.setup(), editor = await openRecord(user)
+        const { user, editor } = await openRecord()
         const question = 'Rozepsaná fiktivní otázka'
         fireEvent.change(editor.getByLabelText(i18n.t('mdt.question')), { target: { value: question } })
         await user.click(editor.getByRole('button', { name: 'Přidat výsledek' }))
@@ -226,7 +221,7 @@ describe('MDT field notifications', () => {
     })
 
     it('maps backend roster errors without replacing entered members', async () => {
-        const user = userEvent.setup(), roster = await openRoster(user)
+        const { user, roster } = await openRoster()
         fireEvent.change(roster.getByLabelText('Jméno a příjmení (1)'), { target: { value: 'Fiktivní rozepsaný člen' } })
         server.use(http.put('*/api/mdt-boards/:id/members', () => HttpResponse.json<HttpValidationError>({
             detail: [
@@ -243,7 +238,7 @@ describe('MDT field notifications', () => {
     it('names board and date on invalid snapshot submission and excludes a corrected board', async () => {
         completeCase()
         const warning = vi.spyOn(notifications, 'notifyWarning').mockImplementation(() => { })
-        renderApp(); const user = userEvent.setup(); await openMdt(user)
+        const { user } = await openMdt()
         const board = await screen.findByLabelText('MDT tým'), date = screen.getByLabelText('Datum MDT')
         fireEvent.change(board, { target: { value: '' } })
         fireEvent.change(date, { target: { value: '' } })
@@ -267,7 +262,7 @@ describe('MDT field notifications', () => {
     })
 
     it('preserves snapshot values and backend field messages after closing the confirmation', async () => {
-        completeCase(); renderApp('/', { notifications: true }); const user = userEvent.setup(); await openMdt(user)
+        completeCase(); const { user } = await openMdt({ notifications: true })
         server.use(http.post('*/api/cases/:id/mdt/snapshot', () => HttpResponse.json<HttpValidationError>({
             detail: [
                 { loc: ['body', 'board_id'], type: 'string_type', msg: 'private backend detail' },
@@ -293,7 +288,7 @@ describe('MDT field notifications', () => {
         { detail: 'the handover uses documents received after 2026-10-21: doc-1', blockers: false },
         { detail: 'unrecognized conflict', blockers: false },
     ])('shows the findings action only for normalized blockers: $detail', async ({ detail, blockers }) => {
-        completeCase(); renderApp('/', { notifications: true }); const user = userEvent.setup(); await openMdt(user)
+        completeCase(); const { user } = await openMdt({ notifications: true })
         server.use(http.post('*/api/cases/:id/mdt/snapshot', () => HttpResponse.json({ detail }, { status: 409 })))
         await user.click(await screen.findByRole('button', { name: 'Připravit podklad pro MDT' }))
         const dialog = within(await screen.findByRole('dialog', { name: 'Potvrdit podklad pro MDT?' }))

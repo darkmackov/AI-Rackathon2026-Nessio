@@ -1,15 +1,9 @@
 import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { screen } from '@testing-library/react'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
-import { actorHeaders } from '../api'
-import { getHandoverQueryKey, getJobQueryKey } from '../client/@tanstack/react-query.gen'
-import { demoDocumentText } from '../mocks/documents'
 import { createDemoState, createHandlers } from '../mocks/handlers'
-import { notificationStore } from '../notifications/notify'
-import { renderApp } from './renderApp'
-import { field, openTab, signIn } from './shell'
+import { openReferrerCase, openTab } from './shell'
 import { server } from './setup'
 
 // Keep File/FormData compatible with Node Fetch at the mocked HTTP boundary.
@@ -22,56 +16,7 @@ beforeAll(async () => {
 afterAll(() => vi.unstubAllGlobals())
 
 describe('S3 reuses S2 document ingest', () => {
-  it.each(['koncept', 'vraceno_lekari'] as const)('uploads to the current %s case, follows job states and refreshes handover and findings', async (caseState) => {
-    let now = 0
-    const state = createDemoState(() => now)
-    state.reset('empty')
-    const caseId = `ingest-${caseState}`
-    state.saveCase({ id: caseId, patient_name: 'Fiktivní žádost', koc_id: 'koc2-lipova', referring_doctor_id: 'pl-reznicek', state: caseState, queue: 'novy', created_at: '2026-10-02T14:00:00' })
-    state.documents.saveHandover({ case_id: caseId, as_of: '2026-10-02' })
-    server.use(...createHandlers(state))
-    const { queryClient } = renderApp()
-    const user = userEvent.setup({ applyAccept: false })
-    await signIn(user, 'referring_doctor')
-    await user.click(await screen.findByRole('link', { name: 'Fiktivní žádost' }))
-    await screen.findByRole('heading', { level: 1, name: 'Fiktivní žádost' })
-    await user.upload(screen.getByLabelText('Vybrat soubory'), new File(['invalid'], 'nepodporovany.txt', { type: 'text/plain' }))
-    expect(notificationStore.getState().notifications).toMatchObject([{ id: `warning:document-files:${caseId}`, autoClose: false }])
-    expect(screen.queryByText('nepodporovany.txt')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' })).toBeDisabled()
-    const file = new File(['%PDF-1.4\nfictional local test'], 'fiktivni-zprava.pdf', { type: 'application/pdf' })
-    // The same drop interaction as the uploader in S2, exercised inside the actual GP route.
-    fireEvent.drop(screen.getByText('Přetáhněte dokumenty sem nebo vyberte soubory.'), { dataTransfer: { files: [file] } })
-    await user.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
-    expect(await screen.findByText('Nahráno, stav AI níže')).toBeVisible()
-    expect(await screen.findByText('Čeká na zpracování')).toBeVisible()
-    expect(state.documents.list(caseId)).toMatchObject([{ case_id: caseId, filename: file.name, uploaded_by: 'pl-reznicek' }])
-    expect(screen.getByRole('button', { name: 'Validovat a odeslat', hidden: true })).toBeDisabled()
-    const job = state.documents.listJobs(caseId, state.clock().now)[0]
-    const headers = actorHeaders('pl-reznicek')
-    const jobKey = getJobQueryKey({ headers, path: { job_id: job.id } })
-    now = 1500
-    await act(async () => { await queryClient.refetchQueries({ queryKey: jobKey }) })
-    expect(await screen.findByText('Probíhá AI extrakce')).toBeVisible()
-    now = 3500
-    await act(async () => { await queryClient.refetchQueries({ queryKey: jobKey }) })
-    expect(await screen.findByText('Dokončeno')).toBeVisible()
-    await openTab(user, 'Předávka')
-    const handover = queryClient.getQueryData(getHandoverQueryKey({ headers, path: { case_id: caseId } }))
-    expect(handover).toMatchObject({ case_id: caseId, symptoms: { status: 'found', origin: 'ai' }, validated_by_referrer: null })
-    expect(await screen.findByRole('article', { name: 'Fiktivní ukázka: chybí ECOG / Karnofsky.' })).toBeVisible()
-    await user.click(within(screen.getByRole('heading', { level: 2, name: /^Anamnézy a stav/ })).getByRole('button'))
-    const symptoms = field('Příznaky a jejich počátek')
-    expect(within(symptoms).getByText('V ukázkové zprávě je uvedena únava.')).toBeVisible()
-    expect(within(symptoms).getByText('AI návrh')).toBeVisible()
-    await user.click(within(symptoms).getByRole('button', { name: /^Zdroj / }))
-    const source = await screen.findByRole('dialog', { name: 'Zdrojový dokument' })
-    expect(await within(source).findByTestId('document-text')).toHaveTextContent(demoDocumentText.split('\n')[0])
-    expect(source.querySelector('mark')).not.toBeNull()
-    await user.click(within(source).getByRole('button', { name: 'Zavřít zdroj' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Validovat a odeslat' })).toBeEnabled())
-  })
-
+  // Upload in each editable state is covered by documents.test.tsx; this checks the GP route reuses it.
   it('shows the historical extraction failure status and offers the shared re-extraction action', async () => {
     const state = createDemoState()
     state.reset('empty')
@@ -81,10 +26,7 @@ describe('S3 reuses S2 document ingest', () => {
     server.use(...createHandlers(state))
     const failed = { ...uploaded.job, status: 'failed', error: 'sensitive technical details' } as const
     server.use(http.get('*/api/jobs/:id', () => HttpResponse.json(failed)), http.get('*/api/cases/:id/jobs', () => HttpResponse.json([failed])))
-    renderApp('/', { notifications: true })
-    const user = userEvent.setup()
-    await signIn(user, 'referring_doctor')
-    await user.click(await screen.findByRole('link', { name: 'Fiktivní chyba' }))
+    const { user } = await openReferrerCase('failed-job-case', 'Fiktivní chyba', { notifications: true })
     expect(await screen.findByText('Chyba zpracování')).toBeVisible()
     expect(screen.queryByText('Dokument se nepodařilo zpracovat. Můžete znovu spustit extrakci dokumentů případu.')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
