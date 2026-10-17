@@ -13,13 +13,15 @@ from __future__ import annotations
 from .adapters.fhir import referral_attachments
 from .adapters.iris import IrisRepository
 from .adapters.memory import InMemoryRepository
-from .models import BundleError, ReferralAttachment
+from .models import BundleError, FhirExportError, FhirExportUnavailableError, ReferralAttachment
 from .ports import CaseRepository
 from .settings import IrisConnection, IrisSettings, parse_connection_string
 
 __all__ = [
     "BundleError",
     "CaseRepository",
+    "FhirExportError",
+    "FhirExportUnavailableError",
     "InMemoryRepository",
     "IrisConnection",
     "IrisRepository",

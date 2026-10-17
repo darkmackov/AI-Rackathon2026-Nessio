@@ -1,9 +1,15 @@
-import { Button, Stack, Text } from '@mantine/core'
-import { useCallback, useRef, useState } from 'react'
+import { Button, type ButtonProps, Stack, Text } from '@mantine/core'
+import { type ReactNode, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-/** Download a binary returned by a generated Query helper; revoke its URL on replacement or unmount. */
-export default function DownloadFile({ load, pending, filename, label, readyMessage, errorMessage }: { load: () => Promise<unknown>; pending: boolean; filename: string; label: string; readyMessage?: string; errorMessage?: string }) {
+/**
+ * Download a binary returned by a generated Query helper; revoke its URL on replacement or unmount.
+ * `fitButton` wraps the feedback to the button's width so neighbouring controls don't move.
+ */
+export default function DownloadFile({ load, pending, filename, label, readyMessage, errorMessage, variant = 'subtle', size = 'compact-sm', leftSection, fitButton = false }: {
+  load: () => Promise<unknown>; pending: boolean; filename: string; label: string; readyMessage?: string; errorMessage?: string
+  variant?: ButtonProps['variant']; size?: ButtonProps['size']; leftSection?: ReactNode; fitButton?: boolean
+}) {
   const { t } = useTranslation()
   const [feedback, setFeedback] = useState<'downloaded' | 'downloadError' | null>(null)
   const link = useRef<HTMLAnchorElement | null>(null), url = useRef<string | null>(null)
@@ -11,7 +17,7 @@ export default function DownloadFile({ load, pending, filename, label, readyMess
     link.current = node
     return () => { link.current = null; if (url.current) URL.revokeObjectURL(url.current); url.current = null }
   }, [])
-  return <Stack gap={4}><Button variant="subtle" size="compact-sm" loading={pending} onClick={async () => {
+  return <Stack gap={4} w={fitButton ? 'min-content' : undefined}><Button variant={variant} size={size} leftSection={leftSection} loading={pending} onClick={async () => {
     setFeedback(null)
     try {
       const data = await load()

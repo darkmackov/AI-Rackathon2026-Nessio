@@ -2991,6 +2991,61 @@
         }
       }
     },
+    "/cases/{case_id}/fhir": {
+      "get": {
+        "tags": [
+          "fhir"
+        ],
+        "summary": "Get Case Fhir",
+        "description": "Download the case's projected Patient/$everything from IRIS (S9). The case's referring\ndoctor or a coordinator of its KOC; no writes, validation or new clinical mapping.\n404 until projected, 503 without FHIR, 502 if the FHIR server cannot supply a complete Bundle.",
+        "operationId": "get_case_fhir",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Actor-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current user (demo role switcher)",
+              "title": "X-Actor-Id"
+            },
+            "description": "Current user (demo role switcher)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "FHIR Bundle JSON file",
+            "content": {
+              "application/fhir+json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cases/{case_id}/feedback": {
       "post": {
         "tags": [

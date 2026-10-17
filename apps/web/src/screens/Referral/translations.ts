@@ -1,4 +1,15 @@
 export const referralCs = {
+  fhir: {
+    method: 'Způsob vytvoření žádosti', documents: 'Přiložit dokumenty', bundle: 'Import z FHIR (JSON)',
+    intro: 'Importovaná žádost bude rovnou odeslána do vybraného KOC. Přílohy se zpracují jako běžné dokumenty. Strukturované údaje FHIR se zatím do předávky nepřevádějí.',
+    drop: 'Přetáhněte soubor FHIR Bundle sem nebo jej vyberte.', choose: 'Vybrat FHIR JSON', remove: 'Odebrat soubor',
+    help: 'Jeden FHIR R4 Bundle v JSON s přílohami PDF, DOCX nebo PPTX. Přílohy musí být obsažené v souboru; externí odkazy se nestahují.',
+    required: 'Vyberte soubor FHIR Bundle v JSON.', fileError: 'Vyberte jeden neprázdný soubor JSON.', submit: 'Importovat a odeslat',
+    confirmTitle: 'Importovat a odeslat žádost?', confirmText: 'Žádost s přílohami odešlete do {{koc}}. Po importu se otevře její detail s průběhem zpracování. Import nepotvrzuje lékařskou validaci předávky.',
+    error400: 'Zkontrolujte cílové KOC a přílohy. Bundle musí obsahovat alespoň jeden dokument.',
+    error415: 'Některá příloha má nepodporovaný formát. Použijte PDF, DOCX nebo PPTX.',
+    error422: 'Soubor se nepodařilo přečíst jako FHIR Bundle nebo obsahuje nečitelnou přílohu. Zkontrolujte export a zkuste jej znovu.',
+  },
   title: 'Moje žádosti', create: 'Nová žádost', createTitle: 'Nová žádost do KOC',
   intro: 'Vyberte KOC a přiložte dostupné zprávy. Před odesláním zkontrolujete vytěžené údaje.',
   koc: 'Cílové KOC', chooseKoc: 'Vyberte KOC', requiredKoc: 'Vyberte KOC ze seznamu.', noKocs: 'Žádné KOC není dostupné. Zkuste seznam načíst znovu.',
@@ -21,6 +32,17 @@ export const referralCs = {
 }
 
 export const referralEn = {
+  fhir: {
+    method: 'Referral creation method', documents: 'Attach documents', bundle: 'Import from FHIR (JSON)',
+    intro: 'The imported referral will be sent directly to the selected KOC. Attachments are processed as regular documents. Structured FHIR values are not mapped to the handover yet.',
+    drop: 'Drop a FHIR Bundle file here or select it.', choose: 'Choose FHIR JSON', remove: 'Remove file',
+    help: 'One FHIR R4 Bundle in JSON with PDF, DOCX or PPTX attachments. Attachments must be included in the file; external links are not downloaded.',
+    required: 'Select a FHIR Bundle JSON file.', fileError: 'Select one non-empty JSON file.', submit: 'Import and send',
+    confirmTitle: 'Import and send the referral?', confirmText: 'You will send the referral and attachments to {{koc}}. Its detail and processing status will open after import. Import does not confirm medical validation of the handover.',
+    error400: 'Check the receiving KOC and attachments. The Bundle must contain at least one document.',
+    error415: 'An attachment has an unsupported format. Use PDF, DOCX or PPTX.',
+    error422: 'The file could not be read as a FHIR Bundle or contains an unreadable attachment. Check the export and try again.',
+  },
   title: 'My referrals', create: 'New referral', createTitle: 'New KOC referral',
   intro: 'Choose a KOC and attach available reports. You will review the extracted information before sending.',
   koc: 'Receiving KOC', chooseKoc: 'Choose a KOC', requiredKoc: 'Choose a KOC from the list.', noKocs: 'No KOC is available. Try reloading the list.',

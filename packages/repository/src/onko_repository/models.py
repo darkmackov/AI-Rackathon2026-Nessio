@@ -9,6 +9,14 @@ class BundleError(ValueError):
     """The upload is not a FHIR Bundle we can take a referral from."""
 
 
+class FhirExportUnavailableError(RuntimeError):
+    """This repository has no configured FHIR exchange server."""
+
+
+class FhirExportError(RuntimeError):
+    """The FHIR server could not supply a complete export."""
+
+
 @dataclass(frozen=True)
 class ReferralAttachment:
     """One document carried by a referral Bundle, with its original bytes. Structured resources
