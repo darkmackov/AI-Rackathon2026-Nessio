@@ -22,6 +22,7 @@ import SourcePanel from '../components/handover/SourcePanel'
 import SessionProvider from '../SessionProvider'
 import { useSession } from '../session'
 import { theme } from '../theme'
+import AppNotifications from '../notifications/AppNotifications'
 import { renderApp } from './renderApp'
 import { openReferenceCase, openTab } from './shell'
 import { server } from './setup'
@@ -51,12 +52,13 @@ beforeEach(() => {
   server.use(...createHandlers({ ...state, getCases: () => [...state.getCases(), newCase] }))
 })
 
-function renderDocuments(node?: ReactNode, initialCaseId = caseId, selectedActorId = actorId) {
+function renderDocuments(node?: ReactNode, initialCaseId = caseId, selectedActorId = actorId, notifications = false) {
   const queryClient = createQueryClient()
   const openSource = vi.fn()
   function Wrapper({ children }: PropsWithChildren) {
     return <MantineProvider theme={theme} env="test"><I18nextProvider i18n={i18n}><QueryClientProvider client={queryClient}>
       <SessionProvider>{children}</SessionProvider>
+      {notifications && <AppNotifications />}
     </QueryClientProvider></I18nextProvider></MantineProvider>
   }
   function Panel({ id }: { id: string }) {
@@ -103,7 +105,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
   it('supports drag/drop, file removal and accessible invalid-file feedback without a request', async () => {
     let uploads = 0
     server.use(http.post('*/api/cases/:caseId/documents', () => { uploads++; return HttpResponse.json({}, { status: 500 }) }))
-    renderDocuments(<DocumentUploader caseId="case-a" actorId={actorId} />)
+    renderDocuments(<DocumentUploader caseId="case-a" actorId={actorId} />, caseId, actorId, true)
     const drop = screen.getByText('Přetáhněte dokumenty sem nebo vyberte soubory.').closest('div')!
     fireEvent.drop(drop, { dataTransfer: { files: [pdf(), new File(['x'], 'scan.png', { type: 'image/png' })] } })
     expect(screen.getByRole('alert')).toHaveTextContent('PDF, DOCX nebo PPTX')
@@ -151,7 +153,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
       if (name === 'kontrola.docx' && fail) return HttpResponse.json({ detail: 'internal sensitive error' }, { status: 500 })
       return HttpResponse.json({ document: { id: name, filename: name }, job: { id: name, kind: 'ingest_document', case_id: 'case-b', status: 'queued', created_at: '2026-10-16T09:00:00' } }, { status: 201 })
     }))
-    renderDocuments(<DocumentUploader caseId="case-b" actorId={actorId} />)
+    renderDocuments(<DocumentUploader caseId="case-b" actorId={actorId} />, caseId, actorId, true)
     await userEvent.upload(screen.getByLabelText('Vybrat soubory'), [pdf(), docx()])
     await userEvent.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Při zpracování požadavku nastala chyba.')
@@ -227,7 +229,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
     renderDocuments()
     await userEvent.click(screen.getByRole('button', { name: 'Select coordinator' }))
     expect(await screen.findByText('Chyba zpracování')).toBeVisible()
-    expect(screen.getByRole('alert')).toHaveTextContent('Dokument se nepodařilo zpracovat.')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByText('internal stack')).not.toBeInTheDocument()
     const retry = screen.getAllByRole('button', { name: 'Znovu spustit extrakci' })
     expect(retry).toHaveLength(1)
@@ -237,7 +239,7 @@ describe('S2 document upload and processing in the case documents tab', () => {
 
   it('shows honest 501 job failures without blocking uploads', async () => {
     server.use(http.get('*/api/cases/:caseId/jobs', () => HttpResponse.json({ detail: 'not implemented' }, { status: 501 })))
-    renderDocuments()
+    renderDocuments(undefined, caseId, actorId, true)
     await openPanel()
     expect(await screen.findByRole('alert')).toHaveTextContent('Tato funkce zatím není implementována.')
     expect(screen.getByRole('button', { name: 'Vybrat soubory' })).toBeEnabled()
@@ -274,13 +276,13 @@ describe('S2 document upload and processing in the case documents tab', () => {
       http.get('*/api/cases/:caseId/jobs', () => HttpResponse.json([job])),
       http.get('*/api/jobs/job-error', () => failing ? HttpResponse.json({ detail: 'private stack' }, { status: 500 }) : HttpResponse.json(job)),
     )
-    renderDocuments()
+    renderDocuments(undefined, caseId, actorId, true)
     await openPanel()
     expect(await screen.findByRole('alert')).toHaveTextContent('Při zpracování požadavku nastala chyba.')
     expect(screen.getByText('Probíhá AI extrakce')).toBeVisible()
     expect(screen.queryByText('private stack')).not.toBeInTheDocument()
     job = { ...job, status: 'done' }; failing = false
-    await userEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Zkusit znovu' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Zkusit znovu' }))
     expect(await screen.findByText('Dokončeno')).toBeVisible()
   })
 
@@ -289,10 +291,11 @@ describe('S2 document upload and processing in the case documents tab', () => {
       http.get('*/api/documents/doc-a/text', () => HttpResponse.json({ detail: 'private error' }, { status: 500 })),
       http.get('*/api/documents/doc-a/file', () => HttpResponse.json({ detail: 'not implemented' }, { status: 501 })),
     )
-    renderDocuments(<SourcePanel document={{ id: 'doc-a', filename: 'original.pdf' }} close={() => {}} />)
+    renderDocuments(<SourcePanel document={{ id: 'doc-a', filename: 'original.pdf' }} close={() => { }} />, caseId, actorId, true)
     expect(await screen.findByRole('alert')).toHaveTextContent('Při zpracování požadavku nastala chyba.')
     await userEvent.click(screen.getByRole('button', { name: 'Stáhnout originál' }))
-    expect(await screen.findByText('Originální soubor se nepodařilo stáhnout.')).toHaveAttribute('role', 'alert')
+    expect(await screen.findByText('Tato funkce zatím není implementována.')).toBeVisible()
+    expect(screen.queryByText('Originální soubor se nepodařilo stáhnout.')).not.toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Zdrojový dokument' })).toBeVisible()
     expect(screen.queryByText('private error')).not.toBeInTheDocument()
   })
@@ -349,13 +352,14 @@ describe('S2 document upload and processing in the case documents tab', () => {
     const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => { })
     const clicked = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => { })
     server.use(http.get('*/api/documents/:id/file', () => HttpResponse.json({ detail: 'failed' }, { status: 500 })), ...createHandlers(state))
-    renderApp()
+    renderApp('/', { notifications: true })
     const user = userEvent.setup()
     await openReferenceCase(user)
     const panel = await openTab(user, 'Dokumenty')
     const first = (await within(panel).findAllByRole('button', { name: 'Stáhnout originál' }))[0]
     await user.click(first)
-    expect(await within(panel).findByText('Originální soubor se nepodařilo stáhnout.')).toBeVisible()
+    expect(await screen.findByText('Při zpracování požadavku nastala chyba. Zkuste to znovu.')).toBeVisible()
+    expect(within(panel).queryByRole('alert')).not.toBeInTheDocument()
     expect(create).not.toHaveBeenCalled()
     server.resetHandlers()
     server.use(...createHandlers(state))
@@ -369,11 +373,12 @@ describe('S2 document upload and processing in the case documents tab', () => {
 
   it('isolates a failed document list and retries it without losing the case', async () => {
     server.use(http.get('*/api/cases/:id/documents', () => HttpResponse.json({ detail: 'failed' }, { status: 500 })), ...createHandlers(state))
-    renderApp()
+    renderApp('/', { notifications: true })
     const user = userEvent.setup()
     await openReferenceCase(user)
     const panel = await openTab(user, 'Dokumenty')
-    expect(await within(panel).findByRole('alert')).toBeVisible()
+    expect(await screen.findByRole('alert')).toBeVisible()
+    expect(within(panel).queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: 'Alena Procházková' })).toBeVisible()
     server.resetHandlers()
     server.use(...createHandlers(state))

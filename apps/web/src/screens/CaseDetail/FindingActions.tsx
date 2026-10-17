@@ -1,4 +1,6 @@
-import { Button, Group, Modal, Stack, Text } from '@mantine/core'
+import { pendingControlProps } from '../../components/pending-control'
+import Button from '../../components/ActionButton'
+import { Group, Modal, Stack, Text } from '@mantine/core'
 import { useIsMutating, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -41,12 +43,12 @@ export default function FindingActions({ caseId, finding, handover }: { caseId: 
   const success = () => { setAction(null); setSaved(true) }
   return <Stack gap={4}>
     <Group gap="xs">
-      <Button size="compact-sm" variant={finding.suggested_action === 'request' ? 'filled' : 'light'} disabled={busy} onClick={() => { setSaved(false); setAction('request') }}>{t('caseDetail.request')}</Button>
-      {!!finding.fields?.length && handover && <Button size="compact-sm" variant={finding.suggested_action === 'fill_in' ? 'filled' : 'light'} disabled={busy} onClick={() => { setSaved(false); setAction('fill') }}>{t('caseDetail.fill')}</Button>}
-      <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => { setSaved(false); setAction('resolve') }}>{t('workflow.resolve')}</Button>
+      <Button size="compact-sm" variant={finding.suggested_action === 'request' ? 'filled' : 'light'} pending={busy} onClick={() => { setSaved(false); setAction('request') }}>{t('caseDetail.request')}</Button>
+      {!!finding.fields?.length && handover && <Button size="compact-sm" variant={finding.suggested_action === 'fill_in' ? 'filled' : 'light'} pending={busy} onClick={() => { setSaved(false); setAction('fill') }}>{t('caseDetail.fill')}</Button>}
+      <Button size="compact-sm" variant="subtle" pending={busy} onClick={() => { setSaved(false); setAction('resolve') }}>{t('workflow.resolve')}</Button>
     </Group>
     {saved && <Text size="sm" role="status">{t('workflow.saved')}</Text>}
-    <Modal opened={!!action} onClose={() => { if (!busy) setAction(null) }} title={t(action === 'request' ? 'caseDetail.request' : action === 'fill' ? 'caseDetail.fill' : 'workflow.resolve')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+    <Modal opened={!!action} onClose={() => { if (!busy) setAction(null) }} title={t(action === 'request' ? 'caseDetail.request' : action === 'fill' ? 'caseDetail.fill' : 'workflow.resolve')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {action === 'fill' && handover && <FieldEditor caseId={caseId} handover={handover} paths={finding.fields ?? []} onSaved={success} onClose={() => setAction(null)} />}
       {action === 'request' && owners.state}
       {(action === 'request' && !owners.state || action === 'resolve') && <WorkflowForm key={action} fields={fields} initial={action === 'request' ? { owner: '', title: finding.message_cs, due: '', priority: 'normal', note: '' } : { kind: 'resolved', note: '' }} onSaved={success} help={action === 'request' ? t('workflow.requestHelp') : undefined} submit={async (values) => {

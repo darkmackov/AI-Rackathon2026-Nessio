@@ -24,7 +24,7 @@ async function prepare(state = demoState) {
   return mutation(createMdtSnapshotMutation(), { headers, path, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })
 }
 async function openMdt() {
-  const view = renderApp(), user = userEvent.setup({ applyAccept: false })
+  const view = renderApp('/', { notifications: true }), user = userEvent.setup({ applyAccept: false })
   await signIn(user); await user.click(await screen.findByRole('link', { name: 'Fiktivní pacient S4' })); await screen.findByRole('heading', { level: 1, name: 'Fiktivní pacient S4' }); await openTab(user, 'MDT')
   await user.click(await screen.findByRole('radio', { name: 'Nahrát dokument' }))
   expect(screen.queryByRole('region', { name: 'Zapsat závěr' })).not.toBeInTheDocument()

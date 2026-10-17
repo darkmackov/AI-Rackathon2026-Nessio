@@ -1,4 +1,6 @@
-import { Alert, Anchor, Badge, Button, Grid, Group, Modal, Paper, Stack, Tabs, Text } from '@mantine/core'
+import { pendingControlProps } from '../../components/pending-control'
+import Button from '../../components/ActionButton'
+import { Alert, Anchor, Badge, Grid, Group, Modal, Paper, Stack, Tabs, Text } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { useIsMutating, useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
@@ -99,24 +101,24 @@ function ReferralContent({ caseId }: { caseId: string }) {
             <Group gap="xs"><Text size="sm" c="dimmed">{t('caseDetail.validated')}:</Text><StampView stamp={handover.data.validated_by_referrer} names={names} /></Group>
             <HandoverTab handover={handover.data} names={names} sources={sources} findings={findings.data?.filter((finding) => !finding.resolved) ?? []} showFinding={showFinding} open={openSections} setOpen={(sections) => { setOpenSections(sections); setFocusPath(null) }} focusPath={focusPath}
               fieldActions={(path) => !editable || path === 'epicrisis' || path === 'mdt_question' ? null : <Group gap="xs">
-                <Button size="compact-sm" variant="subtle" disabled={busy || processing} onClick={() => setEditing({ path, unavailable: false })}>{t(fields[path]?.status === 'found' ? 'referral.edit' : 'referral.fill')}</Button>
-                <Button size="compact-sm" variant="subtle" color="gray" disabled={busy || processing} onClick={() => setEditing({ path, unavailable: true })}>{t('handoverEdit.notAvailable')}</Button>
+                <Button size="compact-sm" variant="subtle" pending={busy || processing} onClick={() => setEditing({ path, unavailable: false })}>{t(fields[path]?.status === 'found' ? 'referral.edit' : 'referral.fill')}</Button>
+                <Button size="compact-sm" variant="subtle" color="gray" pending={busy || processing} onClick={() => setEditing({ path, unavailable: true })}>{t('handoverEdit.notAvailable')}</Button>
               </Group>}
-              examinationAction={editable && <Button variant="outline" size="compact-sm" disabled={busy || processing} onClick={() => setAddExam(true)}>{t('referral.addExam')}</Button>} />
+              examinationAction={editable && <Button variant="outline" size="compact-sm" pending={busy || processing} onClick={() => setAddExam(true)}>{t('referral.addExam')}</Button>} />
           </>}
           <FindingsPanel caseId={caseId} names={names} sources={sources} handover={handover.data} showField={showField} />
           {jobs.isError && <QueryError error={jobs.error} retry={() => { void jobs.refetch() }} pending={jobs.isFetching} />}
           {editable && <><Text size="sm" c="dimmed">{t('referral.reviewHelp')}</Text>{processing && <Alert color="blue" role="status">{t('referral.processing')}</Alert>}
-            <SendReferral caseId={caseId} actorId={actor} koc={koc} disabled={!handover.isSuccess || !jobs.isSuccess || processing || busy} sent={(returned) => setFeedback(returned ? 'referral.resend' : 'referral.sent')} />
+            <SendReferral caseId={caseId} actorId={actor} koc={koc} disabled={!handover.isSuccess || !jobs.isSuccess || processing} sent={(returned) => setFeedback(returned ? 'referral.resend' : 'referral.sent')} />
           </>}
         </Stack></Tabs.Panel>
       </Grid.Col>{wide && <Grid.Col span={5}>{source || <SourcePlaceholder />}</Grid.Col>}</Grid>
       {!wide && source}
     </Tabs>
-    <Modal opened={!!editing && editable} onClose={() => { if (!busy) setEditing(null) }} title={t('referral.editField', { field: editLabel ? t(`caseDetail.${editLabel}`) : '' })} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+    <Modal opened={!!editing && editable} onClose={() => { if (!busy) setEditing(null) }} title={t('referral.editField', { field: editLabel ? t(`caseDetail.${editLabel}`) : '' })} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {editing && editable && <HandoverFieldForm key={`${editing.path}-${editing.unavailable}`} caseId={caseId} actorId={actor} path={editing.path} value={fields[editing.path]} unavailable={editing.unavailable} close={() => setEditing(null)} saved={() => { setEditing(null); setFeedback('referral.saved') }} />}
     </Modal>
-    <Modal opened={addExam && editable} onClose={() => { if (!busy) setAddExam(false) }} title={t('referral.addExam')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+    <Modal opened={addExam && editable} onClose={() => { if (!busy) setAddExam(false) }} title={t('referral.addExam')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {addExam && editable && <ExaminationForm caseId={caseId} actorId={actor} close={() => setAddExam(false)} saved={() => { setAddExam(false); setFeedback('referral.examSaved') }} />}
     </Modal>
   </Stack>

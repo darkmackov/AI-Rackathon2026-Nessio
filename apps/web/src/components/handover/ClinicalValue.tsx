@@ -8,6 +8,7 @@ import { SeverityBadge } from '../Severity'
 import { formatDateTime } from '../../time'
 import { displayValue, sameSelection, type SourceSelection, type SourcedValue } from './clinical'
 import { statusMeta } from './status-meta'
+import { notifyError, notifySuccess } from '../../notifications/notify'
 
 export type OpenSource = (selection: SourceSelection, trigger: HTMLButtonElement) => void
 /** What every source chip needs: open a source, name its document, and know which source is open. */
@@ -15,10 +16,11 @@ export type Sources = { openSource: OpenSource; documentNames: Record<string, st
 
 export function CopySection({ text }: { text: () => string }) {
   const { t } = useTranslation()
-  const [feedback, setFeedback] = useState<'copied' | 'copyError' | null>(null)
+  const [copied, setCopied] = useState(false)
   return <Stack gap="xs"><Button variant="outline" size="compact-sm" onClick={async () => {
-    try { await navigator.clipboard.writeText(text()); setFeedback('copied') } catch { setFeedback('copyError') }
-  }}>{t('caseDetail.copy')}</Button>{feedback && <Text size="sm" c={feedback === 'copyError' ? 'red.9' : undefined} role={feedback === 'copyError' ? 'alert' : 'status'}>{t(`caseDetail.${feedback}`)}</Text>}</Stack>
+    try { await navigator.clipboard.writeText(text()); setCopied(true); notifySuccess('clipboard', t('caseDetail.copied')) }
+    catch { setCopied(false); notifyError('clipboard', t('caseDetail.copyError')) }
+  }}>{t('caseDetail.copy')}</Button>{copied && <Text size="sm" role="status">{t('caseDetail.copied')}</Text>}</Stack>
 }
 
 export function StampView({ stamp, size = 'sm' }: { stamp?: Stamp | null; names?: Record<string, string>; size?: MantineSize }) {

@@ -127,21 +127,23 @@ describe('app shell, identity and demo controls', () => {
 
   it('shows a retryable directory error instead of technical details', async () => {
     server.use(http.get('*/api/directory/actors', () => HttpResponse.json({ detail: 'secret internal stack' }, { status: 500 })))
-    renderApp()
-    expect(await screen.findByRole('alert')).toHaveTextContent('Při zpracování požadavku nastala chyba.')
+    renderApp('/', { notifications: true })
+    expect(await screen.findByText('Při zpracování požadavku nastala chyba. Zkuste to znovu.')).toBeVisible()
     expect(screen.queryByText('secret internal stack')).not.toBeInTheDocument()
+    const retry = screen.getByRole('button', { name: 'Zkusit znovu' })
+    expect(retry.closest('[data-notification]')).toBeNull()
     server.resetHandlers()
-    await userEvent.click(screen.getByRole('button', { name: 'Zkusit znovu' }))
+    await userEvent.click(retry)
     expect(await screen.findByRole('option', { name: 'MUDr. Tomáš Řezníček' })).toBeInTheDocument()
   })
 
   it('does not enter the shell when /me rejects the selected person', async () => {
     server.use(http.get('*/api/me', () => HttpResponse.json({ detail: 'unknown actor' }, { status: 404 })))
-    renderApp()
+    renderApp('/', { notifications: true })
     const user = userEvent.setup()
     await user.selectOptions(await screen.findByLabelText('Osoba'), 'pl-reznicek')
     await user.click(screen.getByRole('button', { name: 'Pokračovat' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Požadované údaje nebyly nalezeny.')
+    expect(await screen.findByText('Požadované údaje nebyly nalezeny. Obnovte seznam nebo se vraťte na přehled.')).toBeVisible()
     expect(screen.queryByRole('button', { name: /^Uživatel / })).not.toBeInTheDocument()
   })
 
@@ -191,7 +193,7 @@ describe('app shell, identity and demo controls', () => {
   })
 
   it('keeps data when reset is cancelled or fails, and can retry the same confirmation', async () => {
-    renderApp()
+    renderApp('/', { notifications: true })
     const user = userEvent.setup()
     await signIn(user)
     await user.click(screen.getByRole('button', { name: 'Demo' }))
@@ -204,7 +206,8 @@ describe('app shell, identity and demo controls', () => {
     await user.click(within(drawer).getByRole('button', { name: 'Obnovit prázdné demo' }))
     confirmation = await screen.findByRole('dialog', { name: 'Obnovit demo?' })
     await user.click(within(confirmation).getByRole('button', { name: 'Obnovit data' }))
-    expect(await within(confirmation).findByRole('alert')).toBeVisible()
+    expect(await screen.findByText('Při zpracování požadavku nastala chyba. Zkuste to znovu.')).toBeVisible()
+    expect(within(confirmation).getByRole('button', { name: 'Obnovit data' }).closest('[data-notification]')).toBeNull()
     expect(demoState.getCases()).toHaveLength(3)
     server.resetHandlers()
     await user.click(within(confirmation).getByRole('button', { name: 'Obnovit data' }))

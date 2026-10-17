@@ -1,4 +1,6 @@
-import { Alert, Button, Group, List, Modal, Paper, Spoiler, Stack, Text, Title } from '@mantine/core'
+import { pendingControlProps } from '../../components/pending-control'
+import Button from '../../components/ActionButton'
+import { Alert, Group, List, Modal, Paper, Spoiler, Stack, Text, Title } from '@mantine/core'
 import { IconMessageCircle, IconSend } from '@tabler/icons-react'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -37,8 +39,8 @@ export default function CommunicationTab({ item }: { item: Case }) {
         <Group justify="space-between" align="flex-start">
             <Title order={2} size="h4" id="communication-heading">{t('caseDetail.tabs.communication')}</Title>
             <Group gap="xs">
-                <Button size="xs" leftSection={<IconSend size={16} aria-hidden />} disabled={busy || !canSend} onClick={() => open('send')}>{t('messages.sendGp')}</Button>
-                <Button size="xs" variant="outline" leftSection={<IconMessageCircle size={16} aria-hidden />} disabled={busy || !canNotify} onClick={() => open('notify')}>{t('messages.notify')}</Button>
+                <Button size="xs" leftSection={<IconSend size={16} aria-hidden />} pending={busy} disabled={!canSend} onClick={() => open('send')}>{t('messages.sendGp')}</Button>
+                <Button size="xs" variant="outline" leftSection={<IconMessageCircle size={16} aria-hidden />} pending={busy} disabled={!canNotify} onClick={() => open('notify')}>{t('messages.notify')}</Button>
             </Group>
         </Group>
         {sendable && conclusion.isError && <QueryError error={conclusion.error} retry={() => { void conclusion.refetch() }} />}
@@ -73,7 +75,7 @@ export default function CommunicationTab({ item }: { item: Case }) {
             {message.body ? <Spoiler maxHeight={60} showLabel={t('caseDetail.showMore')} hideLabel={t('caseDetail.showLess')}><Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{message.body}</Text></Spoiler> : <Text size="sm" c="dimmed">{t('messages.noNote')}</Text>}
             {message.recipient_ids.map((recipient) => <ReceiptStatus key={recipient} message={message} receipts={receipts.isSuccess ? receipts.data : undefined} recipient={recipient} />)}
         </Stack></Paper>)}
-        <Modal opened={dialog === 'send'} onClose={() => { if (!busy) setDialog(null) }} title={t('messages.sendTitle')} size="lg" closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+        <Modal opened={dialog === 'send'} onClose={() => { if (!busy) setDialog(null) }} title={t('messages.sendTitle')} size="lg" closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
             {dialog === 'send' && <Stack gap="sm">
                 <Text size="sm">{t('messages.sendText')}</Text>
                 <Group gap="lg" align="flex-start" wrap="wrap">
@@ -97,7 +99,7 @@ export default function CommunicationTab({ item }: { item: Case }) {
                     submit={async (values) => { await send.mutateAsync({ ...options, body: { note: values.note.trim() || null } }); await refreshMessages(client, item.id) }} />
             </Stack>}
         </Modal>
-        <Modal opened={dialog === 'notify'} onClose={() => { if (!busy) setDialog(null) }} title={t('messages.notifyTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+        <Modal opened={dialog === 'notify'} onClose={() => { if (!busy) setDialog(null) }} title={t('messages.notifyTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
             {dialog === 'notify' && <Stack gap="sm">
                 <Alert color="yellow" role="note" title={t('messages.simulated')}>{t('messages.simulationNote')}</Alert>
                 <WorkflowForm fields={[{ name: 'subject', label: t('messages.subject'), required: true }, { name: 'body', label: t('messages.body'), type: 'textarea', required: true }]} initial={{ subject: '', body: '' }} submitLabel={t('messages.notifySubmit')} onSaved={() => done('notified')}

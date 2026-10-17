@@ -175,6 +175,10 @@ Asked and decided on 16. 10. 2026 (Q-K8 to Q-K11 later the same day). The rules 
 
 These S0 choices were agreed with the user before implementation. No backend implementation or real authentication is implied by the role switcher.
 
+### Q-W18: Shared application notifications
+
+Authorized 17. 10. after a source audit: extend Mantine with `@mantine/notifications` at the same version as core, one top-centre host and its existing store. Errors and warnings are manually dismissed without timeouts. Coalesce repeated errors, bound the queue, name all invalid fields and keep local retry/field states. Success and information are also supported and remain manual in the initial delivery. No new API error model or business rules are introduced. Implementation and limitations: [notifications.md](notifications.md).
+
 
 ## T: Tooling decisions (taken without asking; review if you disagree)
 

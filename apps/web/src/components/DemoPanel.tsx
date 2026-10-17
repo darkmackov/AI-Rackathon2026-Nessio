@@ -1,8 +1,10 @@
-import { Alert, Button, Divider, Drawer, Group, Modal, Stack, Text, TextInput, Title } from '@mantine/core'
+import Button from './ActionButton'
+import { pendingControlProps } from './pending-control'
+import { Alert, Divider, Drawer, Group, Modal, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../api'
 import { apiMode } from '../config'
@@ -15,20 +17,31 @@ import { useDemoClock } from '../demo-clock'
 import { QueryError } from './DataState'
 import FormErrorSummary from './FormErrorSummary'
 import { isCaseQuery } from '../case-queries'
+import { clearNotifications } from '../notifications/notify'
+import { apiFieldErrors, formProblems, notifyFormErrors } from '../notifications/form-validation'
 
 function TimeForm({ initialNow, onStart, onSaved }: { initialNow: string; onStart: () => void; onSaved: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { actorId } = useSession()
   const busy = useIsMutating() > 0
-  const [submitted, setSubmitted] = useState(false)
+  const id = useId()
+  const [failedSubmits, setFailedSubmits] = useState(0)
+  const labels = { now: t('dateTime') }
   const form = useForm({
     initialValues: { now: initialNow.slice(0, 19) },
     validateInputOnBlur: true,
-    validate: { now: (value) => validLocalDateTime(value) ? null : 'invalidDateTime' },
+    validate: { now: (value) => validLocalDateTime(value) ? null : t('invalidDateTime') },
   })
   const change = useMutation({
     ...setDemoClockMutation(),
+    onError: (error) => {
+      const errors = apiFieldErrors(error, labels, t)
+      if (Object.keys(errors).length) {
+        form.setErrors({ ...form.errors, ...errors })
+        setFailedSubmits((count) => count + 1)
+      }
+    },
     onSuccess: async () => {
       await queryClient.cancelQueries({ queryKey: getDemoClockQueryKey() })
       await queryClient.invalidateQueries({ queryKey: getDemoClockQueryKey() })
@@ -41,19 +54,22 @@ function TimeForm({ initialNow, onStart, onSaved }: { initialNow: string; onStar
   })
 
   return <form noValidate onSubmit={(event) => {
-    setSubmitted(true)
+    if (busy) { event.preventDefault(); return }
     form.onSubmit((values) => {
       onStart()
       change.mutate({ body: { now: values.now }, headers: actorHeaders(actorId ?? '') })
+    }, (errors) => {
+      setFailedSubmits((count) => count + 1)
+      notifyFormErrors(errors, labels, t, id)
     })(event)
   }}>
     <Stack>
-      {submitted && form.errors.now && <FormErrorSummary errors={[t('invalidDateTime')]} />}
-      <TextInput type="datetime-local" step={1} label={t('dateTime')} disabled={busy}
-        {...form.getInputProps('now')} error={form.errors.now ? t('invalidDateTime') : undefined} />
+      {failedSubmits > 0 && <FormErrorSummary errors={formProblems(form.errors, labels)} focusKey={failedSubmits} />}
+      <TextInput type="datetime-local" step={1} label={t('dateTime')} {...pendingControlProps(busy)}
+        {...form.getInputProps('now')} />
       <Group>
-        <Button type="submit" loading={change.isPending} disabled={busy}>{t('applyTime')}</Button>
-        <Button variant="outline" disabled={busy} onClick={() => { onStart(); change.mutate({ body: { now: null }, headers: actorHeaders(actorId ?? '') }) }}>{t('wallClockAction')}</Button>
+        <Button type="submit" pending={busy || change.isPending}>{t('applyTime')}</Button>
+        <Button variant="outline" pending={busy} onClick={() => { onStart(); change.mutate({ body: { now: null }, headers: actorHeaders(actorId ?? '') }) }}>{t('wallClockAction')}</Button>
       </Group>
       {change.isError && <QueryError error={change.error} retry={() => {
         if (change.variables) change.mutate(change.variables)
@@ -75,6 +91,7 @@ export default function DemoPanel({ opened, onClose }: { opened: boolean; onClos
   const reset = useMutation({
     ...resetDemoMutation(),
     onSuccess: async () => {
+      clearNotifications()
       await queryClient.cancelQueries()
       if (actor) await navigate({ to: roleHome(actor.role), replace: true })
       // A reset discards case documents, jobs and results as well as the queue.
@@ -94,7 +111,7 @@ export default function DemoPanel({ opened, onClose }: { opened: boolean; onClos
   const scenarioName = scenario === 'empty' ? t('emptyScenario') : t('referenceScenario')
 
   return <Drawer opened={opened} onClose={() => { if (!busy) { setFeedback(null); onClose() } }}
-    position="right" size="lg" title={t('demoTitle')} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}
+    position="right" size="lg" title={t('demoTitle')} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}
     closeOnEscape={!busy} closeOnClickOutside={!busy}>
     <Stack gap="lg">
       <Alert role="note" color={apiMode === 'mock' ? 'blue' : 'gray'} title={t(apiMode === 'mock' ? 'demoData' : 'realApi')}>
@@ -107,18 +124,18 @@ export default function DemoPanel({ opened, onClose }: { opened: boolean; onClos
       <Divider />
       <div><Title order={2} size="h4">{t('resetHeading')}</Title><Text size="sm" c="dimmed" mt="xs">{t('resetHelp')}</Text></div>
       <Group>
-        <Button variant="outline" disabled={busy} onClick={() => { reset.reset(); setScenario('reference_at_mdt') }}>{t('resetReference')}</Button>
-        <Button variant="outline" color="red" disabled={busy} onClick={() => { reset.reset(); setScenario('empty') }}>{t('resetEmpty')}</Button>
+        <Button variant="outline" pending={busy} onClick={() => { reset.reset(); setScenario('reference_at_mdt') }}>{t('resetReference')}</Button>
+        <Button variant="outline" color="red" pending={busy} onClick={() => { reset.reset(); setScenario('empty') }}>{t('resetEmpty')}</Button>
       </Group>
     </Stack>
     <Modal opened={scenario !== null} onClose={() => { if (!busy) setScenario(null) }} title={t('confirmReset')}
-      centered closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+      centered closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       <Stack>
         <Text>{t('confirmResetText', { scenario: scenarioName })}</Text>
         {reset.isError && <QueryError error={reset.error} />}
         <Group justify="flex-end">
-          <Button variant="default" disabled={busy} onClick={() => setScenario(null)}>{t('cancel')}</Button>
-          <Button color="red" loading={reset.isPending} disabled={busy} onClick={() => {
+          <Button variant="default" pending={busy} onClick={() => setScenario(null)}>{t('cancel')}</Button>
+          <Button color="red" pending={busy || reset.isPending} onClick={() => {
             if (scenario) { setFeedback(null); reset.mutate({ body: { scenario }, headers: actorHeaders(actorId ?? '') }) }
           }}>{t('resetConfirm')}</Button>
         </Group>

@@ -1,5 +1,6 @@
-import { Button, Stack, Title } from '@mantine/core'
-import { useQuery } from '@tanstack/react-query'
+import Button from '../ActionButton'
+import { Stack, Title } from '@mantine/core'
+import { useIsMutating, useQuery } from '@tanstack/react-query'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
@@ -15,6 +16,7 @@ export default function DocumentJobs({ caseId, actorId, documents, disabled = fa
   caseId: string; actorId: string; documents: DocumentMeta[]; disabled?: boolean;
 }) {
   const { t } = useTranslation()
+  const busy = useIsMutating() > 0
   const headingId = useId()
   const options = { headers: actorHeaders(actorId), path: { case_id: caseId } }
   const jobs = useQuery(listCaseJobsOptions(options))
@@ -28,7 +30,7 @@ export default function DocumentJobs({ caseId, actorId, documents, disabled = fa
     {jobs.isError && <QueryError error={jobs.error} pending={jobs.isFetching} retry={() => { void jobs.refetch() }} />}
     {jobs.isSuccess && !ingestJobs.length && <EmptyState title={t('documents.noJobs')} />}
     {ingestJobs.map((job) => <JobProgress key={job.id} job={job} actorId={actorId} documents={documents} />)}
-    <Button variant="outline" onClick={retry} loading={reextract.isPending} disabled={disabled || processing || !documents.length}>{t('documents.reextract')}</Button>
+    <Button variant="outline" onClick={retry} pending={busy || processing || reextract.isPending} disabled={disabled || !documents.length}>{t('documents.reextract')}</Button>
     {reextract.isError && <QueryError error={reextract.error} retry={retry} />}
   </Stack>
 }

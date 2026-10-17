@@ -1,9 +1,11 @@
-import { Alert, Badge, Button, FileButton, Group, Paper, Stack, Text } from '@mantine/core'
+import Button from '../ActionButton'
+import { Badge, FileButton, Group, Paper, Stack, Text } from '@mantine/core'
 import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { uploadDocumentMutation } from '../../client/@tanstack/react-query.gen'
+import { notifyWarning } from '../../notifications/notify'
 import { QueryError } from '../DataState'
 import { documentAccept, supportedFile, uploadMime } from './document-utils'
 import { refreshCaseResults, rememberJob } from './use-document-ingest'
@@ -17,7 +19,6 @@ function DocumentUploaderForm({ caseId, actorId, receivedAt, disabled = false }:
   const client = useQueryClient()
   const busy = useIsMutating() > 0
   const [files, setFiles] = useState<SelectedFile[]>([])
-  const [rejected, setRejected] = useState<string[]>([])
   const [sending, setSending] = useState(false)
   const nextId = useRef(0)
   const resetInput = useRef<() => void>(null)
@@ -28,11 +29,14 @@ function DocumentUploaderForm({ caseId, actorId, receivedAt, disabled = false }:
       await refreshCaseResults(client, caseId)
     },
   })
-  const blocked = disabled || busy || sending || !actorId || !caseId
+  const pending = busy || sending
+  const unavailable = disabled || !actorId || !caseId
+  const blocked = unavailable || pending
 
   function select(selected: File[]) {
     if (blocked) return
-    setRejected(selected.filter((file) => !supportedFile(file)).map((file) => file.name))
+    const invalid = selected.filter((file) => !supportedFile(file)).map((file) => file.name)
+    if (invalid.length > 0) notifyWarning(`document-files:${caseId}`, <Stack gap="xs"><Text size="sm">{t('documents.invalidFileHelp')}</Text>{invalid.map((name, index) => <Text size="sm" key={`${name}-${index}`} style={{ overflowWrap: 'anywhere' }}>{name}</Text>)}</Stack>)
     setFiles((current) => [...current, ...selected.filter(supportedFile).map((file): SelectedFile => ({ id: ++nextId.current, file, status: 'waiting' }))])
   }
 
@@ -63,19 +67,15 @@ function DocumentUploaderForm({ caseId, actorId, receivedAt, disabled = false }:
         <Text fw={600}>{t('documents.drop')}</Text>
         <Text size="sm" c="dimmed">{t('documents.formats')}</Text>
         <FileButton multiple accept={documentAccept} disabled={blocked} resetRef={resetInput} onChange={(selected) => { select(selected); resetInput.current?.() }} inputProps={{ 'aria-label': t('documents.choose') }}>
-          {(props) => <Button {...props} variant="outline" disabled={blocked}>{t('documents.choose')}</Button>}
+          {(props) => <Button {...props} variant="outline" pending={pending} disabled={unavailable}>{t('documents.choose')}</Button>}
         </FileButton>
       </Stack>
     </Paper>
-    {rejected.length > 0 && <Alert color="red" role="alert" title={t('documents.invalidFile')}>
-      <Text size="sm">{t('documents.invalidFileHelp')}</Text>
-      {rejected.map((name, index) => <Text size="sm" key={`${name}-${index}`}>{name}</Text>)}
-    </Alert>}
     {files.length > 0 && <Stack component="ul" gap="sm" m={0} pl={0} style={{ listStyle: 'none' }} aria-label={t('documents.selected')}>
       {files.map((entry) => <Paper component="li" withBorder p="sm" key={entry.id}>
         <Stack gap="xs"><Group justify="space-between" align="flex-start">
           <div><Text fw={600}>{entry.file.name}</Text><Text size="sm" c="dimmed">{new Intl.NumberFormat(i18n.language).format(entry.file.size)} {t('documents.bytes')}</Text></div>
-          <Button variant="subtle" size="compact-sm" disabled={sending || busy} aria-label={t('documents.removeNamed', { name: entry.file.name })}
+          <Button variant="subtle" size="compact-sm" pending={sending || busy} aria-label={t('documents.removeNamed', { name: entry.file.name })}
             onClick={() => setFiles((current) => current.filter((item) => item.id !== entry.id))}>{t('documents.remove')}</Button>
         </Group>
           <Group role="status"><Badge color={entry.status === 'failed' ? 'red' : entry.status === 'uploaded' ? 'green' : 'blue'} variant="light">{t(`documents.uploadStatus.${entry.status}`)}</Badge></Group>
@@ -83,7 +83,7 @@ function DocumentUploaderForm({ caseId, actorId, receivedAt, disabled = false }:
         </Stack>
       </Paper>)}
     </Stack>}
-    <Button onClick={() => { void send() }} loading={sending} disabled={blocked || !files.some((file) => file.status === 'waiting' || file.status === 'failed')}>
+    <Button onClick={() => { void send() }} pending={pending} disabled={unavailable || !sending && !files.some((file) => file.status === 'waiting' || file.status === 'failed')}>
       {t('documents.upload')}
     </Button>
   </Stack>

@@ -1,4 +1,6 @@
-import { Alert, Button, Group, Paper, SegmentedControl, Stack, Text, Title } from '@mantine/core'
+import Button from '../../../components/ActionButton'
+import { pendingControlProps } from '../../../components/pending-control'
+import { Alert, Group, Paper, SegmentedControl, Stack, Text, Title } from '@mantine/core'
 import { useIsMutating, type UseQueryResult } from '@tanstack/react-query'
 import { IconFileUpload, IconPencil } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -49,13 +51,13 @@ export default function ConclusionSection({ caseId, actorId, record, conclusion,
     return <Stack gap="sm">
       {notice}
       <Text size="sm">{t('mdt.conclusionIntro')}</Text>
-      <SegmentedControl aria-label={t('mdt.modeLabel')} value={mode} onChange={(value) => setMode(value === 'upload' ? 'upload' : 'write')} disabled={busy} maw={460}
+      <SegmentedControl aria-label={t('mdt.modeLabel')} value={mode} onChange={(value) => setMode(value === 'upload' ? 'upload' : 'write')} {...pendingControlProps(busy)} maw={460}
         data={[{ value: 'write', label: <Group gap={6} wrap="nowrap" justify="center"><IconPencil size={16} aria-hidden /><span>{t('mdt.modeWrite')}</span></Group> },
           { value: 'upload', label: <Group gap={6} wrap="nowrap" justify="center"><IconFileUpload size={16} aria-hidden /><span>{t('mdt.modeUpload')}</span></Group> }]} />
       <Text size="sm" c="dimmed">{t(mode === 'write' ? 'mdt.modeWriteHelp' : 'mdt.modeUploadHelp')}</Text>
       {mode === 'write'
         ? <WriteConclusion caseId={caseId} actorId={actorId} record={record} saved={() => close(true)} />
-        : <ConclusionUpload caseId={caseId} actorId={actorId} disabled={pending} />}
+        : <ConclusionUpload caseId={caseId} actorId={actorId} processing={pending} />}
       {progress}
     </Stack>
   }
@@ -69,14 +71,14 @@ export default function ConclusionSection({ caseId, actorId, record, conclusion,
       : <>
         <Group gap="xs"><Text size="sm" c="dimmed">{t('mdt.confirmation')}:</Text><StampView stamp={value.confirmed} /></Group>
         <Group gap="xs" align="flex-start">
-          {editable && <Button variant="outline" size="compact-sm" leftSection={<IconPencil size={14} aria-hidden />} disabled={busy || pending} onClick={() => { setSaved(false); setEditing('write') }}>{t('mdt.editConclusion')}</Button>}
-          {editable && <Button variant="subtle" size="compact-sm" leftSection={<IconFileUpload size={14} aria-hidden />} disabled={busy || pending} aria-expanded={editing === 'upload'} onClick={() => { setSaved(false); setEditing(editing === 'upload' ? null : 'upload') }}>{t('mdt.uploadOther')}</Button>}
+          {editable && <Button variant="outline" size="compact-sm" leftSection={<IconPencil size={14} aria-hidden />} pending={busy || pending} onClick={() => { setSaved(false); setEditing('write') }}>{t('mdt.editConclusion')}</Button>}
+          {editable && <Button variant="subtle" size="compact-sm" leftSection={<IconFileUpload size={14} aria-hidden />} pending={busy || pending} aria-expanded={editing === 'upload'} onClick={() => { setSaved(false); setEditing(editing === 'upload' ? null : 'upload') }}>{t('mdt.uploadOther')}</Button>}
           {value.document_id && <Button variant="subtle" size="compact-sm" disabled={!source} onClick={(event) => { if (value.document_id) sources.openSource({ documentId: value.document_id }, event.currentTarget) }}>{t('mdt.source')}</Button>}
           <PdfDownload caseId={caseId} actorId={actorId} kind="conclusion" />
         </Group>
         {source === false && <Alert color="orange" role="status">{t('mdt.noSource')}</Alert>}
         {editable && value.confirmed && <Text size="sm" c="dimmed">{t('mdt.correctionHelp')}</Text>}
-        {editing === 'upload' && <ConclusionUpload caseId={caseId} actorId={actorId} disabled={pending} />}
+        {editing === 'upload' && <ConclusionUpload caseId={caseId} actorId={actorId} processing={pending} />}
         <ConclusionView conclusion={value} />
       </>}
   </Stack>

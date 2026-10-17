@@ -62,6 +62,8 @@ Resets require confirmation and restore both the scenario and its time. They ret
 
 ## Verification and fixtures
 
+Shared error/warning toasts, concrete form summaries, safe API mapping and job-failure delivery are described in [Application notifications](../../docs/notifications.md). The system uses one Mantine notification host; error and warning messages have no timeout. Clinical findings and personal deadline notices remain their existing data views.
+
 ```bash
 npm --prefix apps/web test
 npm --prefix apps/web run build

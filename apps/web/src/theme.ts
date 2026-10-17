@@ -1,4 +1,5 @@
-import { createTheme } from '@mantine/core'
+import { Checkbox, CloseButton, Input, Menu, NumberInput, SegmentedControl, createTheme } from '@mantine/core'
+import pendingClasses from './components/PendingControl.module.css'
 
 export const theme = createTheme({
   primaryColor: 'blue',
@@ -11,4 +12,12 @@ export const theme = createTheme({
   defaultRadius: 'md',
   headings: { fontWeight: '650' },
   respectReducedMotion: true,
+  components: {
+    CloseButton: CloseButton.extend({ classNames: { root: pendingClasses.close } }),
+    Menu: Menu.extend({ classNames: { item: pendingClasses.menuItem } }),
+    Input: Input.extend({ classNames: { input: pendingClasses.input } }),
+    Checkbox: Checkbox.extend({ classNames: { root: pendingClasses.checkboxRoot, input: pendingClasses.checkbox, icon: pendingClasses.checkboxIcon, label: pendingClasses.checkboxLabel } }),
+    SegmentedControl: SegmentedControl.extend({ classNames: { root: pendingClasses.segmented, label: pendingClasses.segmentLabel } }),
+    NumberInput: NumberInput.extend({ classNames: { root: pendingClasses.numberRoot, control: pendingClasses.numberControl } }),
+  },
 })

@@ -1,12 +1,14 @@
-import { Alert, Badge, Button, Group, Paper, Stack, Text } from '@mantine/core'
+import Button from '../../../components/ActionButton'
+import { Badge, Group, Paper, Stack, Text } from '@mantine/core'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ApiError, actorHeaders } from '../../../api'
+import { actorHeaders } from '../../../api'
 import { getHandoverQueryKey, listCodeCandidatesOptions, pickDiagnosisCodeMutation } from '../../../client/@tanstack/react-query.gen'
 import type { Handover } from '../../../client/types.gen'
 import LoadingState, { EmptyState, QueryError } from '../../../components/DataState'
 import { refreshCaseResults } from '../../../components/documents/use-document-ingest'
+import { normalizeError } from '../../../notifications/normalize-error'
 import { useSession } from '../../../session'
 
 function Candidates({ caseId, actorId, saved }: { caseId: string; actorId: string; saved: () => void }) {
@@ -14,14 +16,16 @@ function Candidates({ caseId, actorId, saved }: { caseId: string; actorId: strin
   const [requested, setRequested] = useState(false)
   const options = { path: { case_id: caseId }, headers: actorHeaders(actorId) }
   const candidates = useQuery({ ...listCodeCandidatesOptions(options), enabled: requested })
-  const pick = useMutation({ ...pickDiagnosisCodeMutation(), onSuccess: async (handover) => {
-    saved()
-    client.setQueryData(getHandoverQueryKey(options), handover)
-    await refreshCaseResults(client, caseId)
-  } })
-  const stale = [candidates.error, pick.error].some((error) => error instanceof ApiError && (error.status === 400 || error.status === 409))
+  const pick = useMutation({
+    ...pickDiagnosisCodeMutation(), onSuccess: async (handover) => {
+      saved()
+      client.setQueryData(getHandoverQueryKey(options), handover)
+      await refreshCaseResults(client, caseId)
+    }
+  })
+  const stale = [candidates.error, pick.error].some((error) => ['staleCodes', 'codeExists'].includes(normalizeError(error).code))
   return <Stack gap="xs">
-    <Group><Button variant="subtle" size="compact-sm" disabled={busy} loading={candidates.isFetching} onClick={() => {
+    <Group><Button variant="subtle" size="compact-sm" pending={busy || candidates.isFetching}  onClick={() => {
       setRequested(true)
       if (requested) { pick.reset(); void candidates.refetch() }
     }}>{t('s8.suggest')}</Button></Group>
@@ -29,13 +33,13 @@ function Candidates({ caseId, actorId, saved }: { caseId: string; actorId: strin
       <Text size="sm" fw={600}>{t('s8.candidates')}</Text>
       <Text size="xs" c="dimmed">{t('s8.candidateHelp')}</Text>
       {candidates.isPending && <LoadingState />}
-      {stale ? <Alert color="orange" role="alert"><Stack gap="xs"><Text size="sm">{t('s8.stale')}</Text><Button size="compact-sm" variant="outline" onClick={() => { pick.reset(); void refreshCaseResults(client, caseId) }}>{t('s8.refresh')}</Button></Stack></Alert>
+      {stale ? <Button size="compact-sm" variant="outline" onClick={() => { pick.reset(); void refreshCaseResults(client, caseId) }}>{t('s8.refresh')}</Button>
         : <>{candidates.isError && <QueryError error={candidates.error} retry={() => { void candidates.refetch() }} />}{pick.isError && <QueryError error={pick.error} />}</>}
       {candidates.isSuccess && !stale && !candidates.data.length && <EmptyState title={t('s8.noCandidates')} />}
       {candidates.isSuccess && !stale && candidates.data.map((candidate) => <Paper withBorder p="xs" key={candidate.code}>
         <Stack gap={6}><Group gap="xs"><Text fw={600} size="sm">{candidate.code}</Text><Badge size="xs" color="violet" variant="light">{t('caseDetail.ai')}</Badge></Group>
           <Text size="sm">{candidate.title_cs}</Text>
-          <Group><Button size="compact-sm" variant="outline" disabled={busy || candidates.isFetching} loading={pick.isPending && pick.variables?.body.code === candidate.code}
+          <Group><Button size="compact-sm" variant="outline" pending={busy || candidates.isFetching || pick.isPending && pick.variables?.body.code === candidate.code}
             onClick={() => pick.mutate({ ...options, body: { code: candidate.code } })}>{t('s8.useCode', { code: candidate.code })}</Button></Group>
         </Stack>
       </Paper>)}

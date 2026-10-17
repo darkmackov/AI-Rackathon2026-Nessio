@@ -1,0 +1,80 @@
+.button[data-pending]:disabled {
+  background: var(--button-bg, var(--mantine-primary-color-filled));
+  color: var(--button-color, var(--mantine-color-white));
+  border: var(--button-bd, calc(0.0625rem * var(--mantine-scale)) solid transparent);
+  cursor: default;
+}
+
+.icon[data-pending]:disabled {
+  background: var(--ai-bg, var(--mantine-primary-color-filled));
+  color: var(--ai-color, var(--mantine-color-white));
+  border: var(--ai-bd, calc(0.0625rem * var(--mantine-scale)) solid transparent);
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .button[data-pending]:disabled:hover {
+    background: var(--button-hover, var(--mantine-primary-color-filled-hover));
+    color: var(--button-hover-color, var(--button-color));
+  }
+  .icon[data-pending]:disabled:hover {
+    background: var(--ai-hover, var(--mantine-primary-color-filled-hover));
+    color: var(--ai-hover-color, var(--ai-color));
+  }
+}
+
+.close[data-pending]:disabled,
+.menuItem[data-pending]:is(:disabled, [data-disabled]) {
+  opacity: 1;
+  cursor: default;
+}
+
+.menuItem[data-pending]:is(:disabled, [data-disabled]) {
+  color: var(--menu-item-color, var(--mantine-color-text));
+}
+
+.input[data-pending]:disabled {
+  opacity: 1;
+  background-color: var(--input-bg);
+  color: var(--input-color);
+  cursor: default;
+}
+
+.checkbox[data-pending]:disabled {
+  background-color: var(--mantine-color-white);
+  border-color: var(--mantine-color-gray-4);
+  color: var(--mantine-color-text);
+  cursor: default;
+}
+
+.checkbox[data-pending]:disabled:is(:checked, [data-indeterminate]) {
+  background-color: var(--checkbox-color);
+  border-color: var(--checkbox-color);
+}
+
+.checkbox[data-pending]:disabled + .checkboxIcon {
+  color: var(--checkbox-icon-color);
+}
+
+.checkbox[data-pending][data-with-error-styles][data-error]:not(:checked) {
+  border-color: var(--mantine-color-error);
+}
+
+.checkboxRoot:has(.checkbox[data-pending]) .checkboxLabel {
+  color: inherit;
+}
+
+.segmented[data-pending] .segmentLabel {
+  color: var(--mantine-color-gray-7);
+  cursor: default;
+}
+
+.segmented[data-pending] input:checked + .segmentLabel {
+  color: var(--sc-label-color, var(--mantine-color-black));
+}
+
+.numberRoot:has([data-pending]) .numberControl:disabled {
+  opacity: 1;
+  color: var(--mantine-color-text);
+  cursor: default;
+}

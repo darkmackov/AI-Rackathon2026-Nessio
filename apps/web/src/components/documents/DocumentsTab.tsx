@@ -1,4 +1,6 @@
-import { Alert, Badge, Button, Drawer, Group, Stack, Table, Text, Title } from '@mantine/core'
+import { pendingControlProps } from '../pending-control'
+import { Alert, Badge, Drawer, Group, Stack, Table, Text, Title } from '@mantine/core'
+import Button from '../ActionButton'
 import { useIsMutating, useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -24,8 +26,8 @@ export function DownloadOriginal({ document }: { document: DocumentMeta }) {
     return result.data
   }} />
 }
-function DocumentTable({ item, documents, names, openSource, onEdit, editDisabled }: {
-  item: Case; documents: DocumentMeta[]; names: Record<string, string>; openSource: OpenSource; onEdit: (id: string) => void; editDisabled: boolean;
+function DocumentTable({ item, documents, names, openSource, onEdit, editDisabled, pending }: {
+  item: Case; documents: DocumentMeta[]; names: Record<string, string>; openSource: OpenSource; onEdit: (id: string) => void; editDisabled: boolean; pending: boolean;
 }) {
   const { t, i18n } = useTranslation()
   const sorted = [...documents].sort((a, b) => (a.document_date ?? '9999').localeCompare(b.document_date ?? '9999') || a.filename.localeCompare(b.filename))
@@ -52,7 +54,7 @@ function DocumentTable({ item, documents, names, openSource, onEdit, editDisable
       <Table.Td><Stack gap={4} align="flex-start">
         <Button variant="subtle" size="compact-sm" onClick={(event) => openSource({ documentId: document.id }, event.currentTarget)}>{t('caseDetail.showText')}</Button>
         <DownloadOriginal document={document} />
-        <Button variant="subtle" size="compact-sm" disabled={editDisabled} onClick={() => onEdit(document.id)}>{t('documents.edit')}</Button>
+        <Button variant="subtle" size="compact-sm" pending={pending} disabled={editDisabled} onClick={() => onEdit(document.id)}>{t('documents.edit')}</Button>
       </Stack></Table.Td>
     </Table.Tr>)}
   </Table.Tbody></Table></Table.ScrollContainer>
@@ -73,16 +75,16 @@ export default function DocumentsTab({ item, names, openSource, readOnly = false
       <Title order={2} size="h4" id={uploadHeading}>{t('documents.uploadTitle')}</Title>
       <DocumentUploader caseId={item.id} actorId={actor} />
     </Stack>}
-    <DocumentJobs caseId={item.id} actorId={actor} documents={documents.data ?? []} disabled={busy || readOnly} />
+    <DocumentJobs caseId={item.id} actorId={actor} documents={documents.data ?? []} disabled={readOnly} />
     <Stack component="section" aria-labelledby={listHeading} gap="sm">
       <Title order={2} size="h4" id={listHeading}>{t('documents.list')}</Title>
       {documents.isPending && <LoadingState rows={5} />}
       {documents.isError && <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} />}
       {documents.isSuccess && !documents.data.length && <EmptyState title={t('documents.empty')} description={t('documents.emptyHelp')} />}
-      {documents.isSuccess && documents.data.length > 0 && <DocumentTable item={item} documents={documents.data} names={names} openSource={openSource} onEdit={setEditingId} editDisabled={busy || readOnly} />}
+      {documents.isSuccess && documents.data.length > 0 && <DocumentTable item={item} documents={documents.data} names={names} openSource={openSource} onEdit={setEditingId} editDisabled={readOnly} pending={busy} />}
     </Stack>
     <Drawer opened={!!editing && !readOnly} onClose={() => { if (!busy) setEditingId(null) }} title={t('documents.edit')} position="right" size="md"
-      closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+      closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {editing && !readOnly && <DocumentMetadataForm key={editing.id} document={editing} caseId={item.id} actorId={actor} onClose={() => setEditingId(null)} />}
     </Drawer>
   </Stack>

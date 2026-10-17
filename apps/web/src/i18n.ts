@@ -8,9 +8,11 @@ import { referralCs, referralEn } from './screens/Referral/translations'
 import { mdtCs, mdtEn } from './screens/CaseDetail/Mdt/translations'
 import { messagesCs, messagesEn } from './components/messages/translations'
 import { s8Cs, s8En } from './screens/CaseDetail/S8/translations'
+import { noticesCs, noticesEn } from './notifications/translations'
 
 export const resources = {
   cs: { translation: {
+    notices: noticesCs,
     s8: s8Cs,
     messages: messagesCs,
     mdt: mdtCs,
@@ -56,6 +58,7 @@ export const resources = {
     notFound: 'Stránka nebyla nalezena', notFoundDescription: 'Tato adresa v aplikaci neexistuje.', home: 'Přejít na úvod',
   } },
   en: { translation: {
+    notices: noticesEn,
     s8: s8En,
     messages: messagesEn,
     mdt: mdtEn,

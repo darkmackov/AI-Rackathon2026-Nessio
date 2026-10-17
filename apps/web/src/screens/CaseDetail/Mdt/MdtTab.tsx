@@ -1,9 +1,11 @@
-import { Accordion, Alert, Badge, Button, Group, Modal, Stack, Text } from '@mantine/core'
+import Button from '../../../components/ActionButton'
+import { pendingControlProps } from '../../../components/pending-control'
+import { Accordion, Badge, Group, Modal, Stack, Text } from '@mantine/core'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconAlertTriangle, IconCircleCheck, IconCircleDashed, IconLock } from '@tabler/icons-react'
 import { useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ApiError, actorHeaders } from '../../../api'
+import { actorHeaders } from '../../../api'
 import { confirmMdtConclusionMutation, getMdtConclusionOptions, getMdtRecordOptions, listCaseJobsOptions } from '../../../client/@tanstack/react-query.gen'
 import type { Case, DocumentMeta, Handover } from '../../../client/types.gen'
 import { QueryError } from '../../../components/DataState'
@@ -18,8 +20,6 @@ import PreparationSection from './PreparationSection'
 import RecordSection from './RecordSection'
 import { loaded } from './loaded'
 import { mdtStage, openSections, preparationStates, type MdtSection, type MdtStage } from './mdt-progress'
-
-const conflict = (error: unknown) => error instanceof ApiError && error.status === 409
 
 function SectionTitle({ title, status }: { title: string; status?: ReactNode }) {
   return <Group gap="sm" wrap="wrap"><Text fw={650}>{title}</Text>{status}</Group>
@@ -66,7 +66,7 @@ export default function MdtTab({ item, handover, documents, names, sources, show
 
   return <Stack component="section" aria-label={t('mdt.title')} gap="md">
     <MdtProgress stage={stage} />
-    {settled && <NextStep stage={stage} feedback={feedback} disabled={busy || !jobs.isSuccess || !conclusion.isSuccess} pending={pending}
+    {settled && <NextStep stage={stage} feedback={feedback} disabled={!jobs.isSuccess || !conclusion.isSuccess} pending={pending || busy}
       goSnapshot={() => reveal('record')} goConclusion={() => reveal('conclusion')} goSend={showCommunication} confirm={() => { confirmMutation.reset(); setConfirm(true) }} />}
     <Accordion multiple variant="separated" order={2} chevronPosition="left" value={value} onChange={(next) => setOpened({ stage, value: next })}>
       {pre && <Accordion.Item value="preparation">
@@ -82,9 +82,9 @@ export default function MdtTab({ item, handover, documents, names, sources, show
         <Accordion.Panel><ConclusionSection caseId={item.id} actorId={actor} record={record.data} conclusion={conclusionState} retry={() => { void conclusion.refetch() }} jobs={jobs} ingest={ingest} pending={pending} editable={conclusionOpen} documents={documents} sources={sources} /></Accordion.Panel>
       </Accordion.Item>}
     </Accordion>
-    <Modal opened={confirm} onClose={() => { if (!busy) setConfirm(false) }} title={t('mdt.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
-      <Stack><Text>{t('mdt.confirmHelp')}</Text>{confirmMutation.isError && (conflict(confirmMutation.error) ? <Alert color="orange" role="alert">{t('mdt.confirmIncomplete')}</Alert> : <QueryError error={confirmMutation.error} />)}
-        <Group><Button loading={confirmMutation.isPending} disabled={busy || pending} onClick={() => confirmMutation.mutate(options)}>{t('mdt.confirm')}</Button><Button variant="default" disabled={busy} onClick={() => setConfirm(false)}>{t('cancel')}</Button></Group>
+    <Modal opened={confirm} onClose={() => { if (!busy) setConfirm(false) }} title={t('mdt.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
+      <Stack><Text>{t('mdt.confirmHelp')}</Text>{confirmMutation.isError && <QueryError error={confirmMutation.error} />}
+        <Group><Button pending={busy || pending || confirmMutation.isPending} onClick={() => confirmMutation.mutate(options)}>{t('mdt.confirm')}</Button><Button variant="default" pending={busy} onClick={() => setConfirm(false)}>{t('cancel')}</Button></Group>
       </Stack>
     </Modal>
   </Stack>

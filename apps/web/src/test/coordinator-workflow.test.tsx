@@ -108,7 +108,7 @@ describe('S4 coordinator screens', () => {
   })
 
   it('keeps a task draft after an API error, retries, and returns focus when a dialog closes on Escape', async () => {
-    renderApp(); const user = userEvent.setup(); await openNewCase(user)
+    renderApp('/', { notifications: true }); const user = userEvent.setup(); await openNewCase(user)
     await openTab(user, 'Úkoly')
     const trigger = screen.getByRole('button', { name: 'Přidat úkol' })
     await user.click(trigger)
@@ -120,7 +120,8 @@ describe('S4 coordinator screens', () => {
     await user.type(form.getByLabelText(/^Název/), 'Zachovaný koncept úkolu')
     server.use(http.post('*/api/cases/:caseId/tasks', () => HttpResponse.json({ detail: 'temporary failure' }, { status: 500 }), { once: true }))
     await user.click(form.getByRole('button', { name: 'Uložit' }))
-    expect(await form.findByRole('alert')).toBeVisible()
+    expect(await screen.findByText('Při zpracování požadavku nastala chyba. Zkuste to znovu.')).toBeVisible()
+    expect(form.getByRole('button', { name: 'Uložit' }).closest('[data-notification]')).toBeNull()
     expect(form.getByLabelText(/^Název/)).toHaveValue('Zachovaný koncept úkolu')
     await save(user)
     expect(await within(screen.getByRole('tabpanel', { name: 'Úkoly' })).findByText('Zachovaný koncept úkolu')).toBeVisible()

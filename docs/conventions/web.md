@@ -73,6 +73,8 @@ apps/web/src/
 | WEB-16 | Every UI string goes through i18next; initial language is Czech, English can be selected. **Data stays Czech** (Q-A6). Translate labels, not clinical content, names or source notes. Language changes update `html[lang]` and date formatting without resetting drafts. |
 | WEB-17 | Styling uses Mantine's theme and style props. Global CSS is reserved for page background, structural header styling, focus, skip link and reduced motion. |
 | WEB-18 | Before finishing: `npm --prefix apps/web run build` and `npm --prefix apps/web run lint` pass. |
+| WEB-21 | Use the shared notification service in event handlers and operation callbacks, never render. Query/Mutation caches own HTTP failure notifications; job polling handles terminal `failed` data. Never install a second toast system or display raw `detail` / `Job.error`. See [notifications.md](../notifications.md). |
+| WEB-22 | Pending actions use `ActionButton` / `ActionIconButton` and `pendingControlProps`. Keep button text, icons, size and colours stable; never use a button loading spinner or overlay. Keep interaction locks, business-disabled states and the shared floating progress status. Background refreshes preserve existing content. |
 
 ## S0 boundaries
 

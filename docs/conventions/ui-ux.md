@@ -29,9 +29,11 @@ Accessibility target: **WCAG 2.2 level AA** (Q-W5).
 |---|---|
 | UX-10 | Every data view has four designed states: **loading** (skeleton or `role="status"` text), **error** (what failed plus a retry), **empty** (what it means plus the next action), and **success**. |
 | UX-20 | Slow AI work (uploads, extraction, drafts) shows its `Job` progress and keeps the rest of the screen usable. A failed job says what failed and offers a retry. |
-| UX-11 | Every user action gives visible feedback: a pending state on the control while it runs, then success or an error message next to where the user acted. |
+| UX-11 | Every user action gives visible feedback: while it runs, controls keep their appearance and prevent repeat actions, with one floating progress status outside the page layout. Never hide button text or icons behind a spinner. Success or an error follows where the user acted. |
 | UX-12 | Forms validate on submit and on blur, not on every keystroke. Errors appear next to the field in text, and the summary receives focus. |
 | UX-13 | Never make users retype data the app already has (the brief's core problem, WCAG 3.3.7). Prefill from the handover and the API models. |
+| UX-21 | Technical failures and invalid-submit warnings use the shared top floating Mantine notifications (Q-W18). Errors and warnings never time out; the user closes them. Preserve local field errors, page retry states and clinical findings. See [notifications.md](../notifications.md). |
+| UX-22 | Validation summaries name every actually invalid field, including collection row numbers. A generic message must not replace known field names or a known business prerequisite. Never display arbitrary server exception text. |
 
 ## Layout and content
 

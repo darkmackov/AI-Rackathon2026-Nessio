@@ -30,10 +30,10 @@ describe('coordinator work queue', () => {
 
   it('keeps a loaded case visible when directory name resolution fails', async () => {
     server.use(http.get('*/api/directory/organizations', () => HttpResponse.json({ detail: 'unavailable' }, { status: 500 })))
-    renderApp()
+    renderApp('/', { notifications: true })
     const user = userEvent.setup()
     await signIn(user)
     expect(await screen.findByRole('link', { name: 'Alena Procházková' })).toBeVisible()
-    expect(screen.getAllByRole('alert').length).toBeGreaterThan(0)
+    expect(await screen.findByText('Při zpracování požadavku nastala chyba. Zkuste to znovu.')).toBeVisible()
   })
 })

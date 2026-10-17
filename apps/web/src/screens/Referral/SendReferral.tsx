@@ -1,4 +1,6 @@
-import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core'
+import { pendingControlProps } from '../../components/pending-control'
+import Button from '../../components/ActionButton'
+import { Group, Modal, Stack, Text } from '@mantine/core'
 import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -37,12 +39,12 @@ export default function SendReferral({ caseId, actorId, koc, disabled, sent }: {
   }
   const error = stage === 'validate' ? validate.error : send.error
   return <>
-    <Button onClick={() => { validate.reset(); send.reset(); setOpened(true) }} disabled={disabled || busy}>{t('referral.send')}</Button>
-    <Modal opened={opened} onClose={() => { if (!busy) setOpened(false) }} title={t('referral.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+    <Button onClick={() => { validate.reset(); send.reset(); setOpened(true) }} pending={busy} disabled={disabled}>{t('referral.send')}</Button>
+    <Modal opened={opened} onClose={() => { if (!busy) setOpened(false) }} title={t('referral.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       <Stack>
         <Text>{t('referral.confirmText', { koc })}</Text>
-        {error && <><Alert color="red" role="alert">{t(stage === 'validate' ? 'referral.validateError' : 'referral.sendError')}</Alert><QueryError error={error} /></>}
-        <Group><Button onClick={submit} loading={validate.isPending} disabled={busy || disabled}>{t('referral.send')}</Button><Button variant="default" onClick={() => setOpened(false)} disabled={busy}>{t('cancel')}</Button></Group>
+        {error && <Stack gap="xs"><Text fw={600} size="sm">{t(stage === 'validate' ? 'referral.validateError' : 'referral.sendError')}</Text><QueryError error={error} /></Stack>}
+        <Group><Button onClick={submit} pending={busy || validate.isPending} disabled={disabled}>{t('referral.send')}</Button><Button variant="default" onClick={() => setOpened(false)} pending={busy}>{t('cancel')}</Button></Group>
       </Stack>
     </Modal>
   </>

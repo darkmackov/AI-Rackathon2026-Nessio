@@ -1,3 +1,4 @@
+import { pendingControlProps } from './pending-control'
 import { Box, Menu, UnstyledButton } from '@mantine/core'
 import { useIsMutating } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -29,7 +30,7 @@ export default function UserMenu({ actor, onLeave }: { actor: Actor; onLeave: ()
       <Box p="sm"><PersonDetails person={{ actor, organization: organization(actor.organization_id) }} /></Box>
       {organizations.isError && <Box px="sm" pb="sm"><QueryError error={organizations.error} pending={organizations.isFetching} retry={() => { void organizations.refetch() }} /></Box>}
       <Menu.Divider />
-      <Menu.Item leftSection={<IconSwitchHorizontal size={16} aria-hidden />} disabled={busy} onClick={async () => {
+      <Menu.Item leftSection={<IconSwitchHorizontal size={16} aria-hidden />} {...pendingControlProps(busy)} onClick={async () => {
         onLeave()
         await session.leaveIdentity()
         await navigate({ to: '/', replace: true })
