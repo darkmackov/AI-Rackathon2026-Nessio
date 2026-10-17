@@ -208,3 +208,4 @@ class CheckContext:
     extractions: list[Extraction]
     as_of: dt.date
     prior: list[Finding] = field(default_factory=list)  # findings of the checks that ran before
+    previous: list[Finding] = field(default_factory=list)  # the case's findings from the last run

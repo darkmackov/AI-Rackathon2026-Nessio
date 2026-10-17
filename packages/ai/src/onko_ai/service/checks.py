@@ -546,7 +546,8 @@ class ClinicalReviewCheck:
             exam.pop("evidence", None)
         payload = {
             "handover": handover,
-            "problems_already_found": [f.message_cs for f in ctx.prior],
+            "problems_already_found": [f.message_cs for f in ctx.prior]
+            + [f.message_cs for f in ctx.previous if _human(f)],
             "documents": {i: d.text for i, d in docs.items()},
         }
         review = self.gateway.complete(
@@ -611,21 +612,46 @@ def check(ctx: CheckContext, checks: list[Check]) -> list[Finding]:
     return list(unique.values())
 
 
+def _human(f: Finding) -> bool:
+    return f.resolution is not None and f.resolution.by != AUTO
+
+
+def _same_problem(old: Finding, new: Finding) -> bool:
+    """Same kind, same fields and the same cited documents (or no evidence on either side)."""
+    if old.kind is not new.kind or sorted(old.fields) != sorted(new.fields):
+        return False
+    a = {e.document_id for e in old.evidence}
+    b = {e.document_id for e in new.evidence}
+    return bool(a & b) or not (a or b)
+
+
 def reconcile_findings(
     previous: list[Finding], current: list[Finding], now: dt.datetime
 ) -> list[Finding]:
     """Keep people's resolutions across re-runs; a previous open finding that no longer appears
-    is marked resolved (e.g. the cited report got uploaded)."""
+    is marked resolved (e.g. the cited report got uploaded).
+
+    A resolution carries over by id, or onto a new finding whose id drifted with the model's
+    output (`_same_problem`, Q-C14); each new finding takes at most one."""
     before = {f.id: f for f in previous}
     out = []
     for f in current:
         old = before.get(f.id)
-        if old is not None and old.resolution is not None and old.resolution.by != AUTO:
+        if old is not None and _human(old):
             f = f.model_copy(update={"resolved": old.resolved, "resolution": old.resolution})
         out.append(f)
     ids = {f.id for f in current}
+    carried = set()
     for old in previous:
-        if old.id in ids:
+        if old.id in ids or not _human(old):
+            continue
+        for i, f in enumerate(out):
+            if f.resolution is None and f.id not in before and _same_problem(old, f):
+                out[i] = f.model_copy(update={"resolved": old.resolved, "resolution": old.resolution})
+                carried.add(old.id)
+                break
+    for old in previous:
+        if old.id in ids or old.id in carried:
             continue
         if not old.resolved:
             old = old.model_copy(

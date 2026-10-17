@@ -84,7 +84,8 @@ Given the structured handover (JSON) and the problems already found, list at mos
 important issues a coordinator should look at that are NOT already in the problems list. Look
 especially for an abnormal finding that persists or worsens across documents (in labs, imaging or
 symptoms) while no intervention or treatment for it is documented. Do not repeat missing fields, date
-errors or trends already listed. Be conservative: no speculation, no treatment advice.
+errors or trends already listed. The list also holds problems the coordinator has already closed or
+dismissed: never raise those again, not even in other words. Be conservative: no speculation, no treatment advice.
 Each note: message_cs (one Czech sentence), fields (handover paths from: {paths}), quotes (document_id + verbatim
 quote from the documents provided). Return an empty list if nothing important stands out.
 """
