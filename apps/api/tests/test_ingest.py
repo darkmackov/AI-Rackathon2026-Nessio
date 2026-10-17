@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -95,3 +96,22 @@ def test_reextract_queues_a_case_job(client):
     assert client.get(f"/jobs/{r.json()['id']}").json()["status"] == "done"
     assert client.get("/jobs/nope").status_code == 404
     assert client.post("/cases/nope/extract", headers=GP).status_code == 404
+
+
+def test_uploading_a_copy_warns_about_the_duplicate_but_stores_it(client):
+    seeded = next(d for d in client.get(f"/cases/{CASE}/documents").json()
+                  if d["filename"] == REFERRAL.name)
+    r = _upload(client, name="kopie.docx")
+    assert r.status_code == 201  # a warning, never a refusal (Q-I22)
+    [dup] = r.json()["duplicates"]
+    assert dup == {"document_id": seeded["id"], "filename": REFERRAL.name, "kind": "exact",
+                   "similarity": 1.0}
+    doc = r.json()["document"]
+    assert doc["sha256"] == hashlib.sha256(REFERRAL.read_bytes()).hexdigest()
+    assert any(d["id"] == doc["id"] for d in client.get(f"/cases/{CASE}/documents").json())
+
+
+def test_a_new_report_has_no_duplicates(client):
+    later = ROOT / "data/cesta-pacienta-data/Pacient/12_Algeziologie_2026-10-26.docx"
+    r = _upload(client, name=later.name, data=later.read_bytes())
+    assert r.status_code == 201 and r.json()["duplicates"] == []

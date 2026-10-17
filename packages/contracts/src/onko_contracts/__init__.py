@@ -18,16 +18,19 @@ from .cases import (
 )
 from .common import Actor, Evidence, FieldStatus, Origin, Sourced, Stamp
 from .directory import Organization, OrganizationKind
-from .documents import DocumentMeta, DocumentType, ParsedDocument
+from .documents import DocumentMeta, DocumentType, DuplicateKind, DuplicateMatch, ParsedDocument
 from .findings import Finding, FindingKind, Resolution, ResolutionKind, Severity, SuggestedAction
 from .handover import (
     HANDOVER_SCHEMA_VERSION,
+    Comparator,
     Contacts,
     Examination,
     Handover,
     LabPanel,
     LabValue,
     PatientDetails,
+    PerformanceScale,
+    PerformanceScore,
 )
 from .jobs import TEXT_DRAFTS, DraftKind, DraftResult, Job, JobKind, JobStatus
 from .mdt import (
@@ -41,6 +44,7 @@ from .mdt import (
 )
 from .messaging import Channel, DueNotice, Message, MessageKind, Receipt
 from .search import CaseAnswer, CodeCandidate, DocChunk
+from .text import MatchText, match_text
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
@@ -54,6 +58,7 @@ __all__ = [
     "CaseState",
     "Channel",
     "CodeCandidate",
+    "Comparator",
     "ConclusionPrefill",
     "ConclusionSource",
     "Contacts",
@@ -63,6 +68,8 @@ __all__ = [
     "DraftKind",
     "DraftResult",
     "DueNotice",
+    "DuplicateKind",
+    "DuplicateMatch",
     "Evidence",
     "Examination",
     "FieldStatus",
@@ -74,6 +81,7 @@ __all__ = [
     "JobStatus",
     "LabPanel",
     "LabValue",
+    "MatchText",
     "MdtBoard",
     "MdtConclusion",
     "MdtMember",
@@ -88,6 +96,8 @@ __all__ = [
     "Origin",
     "ParsedDocument",
     "PatientDetails",
+    "PerformanceScale",
+    "PerformanceScore",
     "Priority",
     "QueueColumn",
     "Receipt",
@@ -102,4 +112,5 @@ __all__ = [
     "TaskStatus",
     "TaskTemplate",
     "TimeToTreatment",
+    "match_text",
 ]

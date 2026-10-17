@@ -5,6 +5,7 @@ description = "Upload, parsing (docx/pdf) and PDF rendering of clinical document
 requires-python = ">=3.11"
 dependencies = [
     "onko-contracts",
+    "onko-repository",
     "pypdf>=6.21.0",
     "typst>=0.15.0",
 ]

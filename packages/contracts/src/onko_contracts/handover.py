@@ -7,12 +7,34 @@ Every leaf value is `Sourced`, so the UI can show its source, status and a "Dopl
 from __future__ import annotations
 
 import datetime as dt
+from enum import StrEnum
 
 from pydantic import Field
 
 from .common import Evidence, Model, Origin, Sourced, Stamp
 
-HANDOVER_SCHEMA_VERSION = "1"
+HANDOVER_SCHEMA_VERSION = "2"  # 2: normalized lab values and performance score (Q-C13)
+
+
+class Comparator(StrEnum):
+    """A comparator printed before a lab number, e.g. `< 0,5`."""
+
+    LT = "<"
+    LE = "<="
+    GT = ">"
+    GE = ">="
+
+
+class PerformanceScale(StrEnum):
+    ECOG = "ecog"  # also printed as WHO / Zubrod performance status, 0-5
+    KARNOFSKY = "karnofsky"  # 0-100 %
+
+
+class PerformanceScore(Model):
+    """`performance_status` as scale + score (Q-C13)."""
+
+    scale: PerformanceScale
+    score: int
 
 
 class PatientDetails(Model):
@@ -52,11 +74,17 @@ class Examination(Model):
 
 
 class LabValue(Model):
+    """`value` and `unit` stay as printed; `number`, `comparator` and `ucum` are computed next to
+    them by deterministic code (Q-C13), None when they can't be (a qualitative or unparsed value)."""
+
     name: str
     value: str
     unit: str | None = None
     reference_range: str | None = None
     flag: str | None = Field(default=None, description="H / L as printed by the lab")
+    number: float | None = Field(default=None, description="`value` as a number (decimal comma read)")
+    comparator: Comparator | None = Field(default=None, description="Printed before the number")
+    ucum: str | None = Field(default=None, description="`unit` as a UCUM code, e.g. 'mmol/L'")
 
 
 class LabPanel(Model):
@@ -92,6 +120,11 @@ class Handover(Model):
     medications: Sourced[list[str]] = Field(default_factory=Sourced, description="FA")
     allergies: Sourced[str] = Field(default_factory=Sourced, description="AA")
     performance_status: Sourced[str] = Field(default_factory=Sourced, description="ECOG / Karnofsky")
+    performance_score: PerformanceScore | None = Field(
+        default=None,
+        description="`performance_status` read as scale + score by deterministic code (Q-C13); "
+        "None while it is missing or can't be read",
+    )
     weight_kg: Sourced[float] = Field(default_factory=Sourced)
     height_cm: Sourced[float] = Field(default_factory=Sourced)
     symptoms: Sourced[str] = Field(default_factory=Sourced, description="Symptoms and their onset")

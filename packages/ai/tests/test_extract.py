@@ -86,11 +86,11 @@ def test_a_value_whose_quote_is_not_verbatim_is_dropped():
 
 
 def test_sex_is_derived_from_the_birth_number_when_not_stated():
-    doc = make_doc("a", "RČ: 705402/1234", D1)
+    doc = make_doc("a", "RČ: 705402/1238", D1)
     h = merge(
         "c",
         D3,
-        [Extraction(doc, out(claim(FieldPath.BIRTH_NUMBER, "705402/1234", "RČ: 705402/1234")))],
+        [Extraction(doc, out(claim(FieldPath.BIRTH_NUMBER, "705402/1238", "RČ: 705402/1238")))],
     )
     assert h.patient.sex.value == "žena"
     assert h.patient.sex.note

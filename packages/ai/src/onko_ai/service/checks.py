@@ -15,6 +15,7 @@ from onko_contracts import (
     Finding,
     FindingKind,
     Handover,
+    Origin,
     Resolution,
     ResolutionKind,
     Severity,
@@ -32,7 +33,7 @@ from ..models import (
     ReferenceMatches,
 )
 from ..ports import Check
-from . import prompts
+from . import normalize, prompts
 from .extract import birth_number_facts, norm, parse_date, parse_number, verified
 from .quotes import evidence
 
@@ -318,6 +319,11 @@ class UnattachedReferences:
         return out
 
 
+def _digits(value: object) -> str:
+    """RČ compared on its digits: `800101/1234` and `8001011234` are the same number."""
+    return re.sub(r"\D", "", str(value or ""))
+
+
 def _age(birth: dt.date, on: dt.date) -> int:
     return on.year - birth.year - ((on.month, on.day) < (birth.month, birth.day))
 
@@ -341,7 +347,7 @@ class Identity:
                 if not ev:
                     continue
                 problem = None
-                if claim.path is FieldPath.BIRTH_NUMBER and norm(claim.value) != norm(rc.value):
+                if claim.path is FieldPath.BIRTH_NUMBER and _digits(claim.value) != _digits(rc.value):
                     problem = f"rodné číslo {claim.value} se liší od {rc.value}"
                 elif claim.path is FieldPath.BIRTH_DATE and parse_date(claim.value) not in (
                     None,
@@ -457,6 +463,65 @@ class Trends:
         ]
 
 
+class Normalization:
+    """Values deterministic code could not normalize (Q-C13), and a rodné číslo whose check digit
+    fails. AI values only: they stay as printed, a person decides."""
+
+    id = "normalized"
+
+    def run(self, ctx: CheckContext) -> list[Finding]:
+        h = ctx.handover
+        out = []
+        for path, canonical in normalize.IDENTIFIERS.items():
+            sourced = get(h, path)
+            if not self._ai_value(sourced):
+                continue
+            value = canonical(str(sourced.value))
+            if value is None:
+                out.append(self._finding(path, f"{LABELS.get(path, path)}: '{sourced.value}' nemá "
+                                         "očekávaný tvar, ponecháno jak je v podkladu.", sourced.evidence))
+            elif path == "patient.birth_number" and not normalize.birth_number_valid(value):
+                out.append(Finding(
+                    id="identity:birth_number:check_digit",
+                    kind=FindingKind.IDENTITY,
+                    severity=Severity.WARNING,
+                    fields=[path],
+                    message_cs=f"Rodné číslo {sourced.value} neprošlo kontrolou kontrolní číslice. "
+                    "Ověřit totožnost / opravit údaj.",
+                    evidence=sourced.evidence,
+                    suggested_action=SuggestedAction.REVIEW,
+                ))
+        ps = h.performance_status
+        if self._ai_value(ps) and h.performance_score is None:
+            out.append(self._finding("performance_status", f"Stav výkonnosti '{ps.value}' nelze "
+                                     "převést na jedno skóre ECOG / Karnofsky.", ps.evidence))
+        labs = [(panel, v) for panel in h.labs if panel.origin is Origin.AI
+                for v in panel.values if normalize.lab_unnormalized(v)]
+        if labs:
+            lines = ", ".join(f"{v.name} {v.value}{' ' + v.unit if v.unit else ''}" for _, v in labs)
+            evidence = [e for panel in {id(p): p for p, _ in labs}.values() for e in panel.evidence[:1]]
+            out.append(self._finding("labs", f"Laboratorní hodnoty bez převodu na číslo a jednotku "
+                                     f"UCUM: {lines}.", evidence))
+        return out
+
+    @staticmethod
+    def _ai_value(sourced: Sourced) -> bool:
+        return (sourced.status is FieldStatus.FOUND and sourced.origin is Origin.AI
+                and sourced.value is not None)
+
+    @staticmethod
+    def _finding(path: str, message: str, evidence: list[Evidence]) -> Finding:
+        return Finding(
+            id=f"unnormalized:{path}",
+            kind=FindingKind.UNNORMALIZED,
+            severity=Severity.INFO,
+            fields=[path],
+            message_cs=message,
+            evidence=evidence,
+            suggested_action=SuggestedAction.REVIEW,
+        )
+
+
 REVIEW_PATHS = [p.value for p in FieldPath] + ["examinations", "labs"]
 
 
@@ -527,6 +592,7 @@ def build_checks(gateway: Gateway | None) -> list[Check]:
         ProvisionalDiagnosis(),
         Temporal(),
         Identity(),
+        Normalization(),
         Trends(),
     ]
     if gateway is not None:

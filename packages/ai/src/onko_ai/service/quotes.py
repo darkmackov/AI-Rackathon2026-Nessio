@@ -1,41 +1,59 @@
-"""Finding verbatim quotes in document text (D-2). Only whitespace may differ."""
+"""Finding verbatim quotes in document text (D-2). Only what `match_text` normalizes may differ:
+whitespace, Unicode composition, line-break hyphens, typographic quotes and dashes (Q-C13)."""
 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
-from onko_contracts import Evidence, ParsedDocument
+from onko_contracts import Evidence, MatchText, ParsedDocument, match_text
 
 _WS = re.compile(r"\s+")
+_TOKENS = re.compile(r"\s+|\S+")
 
 
-def _squash(text: str) -> tuple[str, list[int]]:
-    """Text with every whitespace run turned into one space, plus the original index of each char."""
-    out: list[str] = []
-    index: list[int] = []
-    for m in re.finditer(r"\s+|\S+", text):
-        if m.group().isspace():
-            out.append(" ")
-            index.append(m.start())
-        else:
-            out.append(m.group())
-            index.extend(range(m.start(), m.end()))
-    return "".join(out), index
+@lru_cache(maxsize=64)
+def _normalized(text: str) -> MatchText:
+    """A document is searched for many quotes in a row: normalize it once."""
+    return match_text(text)
 
 
 def locate(quote: str, text: str, start: int = 0) -> tuple[int, int] | None:
-    """Char span of `quote` in `text` at or after `start`, ignoring whitespace differences."""
-    needle = _WS.sub(" ", quote).strip()
+    """Char span of `quote` in `text` at or after `start`, both compared as `match_text`. A quote
+    that keeps a line-break hyphen the normalizer joins (`pan- creatu`) still matches the way it
+    did before, on whitespace alone."""
+    return _find(match_text(quote).text, _normalized(text), start) or _find(
+        _WS.sub(" ", quote).strip(), _whitespace_only(text), start)
+
+
+def _find(needle: str, hay: MatchText, start: int) -> tuple[int, int] | None:
     if not needle:
         return None
-    hay, index = _squash(text)
     pos = 0
-    while (found := hay.find(needle, pos)) != -1:
-        begin = index[found]
+    while (found := hay.text.find(needle, pos)) != -1:
+        begin, end = hay.span(found, found + len(needle))
         if begin >= start:
-            return begin, index[found + len(needle) - 1] + 1
+            return begin, end
         pos = found + 1
     return None
+
+
+@lru_cache(maxsize=64)
+def _whitespace_only(text: str) -> MatchText:
+    """Every whitespace run as one space, nothing else changed (the matching before Q-C13)."""
+    out: list[str] = []
+    offsets: list[int] = []
+    ends: list[int] = []
+    for m in _TOKENS.finditer(text):
+        if m.group().isspace():
+            out.append(" ")
+            offsets.append(m.start())
+            ends.append(m.end())
+        else:
+            out.append(m.group())
+            offsets.extend(range(m.start(), m.end()))
+            ends.extend(range(m.start() + 1, m.end() + 1))
+    return MatchText("".join(out), tuple(offsets) + (len(text),), tuple(ends))
 
 
 def evidence(quote: str, doc: ParsedDocument) -> Evidence | None:

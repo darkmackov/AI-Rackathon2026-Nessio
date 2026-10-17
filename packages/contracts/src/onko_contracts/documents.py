@@ -42,6 +42,24 @@ class DocumentMeta(Model):
     )
     uploaded_by: str | None = Field(default=None, description="Actor id")
     mime_type: str = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    sha256: str | None = Field(
+        default=None, description="SHA-256 of the original bytes, for the duplicate check (Q-I22)"
+    )
+
+
+class DuplicateKind(StrEnum):
+    EXACT = "exact"  # the same bytes (SHA-256)
+    NEAR = "near"  # the parsed text overlaps (word shingles)
+
+
+class DuplicateMatch(Model):
+    """An earlier document of the case the new upload duplicates. A warning only: the upload is
+    stored anyway (Q-I22)."""
+
+    document_id: str
+    filename: str
+    kind: DuplicateKind
+    similarity: float = Field(description="Jaccard overlap of the word shingles, 1.0 for exact")
 
 
 class ParsedDocument(Model):

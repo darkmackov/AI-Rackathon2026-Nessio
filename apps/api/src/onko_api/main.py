@@ -20,6 +20,7 @@ from onko_repository import CaseRepository, InMemoryRepository, IrisRepository, 
 
 from .clock import AppClock
 from .deps import Repo
+from .jobs import fail_interrupted
 from .mcp import build_mcp
 from .queries import search_cases
 from .routes import _case_or_404, router
@@ -56,6 +57,7 @@ async def lifespan(_: FastAPI):
         seed_reference_case(repo)
     app.state.repo = repo
     app.state.clock = AppClock()  # wall clock until /demo/clock or /demo/reset moves it
+    fail_interrupted(repo, app.state.clock.now())  # the previous process's worker is gone
     app.state.gateway = make_gateway()
     app.state.jobs = ThreadPoolExecutor(max_workers=1, thread_name_prefix="onko-job")
     async with mcp_app.lifespan(mcp_app):  # the MCP session manager

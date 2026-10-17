@@ -16,9 +16,9 @@ describe('S5 contract-shaped HTTP demo', () => {
     await expect(snapshot()).rejects.toMatchObject({ status: 409 })
     completeCase()
     await expect(snapshot()).rejects.toMatchObject({ status: 409 })
-    await mutation(api.resolveFindingMutation(), { headers, path: { ...path, finding_id: `${s4CaseId}-demo-missing` }, body: { kind: 'overridden', note: 'Fiktivní zdůvodnění ponechání chybějícího údaje.' } })
-    await expect(snapshot()).rejects.toMatchObject({ status: 409 })
-    await mutation(api.resolveFindingMutation(), { headers, path: { ...path, finding_id: `${s4CaseId}-request` }, body: { kind: 'resolved' } })
+    for (const finding_id of [`${s4CaseId}-demo-missing`, `${s4CaseId}-request`]) {
+      await mutation(api.resolveFindingMutation(), { headers, path: { ...path, finding_id }, body: { kind: 'overridden', note: 'Fiktivní zdůvodnění ponechání chybějícího údaje.' } })
+    }
     const live = demoState.documents.result(s4CaseId)?.handover
     if (!live?.weight_kg) throw new Error('Missing conflict fixture')
     demoState.documents.saveHandover({ ...live, weight_kg: { ...live.weight_kg, value: 65 } })

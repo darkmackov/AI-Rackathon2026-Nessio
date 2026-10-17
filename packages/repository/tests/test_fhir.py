@@ -15,10 +15,16 @@ import pytest
 from onko_contracts import (
     AuditEvent,
     Case,
+    Comparator,
     DocumentMeta,
     Handover,
+    LabPanel,
+    LabValue,
     MdtConclusion,
+    PerformanceScale,
+    PerformanceScore,
     Priority,
+    Sourced,
     Stamp,
     Task,
     TaskStatus,
@@ -27,6 +33,7 @@ from onko_repository import IrisSettings
 from onko_repository.adapters.fhir import (
     ICD10_SYSTEM,
     RC_SYSTEM,
+    UCUM,
     FhirClient,
     FhirProjector,
     audit_resource,
@@ -54,6 +61,37 @@ def case(handover) -> Case:
 
 def _by_type(resources, kind):
     return [r for r in resources if r["resourceType"] == kind]
+
+
+def test_normalized_lab_values_become_quantities_with_ucum_and_the_rest_stays_text(case):
+    values = [
+        LabValue(name="CA 19-9", value="< 0,6", unit="kU/l", number=0.6, comparator=Comparator.LT,
+                 ucum="kU/L"),
+        LabValue(name="Moč", value="pozitivní"),
+        LabValue(name="X", value="5,1", unit="jedn."),  # a unit the code couldn't map
+    ]
+    h = Handover(case_id=case.id, as_of=date(2026, 10, 21), labs=[LabPanel(
+        date=date(2026, 10, 15), place="lab", values=values,
+        evidence=[{"document_id": "10", "quote": "CA 19-9"}])])
+    observations = {o["code"]["text"]: o for o in _by_type(handover_resources(h, case, snapshot=False),
+                                                           "Observation")}
+    assert observations["CA 19-9"]["valueQuantity"] == {
+        "value": 0.6, "comparator": "<", "unit": "kU/l", "system": UCUM, "code": "kU/L"}
+    assert observations["Moč"]["valueString"] == "pozitivní"
+    assert observations["X"]["valueString"] == "5,1 jedn."  # not normalized: text as printed
+
+
+def test_performance_score_is_the_observation_value(case):
+    ps = Sourced[str].model_validate({"value": "ECOG 1", "status": "found",
+                                      "evidence": [{"document_id": "07", "quote": "ECOG 1"}]})
+    h = Handover(case_id=case.id, as_of=date(2026, 10, 21), performance_status=ps,
+                 performance_score=PerformanceScore(scale=PerformanceScale.ECOG, score=1))
+    [obs] = [o for o in handover_resources(h, case, snapshot=False) if o["id"].endswith("performance-status")]
+    assert obs["valueInteger"] == 1 and "ECOG" in obs["code"]["text"]
+    unread = h.model_copy(update={"performance_score": None})
+    [obs] = [o for o in handover_resources(unread, case, snapshot=False)
+             if o["id"].endswith("performance-status")]
+    assert obs["valueString"] == "ECOG 1"
 
 
 def test_reference_handover_projection(handover, case):

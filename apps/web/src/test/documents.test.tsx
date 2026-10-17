@@ -164,6 +164,33 @@ describe('S2 document upload and processing in the case documents tab', () => {
     expect(names).toEqual(['zprava.pdf', 'kontrola.docx', 'kontrola.docx'])
   })
 
+  it('warns about a possible duplicate after the upload without blocking it (Q-I22)', async () => {
+    server.use(http.post('*/api/cases/:caseId/documents', () => HttpResponse.json({
+      document: { id: 'doc-2', filename: 'zprava.pdf' },
+      job: { id: 'job-2', kind: 'ingest_document', case_id: 'case-b', status: 'queued', created_at: '2026-10-16T09:00:00' },
+      duplicates: [{ document_id: 'doc-1', filename: 'CT_KOC1.pdf', kind: 'exact', similarity: 1 },
+        { document_id: 'doc-0', filename: 'CT_PL.docx', kind: 'near', similarity: 0.86 }],
+    }, { status: 201 })))
+    renderDocuments(<DocumentUploader caseId="case-b" actorId={actorId} />)
+    await userEvent.upload(screen.getByLabelText('Vybrat soubory'), pdf())
+    await userEvent.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
+    expect(await screen.findByText('Možná duplicita')).toBeInTheDocument()
+    expect(screen.getByText('Nahráno, stav AI níže')).toBeInTheDocument()
+    expect(screen.getByText('Stejný soubor jako CT_KOC1.pdf')).toBeInTheDocument()
+    expect(screen.getByText(/Text se shoduje s CT_PL\.docx \(86\s?%\)/)).toBeInTheDocument()
+  })
+
+  it('flags an exact copy in the demo mock', async () => {
+    renderDocuments(<DocumentUploader caseId={caseId} actorId={actorId} />)
+    await userEvent.upload(screen.getByLabelText('Vybrat soubory'), pdf())
+    await userEvent.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
+    await screen.findByText('Nahráno, stav AI níže')
+    expect(screen.queryByText('Možná duplicita')).not.toBeInTheDocument()
+    await userEvent.upload(screen.getByLabelText('Vybrat soubory'), pdf())
+    await userEvent.click(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' }))
+    expect(await screen.findByText('Stejný soubor jako zprava.pdf')).toBeInTheDocument()
+  })
+
   it('polls queued/running jobs, refreshes server results on completion, and stops polling terminal jobs', async () => {
     const { queryClient, openSource } = renderDocuments()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')

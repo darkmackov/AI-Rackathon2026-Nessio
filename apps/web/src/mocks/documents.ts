@@ -1,5 +1,5 @@
 import { delay, http, HttpResponse } from 'msw'
-import type { Case, DemoClock, DocumentMeta, DocumentMetaUpdate, Finding, Handover, Job, UploadResult } from '../client/types.gen'
+import type { Case, DemoClock, DocumentMeta, DocumentMetaUpdate, DuplicateMatch, Finding, Handover, Job, UploadResult } from '../client/types.gen'
 import { documentType, supportedFile, validDocumentDate } from '../components/documents/document-utils'
 import { actors } from './directory'
 import { changed, documentLabels } from './audit-text'
@@ -73,6 +73,14 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
     return structuredClone(entry.job)
   }
 
+  const original = async (id: string): Promise<File | undefined> => {
+    const uploaded = originals.get(id)
+    const reference = referenceDocuments.find((item) => item.id === id)
+    if (uploaded || !reference || !documents.has(id)) return uploaded
+    const { originalFiles } = await import('./document-files')
+    const bytes = Uint8Array.from(atob(originalFiles[id]), (character) => character.charCodeAt(0))
+    return new File([bytes], reference.filename, { type: 'application/octet-stream' })
+  }
   return {
     saveResult: (caseId: string, value: ReturnType<typeof demoExtraction>) => results.set(caseId, structuredClone(value)),
     detachJob: (id: string) => { jobs.delete(id) },
@@ -120,13 +128,19 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
       return structuredClone(updated)
     },
     text: (id: string) => texts.get(id) ?? demoDocumentText,
-    original: async (id: string): Promise<File | undefined> => {
-      const uploaded = originals.get(id)
-      const reference = referenceDocuments.find((item) => item.id === id)
-      if (uploaded || !reference || !documents.has(id)) return uploaded
-      const { originalFiles } = await import('./document-files')
-      const bytes = Uint8Array.from(atob(originalFiles[id]), (character) => character.charCodeAt(0))
-      return new File([bytes], reference.filename, { type: 'application/octet-stream' })
+    original,
+    // Q-I22 in the mock: exact copies only (the same bytes); near copies need the parsed text,
+    // and no parser runs in the browser.
+    duplicates: async (caseId: string, file: File): Promise<DuplicateMatch[]> => {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const matches: DuplicateMatch[] = []
+      for (const document of Array.from(documents.values()).filter((item) => item.case_id === caseId)) {
+        const earlier = await original(document.id)
+        if (!earlier || earlier.size !== bytes.length) continue
+        const other = new Uint8Array(await earlier.arrayBuffer())
+        if (other.every((value, index) => value === bytes[index])) matches.push({ document_id: document.id, filename: document.filename, kind: 'exact', similarity: 1 })
+      }
+      return matches
     },
     result: (caseId: string) => { const value = results.get(caseId); return value ? structuredClone(value) : undefined },
     saveHandover: (handover: Handover) => results.set(handover.case_id, { handover: structuredClone(handover), findings: results.get(handover.case_id)?.findings ?? [] }),
@@ -168,10 +182,11 @@ export function createDocumentHandlers(state: DemoState) {
       if (!supportedFile(file)) return HttpResponse.json({ detail: 'unsupported document format' }, { status: 400 })
       if (receivedAt !== null && (typeof receivedAt !== 'string' || !isApiDateTime(receivedAt))) return validationResponse([{ loc: ['body', 'received_at'], type: 'datetime_parsing', msg: 'Invalid datetime' }])
       await delay(150)
+      const duplicates = await state.documents.duplicates(id, file)
       const now = state.clock().now
       const uploaded = state.documents.upload(id, file, request.headers.get('X-Actor-Id') ?? '', typeof receivedAt === 'string' ? receivedAt : now, now)
       state.coordinator.record(id, request.headers.get('X-Actor-Id') ?? '', now, 'document_uploaded', file.name)
-      return HttpResponse.json<UploadResult>(uploaded, { status: 201 })
+      return HttpResponse.json<UploadResult>({ ...uploaded, duplicates }, { status: 201 })
     }),
     http.get('*/api/cases/:caseId/jobs', ({ request, params }) => {
       const id = String(params.caseId)

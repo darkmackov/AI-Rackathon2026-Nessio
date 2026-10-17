@@ -14,6 +14,9 @@ verified against the text, a deterministic merge (identity: majority; allergies 
 conflict on disagreement; everything else: newest document wins), then the checks of
 `build_checks`, with earlier resolutions carried over. A field claim whose quotes are all missing
 from the text is dropped and flagged (`unverified_quote`) with the nearest chunk of its document.
+Values are normalized by deterministic code next to their verbatim evidence (Q-C13,
+`normalize_handover`): identifiers in canonical form, kg / cm, lab numbers + UCUM, ECOG / Karnofsky
+score; what can't be normalized stays as printed and is flagged (`unnormalized`).
 
 Vector search (S8, Q-I19): `chunk_document` cuts a parsed document along its sections, `index_document`
 embeds and stores the chunks; `ask_case` answers only with verbatim quotes ('not found' otherwise);
@@ -51,6 +54,7 @@ from .service import (
     load_codes,
     locate,
     merge,
+    normalize_handover,
     reconcile_findings,
 )
 
@@ -82,5 +86,6 @@ __all__ = [
     "load_codes",
     "locate",
     "merge",
+    "normalize_handover",
     "reconcile_findings",
 ]

@@ -13,6 +13,7 @@ from ..models import CheckContext, ExtractionResult
 from .checks import build_checks, check, reconcile_findings
 from .drafts import draft, draft_results, handover_digest
 from .extract import LlmExtractor, apply_metadata, extract_metadata, keep_manual, merge
+from .normalize import normalize_handover
 from .quotes import locate
 from .search import (
     ask_case,
@@ -42,7 +43,7 @@ def analyse_case(
 
     `documents` must already be the snapshot (received_at <= as_of) with AI metadata applied."""
     result = LlmExtractor(gateway).extract_all(case_id, documents, as_of)
-    handover = keep_manual(previous_handover, result.handover)
+    handover = normalize_handover(keep_manual(previous_handover, result.handover))  # Q-C13
     ctx = CheckContext(handover, documents, result.extractions, as_of)
     current = check(ctx, build_checks(gateway))
     current += unverified_quote_findings(result.extractions, repo, gateway)
@@ -69,5 +70,6 @@ __all__ = [
     "load_codes",
     "locate",
     "merge",
+    "normalize_handover",
     "reconcile_findings",
 ]
