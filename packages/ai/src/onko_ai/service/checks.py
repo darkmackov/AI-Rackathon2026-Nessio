@@ -58,26 +58,27 @@ LABELS = {
     "examinations": "Provedená vyšetření",
 }
 
-# Handover_obsah + MDT_zapis (Q-C4): what must be there, how bad a gap is, and the usual fix.
-REQUIRED: list[tuple[str, Severity, SuggestedAction]] = [
-    ("patient.first_name", Severity.WARNING, SuggestedAction.FILL_IN),
-    ("patient.last_name", Severity.WARNING, SuggestedAction.FILL_IN),
-    ("patient.birth_number", Severity.WARNING, SuggestedAction.FILL_IN),
-    ("patient.birth_date", Severity.WARNING, SuggestedAction.FILL_IN),
-    ("patient.sex", Severity.WARNING, SuggestedAction.FILL_IN),
-    ("patient.insurance_code", Severity.WARNING, SuggestedAction.FILL_IN),
-    ("contacts.patient_phone", Severity.WARNING, SuggestedAction.FILL_IN),
-    ("contacts.patient_email", Severity.WARNING, SuggestedAction.FILL_IN),
-    ("contacts.contact_person", Severity.WARNING, SuggestedAction.FILL_IN),
-    ("diagnosis", Severity.WARNING, SuggestedAction.REQUEST),
-    ("diagnosis_code", Severity.WARNING, SuggestedAction.REQUEST),
-    ("comorbidities", Severity.WARNING, SuggestedAction.REQUEST),
-    ("medications", Severity.WARNING, SuggestedAction.REQUEST),
-    ("allergies", Severity.WARNING, SuggestedAction.REQUEST),
-    ("performance_status", Severity.BLOCKER, SuggestedAction.REQUEST),  # Q-C2: overridable blocker
-    ("weight_kg", Severity.WARNING, SuggestedAction.REQUEST),
-    ("height_cm", Severity.WARNING, SuggestedAction.REQUEST),
-    ("symptoms", Severity.WARNING, SuggestedAction.REQUEST),
+# Handover_obsah + MDT_zapis (Q-C4): what must be there, how bad a gap is, the usual fix, and
+# whether the coordinator may override the gap with a note. Identity and the patient's phone must be filled in.
+REQUIRED: list[tuple[str, Severity, SuggestedAction, bool]] = [
+    ("patient.first_name", Severity.BLOCKER, SuggestedAction.FILL_IN, False),
+    ("patient.last_name", Severity.BLOCKER, SuggestedAction.FILL_IN, False),
+    ("patient.birth_number", Severity.BLOCKER, SuggestedAction.FILL_IN, False),
+    ("patient.birth_date", Severity.WARNING, SuggestedAction.FILL_IN, True),
+    ("patient.sex", Severity.WARNING, SuggestedAction.FILL_IN, True),
+    ("patient.insurance_code", Severity.BLOCKER, SuggestedAction.FILL_IN, False),
+    ("contacts.patient_phone", Severity.BLOCKER, SuggestedAction.FILL_IN, False),
+    ("contacts.patient_email", Severity.WARNING, SuggestedAction.FILL_IN, True),
+    ("contacts.contact_person", Severity.WARNING, SuggestedAction.FILL_IN, True),
+    ("diagnosis", Severity.WARNING, SuggestedAction.REQUEST, True),
+    ("diagnosis_code", Severity.WARNING, SuggestedAction.REQUEST, True),
+    ("comorbidities", Severity.WARNING, SuggestedAction.REQUEST, True),
+    ("medications", Severity.WARNING, SuggestedAction.REQUEST, True),
+    ("allergies", Severity.WARNING, SuggestedAction.REQUEST, True),
+    ("performance_status", Severity.BLOCKER, SuggestedAction.REQUEST, True),  # Q-C2: overridable blocker
+    ("weight_kg", Severity.WARNING, SuggestedAction.REQUEST, True),
+    ("height_cm", Severity.WARNING, SuggestedAction.REQUEST, True),
+    ("symptoms", Severity.WARNING, SuggestedAction.REQUEST, True),
 ]
 
 AUTO = "ai"  # `Resolution.by` of findings the pipeline itself closed; people's resolutions are kept
@@ -109,7 +110,7 @@ class RequiredFields:
 
     def run(self, ctx: CheckContext) -> list[Finding]:
         out = []
-        for path, severity, action in REQUIRED:
+        for path, severity, action, overridable in REQUIRED:
             sourced = get(ctx.handover, path)
             if sourced.status is not FieldStatus.MISSING or sourced.value is not None:
                 continue
@@ -122,6 +123,7 @@ class RequiredFields:
                     message_cs=f"{LABELS[path]}: v podkladech chybí.",
                     evidence=sourced.evidence,
                     suggested_action=action,
+                    overridable=overridable,
                 )
             )
         if not ctx.handover.examinations:
