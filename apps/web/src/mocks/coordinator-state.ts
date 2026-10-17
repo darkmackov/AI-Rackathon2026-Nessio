@@ -1,4 +1,4 @@
-import type { AuditEvent, Case, CaseState, Message, Task, TaskSet } from '../client/types.gen'
+import type { AuditEvent, Case, CaseState, Message, Receipt, Task, TaskSet } from '../client/types.gen'
 import { referenceCases } from './reference'
 import { referenceTasks } from './reference-tasks'
 
@@ -34,11 +34,12 @@ export function createCoordinatorState() {
   const sets = new Map<string, TaskSet>()
   const audit: AuditEvent[] = []
   const messages: Message[] = []
+  const receipts: Receipt[] = []
   const runs = new Set<string>()
   let sequence = 0
   const clone = structuredClone
   function reset(reference: boolean) {
-    cases.clear(); tasks.clear(); sets.clear(); audit.length = 0; messages.length = 0; runs.clear(); sequence = 0
+    cases.clear(); tasks.clear(); sets.clear(); audit.length = 0; messages.length = 0; receipts.length = 0; runs.clear(); sequence = 0
     sets.set(seedSet.id, clone(seedSet))
     if (!reference) return
     for (const item of [...referenceCases, s4Case]) cases.set(item.id, clone(item))
@@ -55,8 +56,16 @@ export function createCoordinatorState() {
       .sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999') || a.id.localeCompare(b.id))[0]
     const queue = item.on_hold ? 'odlozeny' : ['odeslano', 'v_triage', 'koncept'].includes(item.state ?? '') ? 'novy' : 'aktivni'
     const returned = item.state === 'vraceno_lekari'
-    saveCase({ ...item, queue, on_move: returned ? item.referring_doctor_id : next?.owner ?? item.coordinator_id ?? null,
-      next_step: returned ? 'Doplnit a znovu odeslat předávku' : next?.title ?? null, next_due: returned ? null : next?.due ?? null })
+    // After the feedback only the GP's receipt is pending, and a closed case has no next step; tasks never override either (S6).
+    if (item.state === 'zpetna_vazba_odeslana' || item.state === 'uzavreno') {
+      const waiting = item.state === 'zpetna_vazba_odeslana'
+      saveCase({ ...item, queue, on_move: waiting ? item.referring_doctor_id : null, next_step: waiting ? 'Potvrdit převzetí výsledku MDT' : null, next_due: null })
+      return
+    }
+    saveCase({
+      ...item, queue, on_move: returned ? item.referring_doctor_id : next?.owner ?? item.coordinator_id ?? null,
+      next_step: returned ? 'Doplnit a znovu odeslat předávku' : next?.title ?? null, next_due: returned ? null : next?.due ?? null
+    })
   }
   return {
     reset, sync, saveCase,
@@ -75,5 +84,7 @@ export function createCoordinatorState() {
     },
     saveMessage: (message: Message) => { messages.splice(0, messages.length, ...messages.filter((item) => item.id !== message.id), clone(message)) },
     messages: (caseId?: string) => clone(messages.filter((item) => !caseId || item.case_id === caseId)),
+    receipts: (messageIds: string[]) => clone(receipts.filter((item) => messageIds.includes(item.message_id))),
+    saveReceipt: (receipt: Receipt) => { receipts.push(clone(receipt)); return clone(receipt) },
   }
 }

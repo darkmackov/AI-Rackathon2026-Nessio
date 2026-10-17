@@ -1,6 +1,6 @@
 export const caseDetailCs = {
   back: 'Zpět na pracovní frontu', unavailableCase: 'Případ není pro vaše KOC k dispozici.', findings: 'Chybějící údaje a rozpory',
-  tabs: { mdt: 'MDT', overview: 'Přehled', handover: 'Předávka', findings: 'K řešení', tasks: 'Úkoly', documents: 'Dokumenty', audit: 'Audit' },
+  tabs: { mdt: 'MDT', overview: 'Přehled', handover: 'Předávka', findings: 'K řešení', tasks: 'Úkoly', communication: 'Komunikace', documents: 'Dokumenty', audit: 'Audit' },
   handoverStatus: 'Stav předávky', expandAll: 'Rozbalit vše', collapseAll: 'Sbalit vše', showMore: 'Zobrazit celé', showLess: 'Zkrátit',
   problems_one: '{{count}} k řešení', problems_few: '{{count}} k řešení', problems_many: '{{count}} k řešení', problems_other: '{{count}} k řešení',
   records_one: '{{count}} záznam', records_few: '{{count}} záznamy', records_many: '{{count}} záznamu', records_other: '{{count}} záznamů',
@@ -46,7 +46,7 @@ export const caseDetailCs = {
 
 export const caseDetailEn = {
   back: 'Back to work queue', unavailableCase: 'This case is not available at your KOC.', findings: 'Gaps and conflicts',
-  tabs: { mdt: 'MDT', overview: 'Overview', handover: 'Handover', findings: 'To resolve', tasks: 'Tasks', documents: 'Documents', audit: 'Audit' },
+  tabs: { mdt: 'MDT', overview: 'Overview', handover: 'Handover', findings: 'To resolve', tasks: 'Tasks', communication: 'Communication', documents: 'Documents', audit: 'Audit' },
   handoverStatus: 'Handover status', expandAll: 'Expand all', collapseAll: 'Collapse all', showMore: 'Show all', showLess: 'Show less',
   problems_one: '{{count}} to resolve', problems_few: '{{count}} to resolve', problems_many: '{{count}} to resolve', problems_other: '{{count}} to resolve',
   records_one: '{{count}} record', records_few: '{{count}} records', records_many: '{{count}} records', records_other: '{{count}} records',

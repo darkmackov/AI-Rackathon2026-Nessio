@@ -7,6 +7,7 @@ import { createCoordinatorHandlers } from './coordinator'
 import { treatmentTime } from './treatment-time'
 import { createDocumentDemoState, createDocumentHandlers } from './documents'
 import { createReferralHandlers } from './referrals'
+import { createFeedbackHandlers } from './feedback'
 import { createMdtState } from './mdt-state'
 import { createMdtHandlers } from './mdt'
 import { caseStates, enumError, extraFields, isApiDateTime, objectBody, organizationKinds, queryValue, queueColumns, validateEnumQuery, validationResponse } from './validation'
@@ -55,6 +56,7 @@ export function createHandlers(state = createDemoState()) {
     ...createCoordinatorHandlers(state),
     ...createDocumentHandlers(state),
     ...createReferralHandlers(state),
+    ...createFeedbackHandlers(state),
     http.get('*/api/me', ({ request }) => {
       const id = request.headers.get('X-Actor-Id')
       if (id === null) return validationResponse([{ loc: ['header', 'X-Actor-Id'], type: 'missing', msg: 'Field required', input: null }])

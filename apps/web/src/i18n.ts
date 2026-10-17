@@ -6,9 +6,11 @@ import { workflowCs, workflowEn } from './components/workflow/translations'
 import { caseDetailCs, caseDetailEn } from './screens/CaseDetail/translations'
 import { referralCs, referralEn } from './screens/Referral/translations'
 import { mdtCs, mdtEn } from './screens/CaseDetail/Mdt/translations'
+import { messagesCs, messagesEn } from './components/messages/translations'
 
 export const resources = {
   cs: { translation: {
+    messages: messagesCs,
     mdt: mdtCs,
     workflow: workflowCs,
     caseDetail: caseDetailCs,
@@ -52,6 +54,7 @@ export const resources = {
     notFound: 'Stránka nebyla nalezena', notFoundDescription: 'Tato adresa v aplikaci neexistuje.', home: 'Přejít na úvod',
   } },
   en: { translation: {
+    messages: messagesEn,
     mdt: mdtEn,
     workflow: workflowEn,
     caseDetail: caseDetailEn,
