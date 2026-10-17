@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from typing import Annotated, NoReturn
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
@@ -443,10 +444,16 @@ def update_document(
 
 @router.get("/documents/{document_id}/file", tags=["documents"], response_class=Response,
             responses={200: {"content": {"application/octet-stream": {}}, "description": "Original file"}})
-def get_document_file(document_id: str) -> Response:
+def get_document_file(document_id: str, repo: Repo) -> Response:
     """The original uploaded file, e.g. the GP's reports opened by the coordinator next to the
     structured handover (slide 9: 'strukturovaná zpráva + originál')."""
-    _todo()
+    meta = repo.get_document(document_id)
+    if meta is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
+    data = repo.document_data(document_id)
+    if not data:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "original file not stored")
+    return _file(data, meta.mime_type, meta.filename)
 
 
 @router.patch("/cases/{case_id}/handover", tags=["handover"])
@@ -1077,8 +1084,14 @@ def _render_conclusion(repo: CaseRepository, case: Case, conclusion: MdtConclusi
 
 
 def _pdf(data: bytes, filename: str) -> Response:
-    return Response(content=data, media_type="application/pdf",
-                    headers={"Content-Disposition": f'inline; filename="{filename}"'})
+    return _file(data, PDF_MIME, filename)
+
+
+def _file(data: bytes, mime_type: str, filename: str) -> Response:
+    """Inline file; `filename*` (RFC 6266) keeps Czech file names, the plain one is an ASCII fallback."""
+    fallback = filename.encode("ascii", "replace").decode().replace('"', "_")
+    disposition = f"inline; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
+    return Response(content=data, media_type=mime_type, headers={"Content-Disposition": disposition})
 
 
 @router.post("/cases/{case_id}/mdt/snapshot", status_code=201, tags=["mdt"])

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from onko_api.clock import AppClock
@@ -19,6 +20,23 @@ def test_reference_case_is_served():
 
         docs = client.get("/cases/vzp-prochazkova/documents").json()
         assert {d["id"] for d in docs} == {f"{i:02d}" for i in range(1, 12)}  # 12, 13 come after MDT
+
+
+def test_every_seeded_document_opens_as_its_original():
+    originals = Path(__file__).resolve().parents[3] / "data/cesta-pacienta-data/Pacient"
+    with TestClient(app) as client:
+        for doc in client.get("/cases/vzp-prochazkova/documents").json():
+            r = client.get(f"/documents/{doc['id']}/file")
+            assert r.status_code == 200, doc["id"]
+            assert r.content == (originals / doc["filename"]).read_bytes()
+            assert r.headers["content-type"] == doc["mime_type"]
+            assert doc["filename"] in r.headers["content-disposition"]
+
+
+def test_document_file_of_an_unknown_document_is_404():
+    with TestClient(app) as client:
+        r = client.get("/documents/missing/file")
+        assert r.status_code == 404 and r.json()["detail"] == "document not found"
 
 
 def test_me_follows_the_role_switcher():

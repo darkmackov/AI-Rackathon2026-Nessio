@@ -192,7 +192,7 @@ Generated from the spec. "Actor" means the endpoint takes `X-Actor-Id`. "Client 
 | `POST` | `/cases/{case_id}/documents` | file (multipart) | `UploadResult` 201 | ✓ | `uploadDocument` | **works** (S2) |
 | `GET` | `/cases/{case_id}/documents` | — | `list[DocumentMeta]` 200 |  | `listDocuments` | **works** (seeded) |
 | `PATCH` | `/documents/{document_id}` | `DocumentMetaUpdate` | `DocumentMeta` 200 | ✓ | `updateDocument` | **works** (S2) |
-| `GET` | `/documents/{document_id}/file` | — | application/octet-stream 200 |  | `getDocumentFile` | defined (501) |
+| `GET` | `/documents/{document_id}/file` | — | application/octet-stream 200 |  | `getDocumentFile` | **works** (S1) |
 | `GET` | `/documents/{document_id}/text` | — | `object` 200 |  | `documentText` | **works** (seeded) |
 
 ### handover

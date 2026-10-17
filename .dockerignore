@@ -9,6 +9,7 @@
 .ruff_cache
 bench-results
 presentations
-data/cesta-pacienta-data
+data/cesta-pacienta-data/*
+!data/cesta-pacienta-data/Pacient
 data/Data pro Rakathon_VFN
 fhir-packages
