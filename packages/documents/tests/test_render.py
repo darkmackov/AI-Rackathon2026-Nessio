@@ -8,7 +8,6 @@ from datetime import date, datetime
 import pytest
 from onko_contracts import MdtConclusion, MdtMember, MdtRecord, MdtResultRow, Stamp
 from onko_documents import (
-    mdt_record_html,
     parse,
     render_mdt_conclusion,
     render_mdt_record,
@@ -53,14 +52,15 @@ def test_mdt_record_follows_the_mdt_zapis_layout():
 
 
 def test_missing_values_say_neuvedeno():
-    html = mdt_record_html(_record(patient_email=None, diagnosis_code=None, comorbidities=[]))
-    assert "neuvedeno" in html
-    assert "neuvedeno" in _text(render_mdt_record(_record(mdt_question=None)))
+    text = _text(render_mdt_record(_record(diagnosis_code=None, comorbidities=[], mdt_question=None)))
+    assert "Kód diagnózy (MKN-10) neuvedeno" in text
+    assert "4 Komorbidity neuvedeno" in text
+    assert "Požadavek / otázka na MDT neuvedeno" in text
 
 
 def test_record_shows_only_a_confirmed_conclusion():
     unconfirmed = MdtConclusion(case_id="c1", conclusion="Neoadjuvantní chemoterapie.")
-    assert "Neoadjuvantní" not in mdt_record_html(_record(), unconfirmed)
+    assert "Neoadjuvantní" not in _text(render_mdt_record(_record(), unconfirmed))
     confirmed = unconfirmed.model_copy(update={"confirmed": Stamp(by="koordinator", at=NOW),
                                                "recommendations": ["Onkologické konzilium"]})
     text = _text(render_mdt_record(_record(), confirmed))
@@ -98,4 +98,17 @@ def test_rendered_pdf_parses_like_an_upload():
 
 def test_unknown_layout_is_rejected():
     with pytest.raises(ValueError):
-        render_pdf("invoice", "<p>x</p>")
+        render_pdf("invoice", {})
+
+
+def test_user_text_is_never_read_as_typst_markup():
+    text = _text(render_mdt_record(_record(
+        patient_name="*Jana* #Nováková", mdt_question='Je = $1 [x] <a> @b \\ "q" // c?')))
+    assert "*Jana* #Nováková" in text
+    assert 'Je = $1 [x] <a> @b \\ "q" // c?' in text
+
+
+def test_multiline_values_keep_their_lines():
+    pdf = render_mdt_record(_record(mdt_question="První řádek\nDruhý řádek"))
+    page = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
+    assert "První řádek\nDruhý řádek" in page
