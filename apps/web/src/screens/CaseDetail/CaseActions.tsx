@@ -1,7 +1,7 @@
 import { Button, Group, Modal, Stack, Text } from '@mantine/core'
 import { IconArrowBackUp, IconPlayerPause, IconUserCheck } from '@tabler/icons-react'
 import { useIsMutating, useMutation, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { clearHoldMutation, listActorsOptions, listMdtBoardsOptions, returnCaseMutation, setHoldMutation, takeOverCaseMutation, transitionCaseMutation, updateCaseMutation, updateMilestonesMutation } from '../../client/@tanstack/react-query.gen'
@@ -12,7 +12,8 @@ import LoadingState, { QueryError } from '../../components/DataState'
 import { useSession } from '../../session'
 
 type Action = 'return' | 'hold' | 'settings' | 'milestones' | 'transition'
-export default function CaseActions({ item, findings, settings = false }: { item: Case; findings?: Finding[]; settings?: boolean }) {
+/** `extra` adds controls (e.g. a download) to the end of the action row so they wrap with it. */
+export default function CaseActions({ item, findings, settings = false, extra }: { item: Case; findings?: Finding[]; settings?: boolean; extra?: ReactNode }) {
   const { t } = useTranslation(), { actorId } = useSession()
   const [action, setAction] = useState<Action | null>(null), [saved, setSaved] = useState(false), [error, setError] = useState<unknown>(null)
   const busy = useIsMutating() > 0, refresh = useWorkflowRefresh(item.id)
@@ -49,7 +50,7 @@ export default function CaseActions({ item, findings, settings = false }: { item
   }
   const directoryReady = action !== 'settings' || actors.isSuccess && boards.isSuccess
   return <Stack gap={4} align={settings ? undefined : 'flex-end'}>
-    <Group gap="xs">
+    <Group gap="xs" align="flex-start" justify={settings ? undefined : 'flex-end'}>
       {settings ? <>
         <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => open('settings')}>{t('workflow.settings')}</Button>
         <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => open('milestones')}>{t('workflow.milestones')}</Button>
@@ -58,6 +59,7 @@ export default function CaseActions({ item, findings, settings = false }: { item
         <Button size="xs" leftSection={<IconUserCheck size={16} aria-hidden />} disabled={busy || item.state !== 'odeslano'} loading={take.isPending} onClick={() => { void direct(() => take.mutateAsync(options)) }}>{t('caseDetail.takeOver')}</Button>
         <Button size="xs" variant="outline" leftSection={<IconArrowBackUp size={16} aria-hidden />} disabled={busy} onClick={() => open('return')}>{t('caseDetail.returnCase')}</Button>
         <Button size="xs" variant="outline" leftSection={<IconPlayerPause size={16} aria-hidden />} disabled={busy} loading={resume.isPending} onClick={() => item.on_hold ? void direct(() => resume.mutateAsync(options)) : open('hold')}>{t(item.on_hold ? 'workflow.resume' : 'caseDetail.hold')}</Button>
+        {extra}
       </>}
     </Group>
     {saved && <Text size="sm" role="status">{t('workflow.saved')}</Text>}

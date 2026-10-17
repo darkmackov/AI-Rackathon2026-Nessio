@@ -1,3 +1,4 @@
+import { IconFileExport } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ApiError, actorHeaders } from '../../api'
@@ -10,6 +11,7 @@ function CaseFhirDownload({ caseId, actorId }: { caseId: string; actorId: string
   const status = query.error instanceof ApiError ? query.error.status : undefined
   const errorKey = status === 403 ? 'forbidden' : status === 404 ? 'missing' : status === 503 ? 'unavailable' : status === 502 ? 'upstream' : 'error'
   return <DownloadFile label={t('fhirExport.label')} readyMessage={t('fhirExport.ready')} errorMessage={t(`fhirExport.${errorKey}`)} pending={query.isFetching}
+    variant="outline" size="xs" leftSection={<IconFileExport size={16} aria-hidden />} fitButton
     filename={`case-${caseId}.fhir.json`} load={async () => {
       const result = await query.refetch()
       if (result.isError) throw result.error

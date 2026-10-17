@@ -81,8 +81,7 @@ export default function CaseHeader({ item, findings, handover }: { item: Case; f
         </Stack>
         <Stack gap="xs" w={{ base: '100%', sm: 'max-content' }}>
           <AskCaseSearch caseId={item.id} />
-          <Group justify="flex-end"><CaseActions item={item} findings={findings} /></Group>
-          {actorId && <Group justify="flex-end"><ExportCaseFhir caseId={item.id} actorId={actorId} /></Group>}
+          <Group justify="flex-end"><CaseActions item={item} findings={findings} extra={actorId && <ExportCaseFhir caseId={item.id} actorId={actorId} />} /></Group>
         </Stack>
       </Group>
       <Group gap="md" wrap="wrap" style={{ rowGap: 'var(--mantine-spacing-xs)' }}>
