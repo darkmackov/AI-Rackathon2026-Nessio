@@ -14,8 +14,10 @@ import { fieldStatusCounts } from '../../components/handover/clinical'
 import { statusMeta } from '../../components/handover/status-meta'
 import CaseActions from './CaseActions'
 import AskCaseSearch from './S8/AskCaseSearch'
+import ExportCaseFhir from '../../components/fhir/ExportCaseFhir'
+import { useSession } from '../../session'
+import { PriorityBadge } from '../../components/Priority'
 
-const priorityColor = { normal: 'gray', high: 'orange', urgent: 'red' } as const
 
 export function BackLink() {
   const { t } = useTranslation()
@@ -55,6 +57,7 @@ function AttentionStrip({ caseId, findings, handover }: { caseId: string; findin
 /** The sticky case header: where the case is, who is on the move and by when (UX-4), plus what needs attention. */
 export default function CaseHeader({ item, findings, handover }: { item: Case; findings?: Finding[]; handover?: Handover }) {
   const { t } = useTranslation()
+  const { actorId } = useSession()
   const heading = useId()
   // Sticky only where there is room for it; at 320 px or 200 % zoom it would cover the content (A11Y-10).
   const sticky = useMediaQuery('(min-width: 48em)') ?? false
@@ -78,13 +81,13 @@ export default function CaseHeader({ item, findings, handover }: { item: Case; f
         </Stack>
         <Stack gap="xs" w={{ base: '100%', sm: 'max-content' }}>
           <AskCaseSearch caseId={item.id} />
-          <Group justify="flex-end"><CaseActions item={item} findings={findings} /></Group>
+          <Group justify="flex-end"><CaseActions item={item} findings={findings} extra={actorId && <ExportCaseFhir caseId={item.id} actorId={actorId} />} /></Group>
         </Stack>
       </Group>
       <Group gap="md" wrap="wrap" style={{ rowGap: 'var(--mantine-spacing-xs)' }}>
         <Group gap={6}>
           <Badge variant="light"><VisuallyHidden>{t('state')}: </VisuallyHidden>{item.state ? t(`states.${item.state}`) : t('unavailable')}</Badge>
-          <Badge variant="outline" color={item.priority ? priorityColor[item.priority] : 'gray'} c="dark.9"><VisuallyHidden>{t('priority')}: </VisuallyHidden>{item.priority ? t(`priorities.${item.priority}`) : t('unavailable')}</Badge>
+          <PriorityBadge priority={item.priority} />
           {item.on_hold && <Badge variant="light" color="gray" c="dark.9" leftSection={<IconPlayerPause size={12} aria-hidden />}>{t('caseDetail.onHold')}</Badge>}
         </Group>
         <Fact label={t('owner')}><PersonChip id={item.on_move} size="xs" /></Fact>

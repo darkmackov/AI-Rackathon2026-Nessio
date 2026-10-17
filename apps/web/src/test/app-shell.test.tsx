@@ -11,6 +11,25 @@ import { changeIdentity, openUserMenu, setLanguage, signIn } from './shell'
 import { demoState, server } from './setup'
 
 describe('app shell, identity and demo controls', () => {
+  it.each(['coordinator', 'referring_doctor'] as const)('keeps the Nessie home link accessible and role-aware for %s in both languages', async (role) => {
+    const { router } = renderApp()
+    const user = userEvent.setup({ delay: null })
+    await signIn(user, role)
+    await user.click(await screen.findByRole('link', { name: 'Alena Procházková' }))
+    await screen.findByRole('heading', { level: 1, name: 'Alena Procházková' })
+    const brand = within(screen.getByRole('banner')).getByRole('link', { name: 'Nessio' })
+    expect(document.title).toBe('Nessio')
+    expect(brand.querySelector('img')).toHaveAttribute('src', '/favicon.svg')
+    expect(brand.querySelector('img')).toHaveAttribute('alt', '')
+    expect(brand.querySelector('img')).toHaveAttribute('aria-hidden', 'true')
+    await setLanguage(user, 'English')
+    const translated = within(screen.getByRole('banner')).getByRole('link', { name: 'Nessio' })
+    expect(document.title).toBe('Nessio')
+    await user.click(translated)
+    await waitFor(() => expect(router.state.location.pathname).toBe(role === 'coordinator' ? '/coordinator' : '/referrer'))
+    expect(document.documentElement.lang).toBe('en')
+  })
+
   it('requires choosing a person even for a direct role URL, then sends their identity and KOC filter', async () => {
     const seen: string[] = []
     server.events.on('request:start', ({ request }) => {
@@ -84,7 +103,7 @@ describe('app shell, identity and demo controls', () => {
     expect(screen.getByText('C25.0 Duktální adenokarcinom hlavy pankreatu')).toBeVisible()
     expect(within(screen.getByRole('banner')).getByText('Bc. Lucie Dvořáková')).toBeVisible()
     expect(document.documentElement.lang).toBe('en')
-    expect(document.title).toBe('Oncology coordination')
+    expect(document.title).toBe('Nessio')
   })
 
   it('does not restore old patient data when a cancelled request finishes after an identity switch', async () => {

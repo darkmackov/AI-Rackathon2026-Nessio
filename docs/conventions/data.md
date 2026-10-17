@@ -2,7 +2,7 @@
 
 Rules for the three shapes data takes in this repo: **domain models**, **API models**, and **persisted IRIS/FHIR**. Every rule has an ID so reviews (human or AI) can cite it. The [root AGENTS.md](../../AGENTS.md) makes these binding for AI agents.
 
-The API itself (all 67 endpoints, request/response, status codes) is defined in [api.md](../api.md). This page doesn't repeat it; it says how to work with it. Decisions behind this page: Q-K1 to Q-K7 in [open-questions.md](../open-questions.md#k-code-conventions), plus Q-A1 to Q-A8 (API design).
+The API itself (all 68 endpoints, request/response, status codes) is defined in [api.md](../api.md). This page doesn't repeat it; it says how to work with it. Decisions behind this page: Q-K1 to Q-K7 in [open-questions.md](../open-questions.md#k-code-conventions), plus Q-A1 to Q-A8 (API design).
 
 ## Three shapes, three owners
 
@@ -10,7 +10,7 @@ The API itself (all 67 endpoints, request/response, status codes) is defined in 
 |---|---|---|---|
 | **Domain model** (`Case`, `Handover`, `Finding`, …) | `onko_contracts` | every Python module; also the API's **responses** | n/a |
 | **Request body** (`CaseUpdate`, `HoldSet`, `TaskCreate`, …) | `apps/api/src/onko_api/schemas.py` | API routes; the web app through the generated client | other Python modules |
-| **App state in IRIS / FHIR projection** | `onko_repository` adapters | `onko_repository` only | everything else; nothing in the API exposes FHIR (api.md) |
+| **App state in IRIS / FHIR projection** | `onko_repository` adapters | `onko_repository` only | everything else; the API only passes through an opaque FHIR download via the repository (Q-W18, api.md) |
 
 ```mermaid
 flowchart LR
@@ -49,8 +49,12 @@ flowchart LR
 | APIM-3 | **Use the models that exist.** Before adding an endpoint or a field, look in `onko_contracts` and `schemas.py`. Reuse an existing model rather than adding a near-duplicate. |
 | APIM-4 | **Response models stay stable** (slices.md): a slice implements its stub without changing the response model. If one must change, change the contract first (DM-13), then regenerate the spec and client. |
 | APIM-5 | The wire format follows api.md: JSON in `snake_case` (no aliases), string ids, ISO dates/datetimes, Czech data. Uploads are `multipart/form-data` with one `file` field. The current user comes from `X-Actor-Id`. Slow AI work returns a `Job`. |
-| APIM-6 | Errors: `HTTPException(status, "message")` → `{"detail": "…"}` with the status codes in api.md (400, 403, 404, 409, 422, 501). There is no error model. |
+| APIM-6 | Errors: `HTTPException(status, "message")` → `{"detail": "…"}` with the status codes in api.md (400, 403, 404, 409, 422, 501, 502, 503). There is no error model. |
 | APIM-7 | After any route, request-body or contract change, regenerate and commit `apps/web/openapi.json` and `apps/web/src/client` (`uv run python scripts/export_openapi.py`, then `npm --prefix apps/web run gen:api`). `test_committed_openapi_spec_is_current` fails otherwise. |
+
+Binary downloads use `Response` with an OpenAPI media type, as for original documents and PDFs.
+The S9 FHIR download (Q-W18) declares `application/fhir+json` as a binary file; no FHIR resource
+model or ad-hoc JSON response model is introduced in the app contracts.
 
 ## Persistence (`packages/repository`)
 

@@ -57,8 +57,8 @@ describe('S4 coordinator screens', () => {
     await save(user)
     expect(demoState.documents.result(s4CaseId)?.handover.performance_status).toMatchObject({ value: 'ECOG 1', origin: 'manual' })
     issue = screen.getByRole('article', { name: 'Fiktivní ukázka: chybí ECOG / Karnofsky.' })
-    expect(within(issue).getByRole('button', { name: 'Vyřešit' })).toBeEnabled()
-    await user.click(within(issue).getByRole('button', { name: 'Vyřešit' }))
+    expect(within(issue).getByRole('button', { name: 'Uzavřít nález' })).toBeEnabled()
+    await user.click(within(issue).getByRole('button', { name: 'Uzavřít nález' }))
     const form = within(await dialog())
     await user.selectOptions(form.getByLabelText(/^Způsob vyřešení/), 'overridden')
     await user.click(form.getByRole('button', { name: 'Uložit' }))
@@ -67,7 +67,7 @@ describe('S4 coordinator screens', () => {
     await save(user)
     expect(demoState.documents.result(s4CaseId)?.findings.find((finding) => finding.id.endsWith('demo-missing'))?.resolution).toMatchObject({ kind: 'overridden', by: 'koordinator' })
     await user.click(screen.getByRole('button', { name: 'Vyřešené nálezy (1)' }))
-    expect(await screen.findByText('Údaj byl posouzen při triage.')).toBeVisible()
+    await waitFor(() => expect(screen.getByText('Údaj byl posouzen při triage.')).toBeVisible())
   })
 
   it('creates a request linked to its finding and returns the referral with a note', async () => {

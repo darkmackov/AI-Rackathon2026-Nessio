@@ -70,12 +70,13 @@ export default function SnapshotForm({ item, actorId, showFindings }: { item: Ca
     onError: (error) => form.setErrors(apiFieldErrors(error, labels, t)),
     onSuccess: async () => { await refreshCaseResults(client, item.id); setConfirm(false) },
   })
-  const dialogBusy = busy || mutation.isPending
+  // Only this request locks the dialog, so it always closes otherwise; a blocked notification keeps its way to the findings.
+  const close = () => { if (!mutation.isPending) setConfirm(false) }
   return <Stack gap="sm">
     {boards.isPending && <LoadingState />}
     {boards.isError && <QueryError error={boards.error} retry={() => { void boards.refetch() }} />}
     {boards.isSuccess && !choices.length && <EmptyState title={t('mdt.noBoards')} retry={() => { void boards.refetch() }} />}
-    {boards.isSuccess && choices.length > 0 && <form noValidate onSubmit={(event) => { if (dialogBusy) { event.preventDefault(); return }; setSubmitted(true); form.onSubmit(() => { mutation.reset(); setConfirm(true) }, (errors) => notifyFormErrors(errors, labels, t, `mdt-snapshot:${item.id}`))(event) }}><Stack gap="sm">
+    {boards.isSuccess && choices.length > 0 && <form noValidate onSubmit={(event) => { if (busy) { event.preventDefault(); return }; setSubmitted(true); form.onSubmit(() => { mutation.reset(); setConfirm(true) }, (errors) => notifyFormErrors(errors, labels, t, `mdt-snapshot:${item.id}`))(event) }}><Stack gap="sm">
       {submitted && <FormErrorSummary errors={formProblems(form.errors, labels)} />}
       <Text size="sm">{t('mdt.snapshotIntro')}</Text>
       <Group align="flex-start" gap="sm" grow maw={640}>
@@ -89,10 +90,10 @@ export default function SnapshotForm({ item, actorId, showFindings }: { item: Ca
       {saved && <Alert color="green" role="status">{t('mdt.rosterSaved')}</Alert>}
       <Group><Button type="submit" pending={busy}>{t('mdt.snapshot')}</Button></Group>
     </Stack></form>}
-    <Modal opened={confirm} onClose={() => { if (!dialogBusy) setConfirm(false) }} title={t('mdt.snapshotTitle')} closeOnEscape={!dialogBusy} closeOnClickOutside={!dialogBusy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(dialogBusy) }}>
-      <Stack><Text>{t('mdt.snapshotHelp')}</Text><Text fw={600}>{selected?.name} · {confirm && formatDate(form.values.mdt_date, i18n.language)}</Text>
+    <Modal opened={confirm} onClose={close} title={t('mdt.snapshotTitle')} closeOnEscape={!mutation.isPending} closeOnClickOutside={!mutation.isPending} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(mutation.isPending) }}>
+      <Stack><Text>{t('mdt.snapshotHelp')}</Text><Text fw={600}>{selected?.name} · {validDocumentDate(form.values.mdt_date) ? formatDate(form.values.mdt_date, i18n.language) : t('unavailable')}</Text>
         {mutation.isError && <QueryError error={mutation.error} />}
-        <Group><Button pending={dialogBusy || mutation.isPending} onClick={() => mutation.mutate({ body: form.values, path: { case_id: item.id }, headers: actorHeaders(actorId) })}>{t('mdt.snapshotConfirm')}</Button><Button variant="default" pending={dialogBusy} onClick={() => setConfirm(false)}>{t('cancel')}</Button></Group>
+        <Group><Button pending={busy} onClick={() => mutation.mutate({ body: form.values, path: { case_id: item.id }, headers: actorHeaders(actorId) })}>{t('mdt.snapshotConfirm')}</Button><Button variant="default" pending={mutation.isPending} onClick={close}>{t('cancel')}</Button></Group>
       </Stack>
     </Modal>
     <Modal opened={roster && !!selected} onClose={() => { if (!busy) setRoster(false) }} title={t('mdt.members')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>

@@ -38,7 +38,8 @@ export default function Inbox({ actorId }: { actorId: string }) {
             {actors.isError && <QueryError error={actors.error} retry={() => { void actors.refetch() }} />}
         </> : null}
         {inbox.isSuccess && !inbox.data.length && <EmptyState title={t('messages.emptyInbox')} />}
-        {inbox.isSuccess && inbox.data.length > 0 && <Accordion variant="separated" value={opened} onChange={setOpened} chevronPosition="right">
+        {inbox.isSuccess && inbox.data.length > 0 && <Accordion variant="separated" value={opened} onChange={setOpened} chevronPosition="right"
+            styles={{ item: { backgroundColor: 'var(--mantine-color-body)', borderColor: 'var(--mantine-color-default-border)' } }}>
             {inbox.data.map((message) => {
                 const item = cases.data?.find((entry) => entry.id === message.case_id)
                 const receiptQuery = receipts[caseIds.indexOf(message.case_id)]

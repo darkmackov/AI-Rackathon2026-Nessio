@@ -1,0 +1,75 @@
+// `MDT_zaver`: the conclusion's own fields, with the patient, members and results restated from
+// the MDT record. Input: `title`, `header` (KOC and board lines), `conclusion` (MdtConclusion)
+// and `record` (MdtRecord or none).
+
+#import "common.typ": *
+
+#let data = json(bytes(sys.inputs.data))
+#let conclusion = data.conclusion
+#let record = data.record
+#let held = if conclusion.date != none { conclusion.date } else if record != none { record.mdt_date }
+
+#show: doc.with(data.title)
+
+#for line in data.header { par(strong(line)) }
+
+= #data.title
+
+== Základní údaje
+
+*Datum MDT:* #date(held)
+
+#if record != none [
+  *Pacient:* #lines(joined(
+    record.patient_name,
+    record.patient_address,
+    if present(record.insurance_code) { "ZP " + record.insurance_code },
+  ))
+
+  *Referující lékař:* #or-missing(record.referring_doctor_name)
+]
+
+*Případ prezentoval:* #or-missing(conclusion.presented_by)
+
+#if record != none [
+  == Členové MDT
+
+  #items(record.members.map(m => m.name + " – " + m.specialty))
+]
+
+== Diagnóza
+
+*Název a kód:* #or-missing(joined(conclusion.diagnosis_code, conclusion.diagnosis_name, sep: " – "))
+
+*Klinické zhodnocení:* #or-missing(conclusion.clinical_assessment)
+
+#if record != none [
+  == Výsledky stávajících vyšetření
+
+  #if record.results.len() == 0 { missing }
+  #for r in record.results [
+    #strong[#r.examination (#date(r.date)):] #or-missing(r.result)
+
+  ]
+
+  *Komorbidity:* #or-missing(record.comorbidities.join(", "))
+]
+
+== Závěr MDT
+
+#or-missing(conclusion.conclusion)
+
+== Doporučení MDT
+
+#items(conclusion.recommendations, ordered: true)
+
+#if present(conclusion.place) [#conclusion.place, ]#date(held)
+
+#if present(conclusion.chair) [
+  #conclusion.chair \
+  předsedající MDT
+]
+
+#if conclusion.copy_to.len() > 0 [
+  *Kopie:* #lines(..conclusion.copy_to)
+]

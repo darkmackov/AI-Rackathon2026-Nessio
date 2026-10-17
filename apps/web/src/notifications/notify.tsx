@@ -44,6 +44,7 @@ function show(id: string, kind: keyof typeof appearance, message: NotificationDa
 export function notifyWarning(id: string, message: NotificationData['message']) { show(`warning:${id}`, 'warning', message) }
 export function notifyError(id: string, message: NotificationData['message']) { show(`error:${id}`, 'error', message) }
 export function notifySuccess(id: string, message: NotificationData['message']) { show(`success:${id}`, 'success', message) }
+export function hideSuccess(id: string) { notifications.hide(`success:${id}`, notificationStore) }
 export function notifyInfo(id: string, message: NotificationData['message']) { show(`info:${id}`, 'info', message) }
 
 export function notifyApiError(error: unknown, options: { scope?: string; automatic?: boolean; action?: NotificationAction } = {}) {

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import html
+import json
 import re
 import uuid
 from collections.abc import Iterable
@@ -33,7 +34,7 @@ from onko_contracts import (
     TaskStatus,
 )
 
-from ..models import BundleError, ReferralAttachment
+from ..models import BundleError, FhirExportError, ReferralAttachment
 from ..settings import IrisSettings
 
 Resource = dict[str, Any]
@@ -135,8 +136,24 @@ def _put(resource: Resource) -> dict[str, Any]:
     }
 
 
+def _pruned(value: Any) -> Any:
+    """`value` without blank strings and the objects and lists they leave empty: FHIR rejects an
+    element without a value (`EmptyValue`), so a missing value is omitted, never sent empty."""
+    if isinstance(value, dict):
+        kept = {k: _pruned(v) for k, v in value.items()}
+        return {k: v for k, v in kept.items() if not _blank(v)}
+    if isinstance(value, list):
+        return [v for v in (_pruned(v) for v in value) if not _blank(v)]
+    return value
+
+
+def _blank(value: Any) -> bool:
+    return (isinstance(value, str) and not value.strip()) or value == {} or value == []
+
+
 def transaction(resources: Iterable[Resource]) -> Resource:
-    return {"resourceType": "Bundle", "type": "transaction", "entry": [_put(r) for r in resources]}
+    return {"resourceType": "Bundle", "type": "transaction",
+            "entry": [_put(_pruned(r)) for r in resources]}
 
 
 def document_reference_id(document_id: str) -> str:
@@ -290,7 +307,7 @@ class _HandoverMapper:
             name["family"] = p.last_name.value
         if _found(p.first_name):
             name["given"] = [p.first_name.value]
-        if not name and self.case is not None:
+        if not name and self.case is not None and self.case.patient_name.strip():
             name["text"] = self.case.patient_name
         if name:
             resource["name"] = [name]
@@ -572,6 +589,53 @@ class FhirClient:
             response.raise_for_status()
         return response.json()
 
+    def patient_bundle(self, patient: str) -> bytes | None:
+        """Read Patient/$everything, following same-server pages without changing resources.
+        Never return a partial export or forward credentials to a pagination URL on another host.
+        """
+        url = self._http.base_url.join(f"Patient/{patient}/$everything")
+        visited: set[str] = set()
+        first: Resource | None = None
+        entries: list[Resource] = []
+        try:
+            while True:
+                base = self._http.base_url
+                if ((url.scheme, url.host, url.port) != (base.scheme, base.host, base.port)
+                        or not url.path.startswith(base.path)
+                        or any(part in (".", "..") for part in url.path.split("/"))
+                        or url.username or url.password or str(url) in visited):
+                    raise ValueError("invalid FHIR pagination")
+                visited.add(str(url))
+                response = self._http.get(url)
+                if first is None and response.status_code in (404, 410):
+                    return None
+                response.raise_for_status()
+                page = response.json()
+                if not isinstance(page, dict) or page.get("resourceType") != "Bundle":
+                    raise ValueError("expected a FHIR Bundle")
+                items = page.get("entry", [])
+                links = page.get("link", [])
+                if (not isinstance(items, list) or not all(isinstance(e, dict) for e in items)
+                        or not isinstance(links, list)
+                        or not all(isinstance(link, dict) for link in links)):
+                    raise ValueError("invalid FHIR Bundle entries or links")
+                if first is None:
+                    first = page
+                entries.extend(items)
+                next_links = [link for link in links if link.get("relation") == "next"]
+                if not next_links:
+                    if len(visited) == 1:
+                        return response.content
+                    combined = {**first, "entry": entries}
+                    combined["link"] = [link for link in first.get("link", [])
+                                        if link.get("relation") == "self"]
+                    return json.dumps(combined, ensure_ascii=False).encode("utf-8")
+                if len(next_links) != 1 or not isinstance(next_links[0].get("url"), str):
+                    raise ValueError("invalid FHIR next link")
+                url = url.join(next_links[0]["url"])
+        except (httpx.HTTPError, ValueError):
+            raise FhirExportError("FHIR export failed") from None
+
     def close(self) -> None:
         self._http.close()
 
@@ -714,7 +778,7 @@ def mdt_conclusion_resources(
     else:
         patient = {"resourceType": "Patient", "id": patient_id(conclusion.case_id),
                    "meta": {"profile": [PROFILE_PATIENT]}}
-        if case is not None:
+        if case is not None and case.patient_name.strip():
             patient["name"] = [{"text": case.patient_name}]
     patient_urn = _urn(bundle_id, patient)
     entries: list[Resource] = [patient]

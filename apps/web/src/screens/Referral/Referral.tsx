@@ -27,6 +27,7 @@ import ExaminationForm from './ExaminationForm'
 import HandoverFieldForm from '../../components/handover/HandoverFieldForm'
 import ReturnedNote from './ReturnedNote'
 import SendReferral from './SendReferral'
+import ExportCaseFhir from '../../components/fhir/ExportCaseFhir'
 
 function BackLink() {
   const { t } = useTranslation()
@@ -78,7 +79,7 @@ function ReferralContent({ caseId }: { caseId: string }) {
   return <Stack gap="md">
     <BackLink />
     <Paper withBorder p="md"><Stack gap="xs">
-      <Group justify="space-between" align="flex-start"><PageHeading size="h2">{current.patient_name || t('referral.unnamed')}</PageHeading><Badge variant="light">{current.state ? t(`states.${current.state}`) : t('unavailable')}</Badge></Group>
+      <Group justify="space-between" align="flex-start"><PageHeading size="h2">{current.patient_name || t('referral.unnamed')}</PageHeading><Group gap="xs" align="flex-start"><Badge variant="light">{current.state ? t(`states.${current.state}`) : t('unavailable')}</Badge><ExportCaseFhir caseId={caseId} actorId={actor} /></Group></Group>
       {current.diagnosis_label && <Text size="sm">{current.diagnosis_label}</Text>}
       <Text size="sm">{t('referral.koc')}: {koc}</Text>
       <Group gap="md"><Group gap={4}><Text size="xs" c="dimmed">{t('owner')}:</Text><PersonChip id={current.on_move} size="xs" /></Group><Text size="sm">{t('nextStep')}: {current.next_step ?? t('unavailable')}</Text><Group gap={4}><Text size="xs" c="dimmed">{t('nextDue')}:</Text><DueDate value={current.next_due} /></Group></Group>

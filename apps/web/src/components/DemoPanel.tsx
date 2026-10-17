@@ -112,7 +112,7 @@ export default function DemoPanel({ opened, onClose }: { opened: boolean; onClos
     position="right" size="lg" title={t('demoTitle')} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}
     closeOnEscape={!busy} closeOnClickOutside={!busy}>
     <Stack gap="lg">
-      <Alert role="note" color={apiMode === 'mock' ? 'blue' : 'gray'} title={t(apiMode === 'mock' ? 'demoData' : 'realApi')}>
+      <Alert role="note" color={apiMode === 'mock' ? 'nessie' : 'gray'} title={t(apiMode === 'mock' ? 'demoData' : 'realApi')}>
         {apiMode === 'mock' && <Text size="sm">{t('documents.demoHelp')}</Text>}
       </Alert>
       <DemoClock />

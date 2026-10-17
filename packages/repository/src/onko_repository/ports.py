@@ -173,3 +173,15 @@ class CaseRepository(Protocol):
     def pending_fhir_writes(self) -> int:
         """FHIR writes waiting in the outbox (D-14); always 0 without a FHIR projection."""
         ...
+
+    def rejected_fhir_writes(self) -> int:
+        """FHIR writes the FHIR server refused for good, parked in the outbox with their error
+        (D-14); always 0 without a FHIR projection."""
+        ...
+
+    def case_fhir_bundle(self, case_id: str) -> bytes | None:
+        """Download projected Patient/$everything as a JSON file; no app state changes.
+        `KeyError` for an unknown case; None if the patient is not projected.
+        FhirExportUnavailableError without FHIR, FhirExportError on an incomplete/failed response.
+        """
+        ...

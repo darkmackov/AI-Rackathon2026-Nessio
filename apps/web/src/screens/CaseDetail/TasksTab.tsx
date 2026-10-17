@@ -13,6 +13,9 @@ import { DueDate } from '../../components/CaseTime'
 import PersonChip from '../../components/PersonChip'
 import LoadingState, { EmptyState, QueryError } from '../../components/DataState'
 import { useSession } from '../../session'
+import { PriorityBadge } from '../../components/Priority'
+import { TaskStatusBadge } from '../../components/workflow/TaskStatusBadge'
+import { IconExternalLink, IconListCheck, IconPlus } from '@tabler/icons-react'
 import type { OpenSource } from '../../components/handover/ClinicalValue'
 
 export default function TasksTab({ caseId, openSource, showFinding }: { caseId: string; openSource: OpenSource; showFinding: (id: string) => void }) {
@@ -23,7 +26,7 @@ export default function TasksTab({ caseId, openSource, showFinding }: { caseId: 
   const tasks = useQuery(listTasksOptions({ path: { case_id: caseId }, headers: actorHeaders(actorId ?? '') }))
   const sorted = [...tasks.data ?? []].sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999') || a.id.localeCompare(b.id))
   return <Stack>
-    <Group><Button size="sm" pending={busy} onClick={() => { setSaved(false); setSetsOpen(true) }}>{t('caseDetail.startSet')}</Button><Button size="sm" variant="outline" pending={busy} onClick={() => { setSaved(false); setEditing('new') }}>{t('caseDetail.addTask')}</Button></Group>
+    <Group gap="xs"><Button size="xs" leftSection={<IconListCheck size={16} aria-hidden />} pending={busy} onClick={() => { setSaved(false); setSetsOpen(true) }}>{t('caseDetail.startSet')}</Button><Button size="xs" variant="outline" leftSection={<IconPlus size={16} aria-hidden />} pending={busy} onClick={() => { setSaved(false); setEditing('new') }}>{t('caseDetail.addTask')}</Button></Group>
     {saved && <Text role="status" size="sm">{t('workflow.saved')}</Text>}
     {tasks.isPending && <LoadingState rows={5} />}
     {tasks.isError && <QueryError error={tasks.error} pending={tasks.isFetching} retry={() => { void tasks.refetch() }} />}
@@ -35,13 +38,12 @@ export default function TasksTab({ caseId, openSource, showFinding }: { caseId: 
       <Table.Tbody>{sorted.map((task) => <Table.Tr key={task.id} id={`task-${task.id}`} style={{ verticalAlign: 'top' }}>
         <Table.Td>
           <Text size="sm" fw={600}>{task.title}</Text>
-          <Text size="xs" c="dimmed">{i18n.exists(`caseDetail.taskKinds.${task.kind}`) ? t(`caseDetail.taskKinds.${task.kind}`) : task.kind}</Text>
-          <Text size="xs" c="dimmed">{task.location ?? t('unavailable')}</Text>
-          {task.external && <Badge mt={4} size="sm" color="gray" variant="light" c="dark.9">{t('caseDetail.external')}</Badge>}
+          <Text size="xs" c="dimmed">{i18n.exists(`caseDetail.taskKinds.${task.kind}`) ? t(`caseDetail.taskKinds.${task.kind}`) : task.kind} · {task.location ?? t('unavailable')}</Text>
+          {task.external && <Badge mt={4} size="sm" color="gray" variant="light" c="dark.9" leftSection={<IconExternalLink size={12} aria-hidden />}>{t('caseDetail.external')}</Badge>}
         </Table.Td>
         <Table.Td miw={112}><Stack gap={4} align="flex-start">
-          <Badge size="sm" variant="light">{t(`caseDetail.taskStatus.${task.status ?? 'planned'}`)}</Badge>
-          <Badge size="sm" variant="outline">{t(`priorities.${task.priority ?? 'normal'}`)}</Badge>
+          <TaskStatusBadge status={task.status} />
+          <PriorityBadge priority={task.priority ?? 'normal'} size="sm" />
         </Stack></Table.Td>
         <Table.Td><PersonChip id={task.owner} size="xs" /></Table.Td>
         <Table.Td><DueDate value={task.due} active={task.status !== 'done' && task.status !== 'cancelled'} /></Table.Td>
@@ -49,7 +51,7 @@ export default function TasksTab({ caseId, openSource, showFinding }: { caseId: 
           {!task.depends_on?.length && <Text size="sm" c="dimmed">{t('caseDetail.noDependencies')}</Text>}
           {task.depends_on?.map((id) => {
             const dependency = tasks.data?.find((item) => item.id === id)
-            return dependency ? <Group key={id} gap={6}><Anchor href={`#task-${id}`} size="sm">{dependency.title}</Anchor><Badge size="xs" variant="light" color="gray" c="dark.9">{t(`caseDetail.taskStatus.${dependency.status ?? 'planned'}`)}</Badge></Group> : <Text key={id} size="sm">{t('caseDetail.missingTask')}</Text>
+            return dependency ? <Group key={id} gap={6}><Anchor href={`#task-${id}`} size="sm">{dependency.title}</Anchor><TaskStatusBadge status={dependency.status} size="xs" /></Group> : <Text key={id} size="sm">{t('caseDetail.missingTask')}</Text>
           })}
         </Stack></Table.Td>
         <Table.Td><Stack gap={4} align="flex-start">

@@ -9,6 +9,8 @@ export { ApiError } from './api-error'
 declare module '@tanstack/react-query' {
   interface Register {
     mutationMeta: { notificationAction?: (error: unknown) => NotificationAction | undefined }
+    // `notify: false` leaves the failure to the caller, which reports it with its own message.
+    queryMeta: { notify?: false }
   }
 }
 
@@ -30,6 +32,7 @@ export function createQueryClient() {
         const key = query.queryKey[0]
         const id = isRecord(key) ? key._id : undefined
         if (error instanceof ApiError && error.status === 404 && ['getHandover', 'getMdtRecord', 'getMdtConclusion'].includes(String(id))) return
+        if (query.meta?.notify === false) return
         failingReads.add(query.queryHash)
         notifyApiError(error, { scope: query.queryHash, automatic: true })
       }
