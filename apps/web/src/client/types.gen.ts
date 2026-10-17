@@ -312,6 +312,13 @@ export type CodeCandidate = {
 };
 
 /**
+ * Comparator
+ *
+ * A comparator printed before a lab number, e.g. `< 0,5`.
+ */
+export type Comparator = '<' | '<=' | '>' | '>=';
+
+/**
  * ConclusionPrefill
  *
  * The `mdt_conclusion` draft (S5, Q-F37): not AI, only the `MDT_zaver` parts that restate the
@@ -485,6 +492,12 @@ export type DocumentMeta = {
      * Mime Type
      */
     mime_type?: string;
+    /**
+     * Sha256
+     *
+     * SHA-256 of the original bytes, for the duplicate check (Q-I22)
+     */
+    sha256?: string | null;
 };
 
 /**
@@ -590,6 +603,35 @@ export type DueNotice = {
      * Overdue
      */
     overdue: boolean;
+};
+
+/**
+ * DuplicateKind
+ */
+export type DuplicateKind = 'exact' | 'near';
+
+/**
+ * DuplicateMatch
+ *
+ * An earlier document of the case the new upload duplicates. A warning only: the upload is
+ * stored anyway (Q-I22).
+ */
+export type DuplicateMatch = {
+    /**
+     * Document Id
+     */
+    document_id: string;
+    /**
+     * Filename
+     */
+    filename: string;
+    kind: DuplicateKind;
+    /**
+     * Similarity
+     *
+     * Jaccard overlap of the word shingles, 1.0 for exact
+     */
+    similarity: number;
 };
 
 /**
@@ -752,7 +794,7 @@ export type Finding = {
 /**
  * FindingKind
  */
-export type FindingKind = 'missing' | 'conflict' | 'temporal' | 'identity' | 'unattached_reference' | 'trend' | 'unverified_quote';
+export type FindingKind = 'missing' | 'conflict' | 'temporal' | 'identity' | 'unattached_reference' | 'trend' | 'unverified_quote' | 'unnormalized';
 
 /**
  * FindingResolve
@@ -830,6 +872,10 @@ export type Handover = {
      * ECOG / Karnofsky
      */
     performance_status?: SourcedStr;
+    /**
+     * `performance_status` read as scale + score by deterministic code (Q-C13); None while it is missing or can't be read
+     */
+    performance_score?: PerformanceScore | null;
     weight_kg?: SourcedFloat;
     height_cm?: SourcedFloat;
     /**
@@ -1000,6 +1046,9 @@ export type LabPanel = {
 
 /**
  * LabValue
+ *
+ * `value` and `unit` stay as printed; `number`, `comparator` and `ucum` are computed next to
+ * them by deterministic code (Q-C13), None when they can't be (a qualitative or unparsed value).
  */
 export type LabValue = {
     /**
@@ -1024,6 +1073,22 @@ export type LabValue = {
      * H / L as printed by the lab
      */
     flag?: string | null;
+    /**
+     * Number
+     *
+     * `value` as a number (decimal comma read)
+     */
+    number?: number | null;
+    /**
+     * Printed before the number
+     */
+    comparator?: Comparator | null;
+    /**
+     * Ucum
+     *
+     * `unit` as a UCUM code, e.g. 'mmol/L'
+     */
+    ucum?: string | null;
 };
 
 /**
@@ -1568,6 +1633,24 @@ export type PatientNoticeCreate = {
 };
 
 /**
+ * PerformanceScale
+ */
+export type PerformanceScale = 'ecog' | 'karnofsky';
+
+/**
+ * PerformanceScore
+ *
+ * `performance_status` as scale + score (Q-C13).
+ */
+export type PerformanceScore = {
+    scale: PerformanceScale;
+    /**
+     * Score
+     */
+    score: number;
+};
+
+/**
  * Priority
  *
  * Slide 9: 'pacienti, priority, úkoly'.
@@ -2108,6 +2191,12 @@ export type TimeToTreatment = {
 export type UploadResult = {
     document: DocumentMeta;
     job: Job;
+    /**
+     * Duplicates
+     *
+     * Earlier documents of the case this upload duplicates: a warning, the upload is stored anyway (Q-I22)
+     */
+    duplicates?: Array<DuplicateMatch>;
 };
 
 /**

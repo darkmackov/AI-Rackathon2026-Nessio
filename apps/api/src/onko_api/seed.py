@@ -24,6 +24,7 @@ from onko_contracts import (
     TaskStatus,
     TaskTemplate,
 )
+from onko_documents import sha256
 from onko_repository import CaseRepository
 from pydantic import TypeAdapter
 
@@ -157,7 +158,8 @@ def seed_reference_case(repo: CaseRepository) -> None:
         text = (REPORTS / (Path(meta.filename).stem + ".md")).read_text(encoding="utf-8")
         original = ORIGINALS / meta.filename
         data = original.read_bytes() if original.is_file() else b""
-        repo.save_document(meta.model_copy(update={"case_id": CASE_ID}), data, text)
+        meta = meta.model_copy(update={"case_id": CASE_ID, "sha256": sha256(data) if data else None})
+        repo.save_document(meta, data, text)
     repo.save_handover(handover)
     repo.save_findings(CASE_ID, findings)
     for t in tasks:

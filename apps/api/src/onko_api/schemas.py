@@ -11,6 +11,7 @@ from onko_contracts import (
     DocumentMeta,
     DocumentType,
     DraftKind,
+    DuplicateMatch,
     Job,
     MdtMember,
     MdtResultRow,
@@ -40,6 +41,11 @@ class UploadResult(Body):
 
     document: DocumentMeta
     job: Job
+    duplicates: list[DuplicateMatch] = Field(
+        default_factory=list,
+        description="Earlier documents of the case this upload duplicates: a warning, the upload "
+        "is stored anyway (Q-I22)",
+    )
 
 
 class HandoverFieldUpdate(Body):

@@ -1,11 +1,15 @@
-"""Parse uploads by MIME type; render output documents (MDT record, MDT conclusion)."""
+"""Parse uploads by MIME type; warn about duplicate uploads; render output documents (MDT record,
+MDT conclusion)."""
 
 from __future__ import annotations
 
+import hashlib
+import re
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
-from onko_contracts import MdtConclusion, MdtRecord
+from onko_contracts import DuplicateKind, DuplicateMatch, MdtConclusion, MdtRecord, match_text
+from onko_repository import CaseRepository
 
 from .adapters.office import docx_to_md, pptx_to_md
 from .adapters.pdf import pdf_to_text
@@ -34,6 +38,51 @@ def parse(data: bytes, mime_type: str) -> str:
         return PARSERS[mime_type](data)
     except KeyError:
         raise ValueError(f"No parser for {mime_type}") from None
+
+
+# Duplicate uploads (Q-I22): exact copies by hash, near copies by word-shingle overlap of the text
+SHINGLE_WORDS = 5
+NEAR_DUPLICATE = 0.8  # Jaccard; a resent report matches, reports sharing a template mostly don't
+
+
+def sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def shingles(text: str, size: int = SHINGLE_WORDS) -> set[tuple[str, ...]]:
+    """Runs of `size` words of the text normalized for matching (case ignored); a shorter text is
+    one shingle."""
+    words = re.findall(r"\w+", match_text(text).text.casefold())
+    if len(words) <= size:
+        return {tuple(words)} if words else set()
+    return {tuple(words[i : i + size]) for i in range(len(words) - size + 1)}
+
+
+def similarity(a: set[tuple[str, ...]], b: set[tuple[str, ...]]) -> float:
+    """Jaccard overlap of two shingle sets."""
+    return len(a & b) / len(a | b) if a and b else 0.0
+
+
+def find_duplicates(
+    repo: CaseRepository, case_id: str, data: bytes, text: str
+) -> list[DuplicateMatch]:
+    """The case's earlier documents a new upload duplicates, closest first. A warning only, never a
+    reason to refuse the upload (Q-I22). Not by embeddings: reports from one department share a
+    template and would all look alike."""
+    digest = sha256(data)
+    new = shingles(text)
+    matches = []
+    for meta in repo.list_documents(case_id):
+        earlier = meta.sha256 or sha256(repo.document_data(meta.id) or b"")
+        if earlier == digest:
+            matches.append(DuplicateMatch(document_id=meta.id, filename=meta.filename,
+                                          kind=DuplicateKind.EXACT, similarity=1.0))
+            continue
+        score = similarity(new, shingles(repo.document_text(meta.id)))
+        if score >= NEAR_DUPLICATE:
+            matches.append(DuplicateMatch(document_id=meta.id, filename=meta.filename,
+                                          kind=DuplicateKind.NEAR, similarity=round(score, 3)))
+    return sorted(matches, key=lambda m: -m.similarity)
 
 
 def render_pdf(kind: str, data: Mapping[str, Any]) -> bytes:

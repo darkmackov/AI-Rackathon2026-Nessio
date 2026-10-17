@@ -1,6 +1,8 @@
 export const documentsCs = {
   uploadTitle: 'Nahrát dokumenty', drop: 'Přetáhněte dokumenty sem nebo vyberte soubory.', formats: 'PDF, DOCX nebo PPTX. Každý soubor se nahraje samostatně.',
   choose: 'Vybrat soubory', selected: 'Vybrané soubory', bytes: 'bajtů', remove: 'Odebrat', removeNamed: 'Odebrat {{name}}', upload: 'Nahrát vybrané dokumenty',
+  duplicateTitle: 'Možná duplicita', duplicateHelp: 'Dokument byl nahrán. Případ už obsahuje velmi podobný dokument, zkontrolujte, zda nejde o kopii.',
+  duplicateExact: 'Stejný soubor jako {{name}}', duplicateNear: 'Text se shoduje s {{name}} ({{percent}})',
   invalidFile: 'Soubor nelze nahrát', invalidFileHelp: 'Vyberte PDF, DOCX nebo PPTX s odpovídajícím typem souboru.',
   uploadStatus: { waiting: 'Čeká na nahrání', uploading: 'Nahrávání…', uploaded: 'Nahráno, stav AI níže', failed: 'Nahrání se nezdařilo' },
   processing: 'Zpracování dokumentů', noJobs: 'Zatím nebylo spuštěno žádné zpracování.', caseExtraction: 'Extrakce celého případu',
@@ -17,6 +19,8 @@ export const documentsCs = {
 export const documentsEn = {
   uploadTitle: 'Upload documents', drop: 'Drop documents here or choose files.', formats: 'PDF, DOCX or PPTX. Each file is uploaded separately.',
   choose: 'Choose files', selected: 'Selected files', bytes: 'bytes', remove: 'Remove', removeNamed: 'Remove {{name}}', upload: 'Upload selected documents',
+  duplicateTitle: 'Possible duplicate', duplicateHelp: 'The document was uploaded. The case already holds a very similar document; check whether it is a copy.',
+  duplicateExact: 'Same file as {{name}}', duplicateNear: 'Text matches {{name}} ({{percent}})',
   invalidFile: 'Cannot upload this file', invalidFileHelp: 'Choose a PDF, DOCX or PPTX with a matching file type.',
   uploadStatus: { waiting: 'Waiting to upload', uploading: 'Uploading…', uploaded: 'Uploaded, AI status below', failed: 'Upload failed' },
   processing: 'Document processing', noJobs: 'No processing has been started yet.', caseExtraction: 'Case extraction',

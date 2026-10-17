@@ -34,7 +34,7 @@ from ..models import (
     FieldClaim,
     FieldPath,
 )
-from . import prompts
+from . import normalize, prompts
 from .quotes import evidence, locate, section
 
 # Identity: documents may misprint one value; the majority wins and the identity check reports it.
@@ -144,9 +144,19 @@ def _typed(claim: FieldClaim) -> Any:
     if path is FieldPath.AGE:
         n = parse_number(claim.value)
         return int(n) if n is not None else None
-    if path in (FieldPath.WEIGHT_KG, FieldPath.HEIGHT_CM):
-        return parse_number(claim.value)
-    return claim.value.strip() if claim.value and claim.value.strip() else None
+    if claim.value is None:
+        return None
+    if path is FieldPath.WEIGHT_KG:
+        return normalize.weight_kg(claim.value, claim.quotes)  # Q-C13: kg
+    if path is FieldPath.HEIGHT_CM:
+        return normalize.height_cm(claim.value, claim.quotes)  # Q-C13: cm (1,65 m -> 165)
+    value = claim.value.strip()
+    if not value:
+        return None
+    # Q-C13: an identifier in its canonical form; one that can't be read stays as printed and the
+    # normalization check flags it
+    canonical = normalize.IDENTIFIERS.get(path.value)
+    return (canonical(value) or value) if canonical else value
 
 
 def verified(claim: FieldClaim, doc: ParsedDocument) -> list[Evidence]:

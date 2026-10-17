@@ -27,6 +27,7 @@ from onko_contracts import (
     Handover,
     MdtConclusion,
     Origin,
+    PerformanceScale,
     Priority,
     Sourced,
     Stamp,
@@ -73,6 +74,12 @@ PROFILE_BODY_HEIGHT = "http://hl7.org/fhir/StructureDefinition/bodyheight"
 LOCAL_TZ = ZoneInfo("Europe/Prague")
 
 AI_AGENT = "Onko-koordinace AI"
+
+_PERFORMANCE_TEXT = "Výkonnostní stav (ECOG / Karnofsky)"
+_PERFORMANCE_CODE = {
+    PerformanceScale.ECOG: "Výkonnostní stav ECOG",
+    PerformanceScale.KARNOFSKY: "Výkonnostní stav Karnofsky (%)",
+}
 APP_NAME = "Onko-koordinace"
 _GENDER = {"žena": "female", "zena": "female", "muž": "male", "muz": "male"}
 _INTERPRETATIONS = {"H", "L", "HH", "LL", "A", "AA", "N"}
@@ -120,13 +127,6 @@ def _narrative(text: str) -> dict[str, str]:
 def _evidence_date(sourced: Sourced[Any], fallback: date) -> date:
     dates = [e.document_date for e in sourced.evidence if e.document_date]
     return max(dates) if dates else fallback
-
-
-def _number(value: str) -> float | None:
-    try:
-        return float(value.replace(",", ".").replace(" ", ""))
-    except ValueError:
-        return None
 
 
 def _put(resource: Resource) -> dict[str, Any]:
@@ -379,16 +379,18 @@ class _HandoverMapper:
                 "effectiveDateTime": _evidence_date(sourced, self.h.as_of).isoformat(),
                 "valueQuantity": {"value": sourced.value, "unit": unit, "system": UCUM, "code": unit},
             }, sourced)
-        ps = self.h.performance_status
+        ps, score = self.h.performance_status, self.h.performance_score
         if _found(ps):
             self._add({
                 "resourceType": "Observation",
                 "id": self._id("performance-status"),
                 "status": "final",
-                "code": {"text": "Výkonnostní stav (ECOG / Karnofsky)"},
+                "code": {"text": _PERFORMANCE_CODE.get(score.scale, _PERFORMANCE_TEXT) if score
+                         else _PERFORMANCE_TEXT},
                 "subject": self._subject(),
                 "effectiveDateTime": _evidence_date(ps, self.h.as_of).isoformat(),
-                "valueString": ps.value,
+                # the score once the code could read one (Q-C13), else the text as written
+                **({"valueInteger": score.score} if score else {"valueString": ps.value}),
             }, ps)
 
     def _labs(self) -> None:
@@ -405,9 +407,15 @@ class _HandoverMapper:
                     "subject": self._subject(),
                     "effectiveDateTime": panel.date.isoformat(),
                 }
-                number = _number(lab.value)
-                if number is not None:
-                    obs["valueQuantity"] = {"value": number, **({"unit": lab.unit} if lab.unit else {})}
+                if lab.number is not None:  # normalized at extraction (Q-C13)
+                    quantity: Resource = {"value": lab.number}
+                    if lab.comparator is not None:
+                        quantity["comparator"] = lab.comparator.value
+                    if lab.unit or lab.ucum:
+                        quantity["unit"] = lab.unit or lab.ucum
+                    if lab.ucum:
+                        quantity |= {"system": UCUM, "code": lab.ucum}
+                    obs["valueQuantity"] = quantity
                 else:
                     obs["valueString"] = f"{lab.value} {lab.unit}".strip() if lab.unit else lab.value
                 if lab.reference_range:

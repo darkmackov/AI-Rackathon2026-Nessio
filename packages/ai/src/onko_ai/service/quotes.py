@@ -1,39 +1,30 @@
-"""Finding verbatim quotes in document text (D-2). Only whitespace may differ."""
+"""Finding verbatim quotes in document text (D-2). Only what `match_text` normalizes may differ:
+whitespace, Unicode composition, line-break hyphens, typographic quotes and dashes (Q-C13)."""
 
 from __future__ import annotations
 
-import re
+from functools import lru_cache
 
-from onko_contracts import Evidence, ParsedDocument
-
-_WS = re.compile(r"\s+")
+from onko_contracts import Evidence, MatchText, ParsedDocument, match_text
 
 
-def _squash(text: str) -> tuple[str, list[int]]:
-    """Text with every whitespace run turned into one space, plus the original index of each char."""
-    out: list[str] = []
-    index: list[int] = []
-    for m in re.finditer(r"\s+|\S+", text):
-        if m.group().isspace():
-            out.append(" ")
-            index.append(m.start())
-        else:
-            out.append(m.group())
-            index.extend(range(m.start(), m.end()))
-    return "".join(out), index
+@lru_cache(maxsize=64)
+def _normalized(text: str) -> MatchText:
+    """A document is searched for many quotes in a row: normalize it once."""
+    return match_text(text)
 
 
 def locate(quote: str, text: str, start: int = 0) -> tuple[int, int] | None:
-    """Char span of `quote` in `text` at or after `start`, ignoring whitespace differences."""
-    needle = _WS.sub(" ", quote).strip()
+    """Char span of `quote` in `text` at or after `start`, both compared as `match_text`."""
+    needle = match_text(quote).text
     if not needle:
         return None
-    hay, index = _squash(text)
+    hay = _normalized(text)
     pos = 0
-    while (found := hay.find(needle, pos)) != -1:
-        begin = index[found]
+    while (found := hay.text.find(needle, pos)) != -1:
+        begin, end = hay.span(found, found + len(needle))
         if begin >= start:
-            return begin, index[found + len(needle) - 1] + 1
+            return begin, end
         pos = found + 1
     return None
 
