@@ -1,6 +1,10 @@
 export const workflowCs = {
   save: 'Uložit', saved: 'Změna byla uložena.', required: 'Vyplňte povinné pole.', invalid: 'Zadejte platnou hodnotu.',
-  settings: 'Upravit případ', milestones: 'Upravit milníky', resume: 'Obnovit', changeState: 'Změnit stav', targetState: 'Cílový stav',
+  settings: 'Upravit případ', milestones: 'Upravit milníky', resume: 'Obnovit',
+  markComplete: 'Označit podklady za kompletní', waitForDocuments: 'Čekat na podklady', waitAgain: 'Znovu čekat na podklady',
+  readinessCurrent: 'Aktuální stav: {{state}}',
+  completeHelp: 'Po kontrole označíte dokumentaci jako kompletní. Nálezy posuďte v záložce K řešení; podklad pro MDT připravíte samostatně v záložce MDT.',
+  waitHelp: 'Označíte, že je potřeba doplnit dokumentaci. Konkrétní podklady vyžádejte v záložce K řešení nebo založte úkol.',
   coordinator: 'Koordinátor', board: 'MDT tým', mdtDate: 'Plánované datum MDT', onset: 'Začátek obtíží', treatment: 'Zahájení léčby',
   reason: 'Důvod odložení', until: 'Plánované obnovení od', note: 'Poznámka', finding: 'Související nález',
   returnHelp: 'Případ se vrátí odesílajícímu lékaři s vaší poznámkou.',
@@ -25,7 +29,11 @@ export const workflowCs = {
 }
 export const workflowEn = {
   save: 'Save', saved: 'Change saved.', required: 'Complete this required field.', invalid: 'Enter a valid value.',
-  settings: 'Edit case', milestones: 'Edit milestones', resume: 'Resume', changeState: 'Change state', targetState: 'Target state',
+  settings: 'Edit case', milestones: 'Edit milestones', resume: 'Resume',
+  markComplete: 'Mark documents as complete', waitForDocuments: 'Wait for documents', waitAgain: 'Wait for documents again',
+  readinessCurrent: 'Current state: {{state}}',
+  completeHelp: 'After reviewing, mark the documents as complete. Assess findings in Issues; prepare the MDT input separately in the MDT tab.',
+  waitHelp: 'Mark that more documentation is needed. Request specific documents in Issues or create a task.',
   coordinator: 'Coordinator', board: 'MDT board', mdtDate: 'Planned MDT date', onset: 'Symptom onset', treatment: 'Treatment start',
   reason: 'Reason for hold', until: 'Planned resume date', note: 'Note', finding: 'Related finding',
   returnHelp: 'The referral will return to the referring doctor with your note.',

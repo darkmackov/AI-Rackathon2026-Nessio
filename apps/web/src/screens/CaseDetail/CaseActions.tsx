@@ -5,27 +5,38 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
 import { clearHoldMutation, listActorsOptions, listMdtBoardsOptions, returnCaseMutation, setHoldMutation, takeOverCaseMutation, transitionCaseMutation, updateCaseMutation, updateMilestonesMutation } from '../../client/@tanstack/react-query.gen'
-import type { Case, Finding } from '../../client/types.gen'
+import type { Case, CaseTransition, Finding } from '../../client/types.gen'
 import WorkflowForm, { WorkflowError, type WorkflowField } from '../../components/workflow/WorkflowForm'
 import { priorityValue, usePriorityChoices, useWorkflowRefresh } from '../../components/workflow/use-workflow'
 import LoadingState, { QueryError } from '../../components/DataState'
 import { useSession } from '../../session'
 
-type Action = 'return' | 'hold' | 'settings' | 'milestones' | 'transition'
+type Action = 'return' | 'hold' | 'settings' | 'milestones' | 'complete' | 'wait'
 export default function CaseActions({ item, findings, settings = false }: { item: Case; findings?: Finding[]; settings?: boolean }) {
   const { t } = useTranslation(), { actorId } = useSession()
-  const [action, setAction] = useState<Action | null>(null), [saved, setSaved] = useState(false), [error, setError] = useState<unknown>(null)
+  const [dialog, setDialog] = useState<{ action: Action; sourceState: Case['state'] } | null>(null)
+  const action = dialog?.action ?? null
+  const [saved, setSaved] = useState(false), [error, setError] = useState<unknown>(null)
   const busy = useIsMutating() > 0, refresh = useWorkflowRefresh(item.id)
   const take = useMutation(takeOverCaseMutation()), resume = useMutation(clearHoldMutation()), returning = useMutation(returnCaseMutation()), hold = useMutation(setHoldMutation())
   const update = useMutation(updateCaseMutation()), milestones = useMutation(updateMilestonesMutation()), transition = useMutation(transitionCaseMutation())
   const actors = useQuery({ ...listActorsOptions(), enabled: action === 'settings' })
   const boards = useQuery({ ...listMdtBoardsOptions(), enabled: action === 'settings' })
   const priorities = usePriorityChoices()
+  // Present the documented pre-MDT actions (Q-F29). The API validates every requested move.
+  const reviewing = item.state === 'v_triage'
+  const waiting = item.state === 'ceka_na_podklady'
+  const complete = item.state === 'kompletni'
+  const readinessTarget: CaseTransition['to'] | null = action === 'complete' ? 'kompletni' : action === 'wait' ? 'ceka_na_podklady' : null
+  // The source phase is only the dialog's context: discard its draft when that context changes.
+  if (readinessTarget && dialog?.sourceState !== item.state) setDialog(null)
+  const readinessAvailable = action === 'complete' ? reviewing || waiting : action === 'wait' ? reviewing || complete : true
+  const waitLabel = t(complete ? 'workflow.waitAgain' : 'workflow.waitForDocuments')
   const options = { path: { case_id: item.id }, headers: actorHeaders(actorId ?? '') }
-  const open = (value: Action) => { setSaved(false); setError(null); setAction(value) }
-  const success = () => { setAction(null); setSaved(true) }
+  const open = (value: Action) => { setSaved(false); setError(null); setDialog({ action: value, sourceState: item.state }) }
+  const success = () => { setDialog(null); setSaved(true) }
   const direct = async (run: () => Promise<unknown>) => { setSaved(false); setError(null); try { await run(); await refresh(); success() } catch (error) { setError(error) } }
-  const title = action === 'return' ? t('caseDetail.returnCase') : action === 'hold' ? t('caseDetail.hold') : action ? t(`workflow.${action === 'transition' ? 'changeState' : action}`) : ''
+  const title = action === 'return' ? t('caseDetail.returnCase') : action === 'hold' ? t('caseDetail.hold') : action === 'complete' ? t('workflow.markComplete') : action === 'wait' ? waitLabel : action ? t(`workflow.${action}`) : ''
   let fields: WorkflowField[] = []
   let initial: Record<string, string> = {}
   if (action === 'return') {
@@ -43,9 +54,9 @@ export default function CaseActions({ item, findings, settings = false }: { item
   } else if (action === 'milestones') {
     fields = [{ name: 'onset', label: t('workflow.onset'), type: 'date' }, { name: 'start', label: t('workflow.treatment'), type: 'date' }]
     initial = { onset: item.milestones?.symptom_onset ?? '', start: item.milestones?.treatment_start ?? '' }
-  } else if (action === 'transition') {
-    fields = [{ name: 'to', label: t('workflow.targetState'), type: 'select', required: true, choices: ['ceka_na_podklady', 'kompletni'].map((value) => ({ value, label: t(`states.${value}`) })) }, { name: 'note', label: t('workflow.note'), type: 'textarea' }]
-    initial = { to: '', note: '' }
+  } else if (readinessTarget) {
+    fields = [{ name: 'note', label: t('workflow.note'), type: 'textarea' }]
+    initial = { note: '' }
   }
   const directoryReady = action !== 'settings' || actors.isSuccess && boards.isSuccess
   return <Stack gap={4} align={settings ? undefined : 'flex-end'}>
@@ -53,7 +64,8 @@ export default function CaseActions({ item, findings, settings = false }: { item
       {settings ? <>
         <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => open('settings')}>{t('workflow.settings')}</Button>
         <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => open('milestones')}>{t('workflow.milestones')}</Button>
-        <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => open('transition')}>{t('workflow.changeState')}</Button>
+        {(reviewing || waiting) && <Button size="compact-sm" variant="outline" disabled={busy} onClick={() => open('complete')}>{t('workflow.markComplete')}</Button>}
+        {(reviewing || complete) && <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => open('wait')}>{waitLabel}</Button>}
       </> : <>
         <Button size="xs" leftSection={<IconUserCheck size={16} aria-hidden />} disabled={busy || item.state !== 'odeslano'} loading={take.isPending} onClick={() => { void direct(() => take.mutateAsync(options)) }}>{t('caseDetail.takeOver')}</Button>
         <Button size="xs" variant="outline" leftSection={<IconArrowBackUp size={16} aria-hidden />} disabled={busy} onClick={() => open('return')}>{t('caseDetail.returnCase')}</Button>
@@ -62,18 +74,22 @@ export default function CaseActions({ item, findings, settings = false }: { item
     </Group>
     {saved && <Text size="sm" role="status">{t('workflow.saved')}</Text>}
     {error != null && <WorkflowError error={error} />}
-    <Modal opened={action !== null} onClose={() => { if (!busy) setAction(null) }} title={title} closeOnClickOutside={!busy} closeOnEscape={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+    <Modal opened={action !== null && readinessAvailable} onClose={() => { if (!busy) setDialog(null) }} title={title} closeOnClickOutside={!busy} closeOnEscape={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
       {!directoryReady && <>
         {(actors.isPending || boards.isPending) && <LoadingState />}
         {actors.isError && <QueryError error={actors.error} retry={() => { void actors.refetch() }} />}
         {boards.isError && <QueryError error={boards.error} retry={() => { void boards.refetch() }} />}
       </>}
-      {action && directoryReady && <WorkflowForm key={action} fields={fields} initial={initial} onSaved={success} help={action === 'return' ? t('workflow.returnHelp') : undefined} submitLabel={action === 'return' ? t('caseDetail.returnCase') : undefined} submit={async (values) => {
+      {readinessTarget && <Text size="sm" mb="sm">{t('workflow.readinessCurrent', { state: item.state ? t(`states.${item.state}`) : t('unavailable') })}</Text>}
+      {action && directoryReady && <WorkflowForm key={readinessTarget ? `${action}-${item.state}` : action} fields={fields} initial={initial} onSaved={success}
+        onCancel={readinessTarget ? () => setDialog(null) : undefined}
+        help={action === 'return' ? t('workflow.returnHelp') : readinessTarget ? t(action === 'complete' ? 'workflow.completeHelp' : 'workflow.waitHelp') : undefined}
+        submitLabel={action === 'return' ? t('caseDetail.returnCase') : readinessTarget ? title : undefined} submit={async (values) => {
         if (action === 'return') await returning.mutateAsync({ ...options, body: { note: values.note, finding_id: values.finding || null } })
         if (action === 'hold') await hold.mutateAsync({ ...options, body: { reason: values.reason, until: values.until || null } })
         if (action === 'settings') await update.mutateAsync({ ...options, body: { priority: priorityValue(values.priority), coordinator_id: values.coordinator || null, mdt_board_id: values.board || null, mdt_date: values.date || null } })
         if (action === 'milestones') await milestones.mutateAsync({ ...options, body: { symptom_onset: values.onset || null, treatment_start: values.start || null } })
-        if (action === 'transition') await transition.mutateAsync({ ...options, body: { to: values.to === 'kompletni' ? 'kompletni' : 'ceka_na_podklady', note: values.note || null } })
+        if (readinessTarget) await transition.mutateAsync({ ...options, body: { to: readinessTarget, note: values.note || null } })
         await refresh()
       }} />}
     </Modal>

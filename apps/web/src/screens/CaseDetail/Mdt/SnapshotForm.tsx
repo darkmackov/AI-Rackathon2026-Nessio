@@ -57,7 +57,7 @@ export default function SnapshotForm({ item, actorId, showFindings }: { item: Ca
       <Group><Button type="submit" disabled={busy}>{t('mdt.snapshot')}</Button></Group>
     </Stack></form>}
     <Modal opened={confirm} onClose={() => { if (!busy) setConfirm(false) }} title={t('mdt.snapshotTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
-      <Stack><Text>{t('mdt.snapshotHelp')}</Text><Text fw={600}>{selected?.name} · {formatDate(form.values.mdt_date, i18n.language)}</Text>
+      <Stack><Text>{t('mdt.snapshotHelp')}</Text><Text fw={600}>{selected?.name} · {validDocumentDate(form.values.mdt_date) ? formatDate(form.values.mdt_date, i18n.language) : t('unavailable')}</Text>
         {mutation.isError && (mutation.error instanceof ApiError && mutation.error.status === 409 ? <Alert role="alert" color="orange"><Stack gap="xs"><Text size="sm">{t('mdt.snapshotBlocked')}</Text><Button variant="outline" onClick={() => { setConfirm(false); showFindings() }}>{t('mdt.reviewFindings')}</Button></Stack></Alert> : <QueryError error={mutation.error} />)}
         <Group><Button loading={mutation.isPending} disabled={busy} onClick={() => mutation.mutate({ body: form.values, path: { case_id: item.id }, headers: actorHeaders(actorId) })}>{t('mdt.snapshotConfirm')}</Button><Button variant="default" disabled={busy} onClick={() => setConfirm(false)}>{t('cancel')}</Button></Group>
       </Stack>
