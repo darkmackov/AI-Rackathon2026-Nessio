@@ -118,12 +118,12 @@ Mock PDFs remain a labelled fixture, except that an uploaded PDF report is serve
 
 ## S6 feedback workflow (Q-W16)
 
-S6 uses the existing API contracts through MSW only. Its six Python endpoints remain 501; real mode shows that error without fallback. The shared shell, S0–S2 styling and document controls are preserved.
+The **Komunikace** tab and the GP's inbox run the same rules in mock and real mode. The MSW mock mirrors the backend's S6 rules and audit action names. The shared shell, S0–S2 styling and document controls are preserved.
 
-1. After confirming the MDT conclusion, open **Komunikace** and **Odeslat PL**. Review the patient, recipient, confirmed conclusion and frozen MDT input; optionally add a note and confirm sending. An unavailable input or uploaded conclusion document prevents sending. The result can be sent once, then the conclusion is locked and the GP is on the move.
-2. Switch to the referring doctor. **Doručená pošta**, above the referrals, shows results and returned referrals. Expand a result to read the conclusion, recommendations and note, show the frozen MDT input, and download both PDFs. Receipt errors show a retry; no confirmation status is inferred from missing data.
-3. **Potvrzuji převzetí** requires confirmation and closes the case. Both roles can inspect the receipt; repeated confirmation returns the original receipt without another audit event. Returned referrals link to the existing correction flow and never close a case.
+1. After confirming the MDT conclusion, open **Komunikace** and **Odeslat PL**. Review the patient, recipient, confirmed conclusion and frozen MDT input; optionally add a note and confirm sending. The message carries the note and the conclusion text; it attaches the uploaded MDT report, if any, and every document the frozen MDT input quotes. The result can be sent once, then the conclusion is locked and the GP is on the move.
+2. Switch to the referring doctor. **Doručená pošta**, above the referrals, shows results and returned referrals. Expand a result to read the conclusion, recommendations and the message text, open the attachments, show the frozen MDT input, and download both PDFs. Receipt errors show a retry; no confirmation status is inferred from missing data.
+3. **Potvrzuji převzetí** requires confirmation and closes the case. Both roles can inspect the receipt. It is confirmed once; a repeat is refused (409). Returned referrals link to the existing correction flow and have no receipt.
 4. Closed cases disappear from the regular lists; **Zobrazit uzavřené** brings them back. Inbox messages remain visible. Tasks are retained, and later uploads update only the live case, leaving the MDT input unchanged.
-5. **Informovat pacienta** records a subject and body with `simulated=true`, no recipients and no external delivery. It is available from triage through feedback sent, excluding returned referrals, and never changes the case state.
+5. **Informovat pacienta** records a subject and body with `simulated=true`, no recipients and no external delivery. It is available from the take-over until the case is closed, returned referrals included, and never changes the case state.
 
 Sending, receipt confirmation and patient notices appear in **Audit** with the demo-clock timestamp. Reset clears messages and receipts; identity switching removes the previous person's cached queries. Offline checks live in `feedback-api.test.ts` and `feedback.test.tsx`.
