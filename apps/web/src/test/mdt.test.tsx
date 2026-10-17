@@ -44,6 +44,20 @@ describe('S5 coordinator MDT workflow', () => {
     expect(await screen.findByRole('article', { name: 'Fiktivní ukázka: chybí ECOG / Karnofsky.' })).toBeVisible()
   })
 
+  it('closes the blocked snapshot dialog and keeps the way to the findings', async () => {
+    completeCase()
+    renderApp(); const user = userEvent.setup(); const panel = await openMdt(user)
+    await user.click(await screen.findByRole('button', { name: 'Připravit podklad pro MDT' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Potvrdit a připravit' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('nevyřešená blokující upozornění')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })).not.toBeInTheDocument())
+    expect(within(panel).getByRole('alert')).toHaveTextContent('nevyřešená blokující upozornění')
+    await user.click(within(panel).getByRole('button', { name: 'Zobrazit k řešení' }))
+    expect(await screen.findByRole('article', { name: 'Fiktivní ukázka: chybí ECOG / Karnofsky.' })).toBeVisible()
+  })
+
   it('prepares the record from the chosen board/date while keeping missing values explicit', async () => {
     completeCase(); resolveBlockers()
     renderApp(); const user = userEvent.setup(); await openMdt(user)
