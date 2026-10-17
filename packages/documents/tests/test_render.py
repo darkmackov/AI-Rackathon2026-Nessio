@@ -112,3 +112,15 @@ def test_multiline_values_keep_their_lines():
     pdf = render_mdt_record(_record(mdt_question="První řádek\nDruhý řádek"))
     page = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
     assert "První řádek\nDruhý řádek" in page
+
+
+def test_every_page_carries_the_nessio_header_and_a_page_footer():
+    long = [MdtResultRow(date=date(2026, 10, 8), examination="CT", result="Nález. " * 400)]
+    pdf = render_mdt_record(_record(results=long))
+    pages = [" ".join(p.extract_text().split()) for p in PdfReader(io.BytesIO(pdf)).pages]
+
+    assert len(pages) > 1
+    for number, page in enumerate(pages, start=1):
+        assert page.startswith("Nessio")
+        assert f"Strana {number} / {len(pages)}" in page
+    assert "Výsledek" in pages[1]  # the results table repeats its header row
