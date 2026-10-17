@@ -55,7 +55,7 @@ export default function HandoverTab({ handover, names, sources, findings, showFi
       return <Badge size="sm" variant="light" color="gray" c="dark.9">{t('caseDetail.records', { count: rows })}</Badge>
     }
     const problems = problemCount(fields, section)
-    return problems > 0 && <Badge size="sm" variant="light" color="orange" c="dark.9" leftSection={<IconAlertTriangle size={12} aria-hidden />}>{t('caseDetail.problems', { count: problems })}</Badge>
+    return problems > 0 && <Badge size="sm" variant="filled" color="nessie" leftSection={<IconAlertTriangle size={12} aria-hidden />}>{t('caseDetail.problems', { count: problems })}</Badge>
   }
   const examinations = <>
     {examinationAction}

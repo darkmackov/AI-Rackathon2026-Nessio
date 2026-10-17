@@ -91,7 +91,7 @@ function DetailContent({ caseId }: { caseId: string }) {
       <Tabs.List>{detailTabs.map((value) => {
         const TabIcon = tabIcons[value]
         return <Tabs.Tab key={value} value={value} leftSection={<TabIcon size={16} aria-hidden />}
-          rightSection={value === 'findings' && unresolved > 0 ? <Badge size="sm" variant="filled" color="red.8">{unresolved}</Badge> : undefined}>{t(`caseDetail.tabs.${value}`)}</Tabs.Tab>
+          rightSection={value === 'findings' && unresolved > 0 ? <Badge size="sm" variant="filled" color="nessie">{unresolved}</Badge> : undefined}>{t(`caseDetail.tabs.${value}`)}</Tabs.Tab>
       })}</Tabs.List>
       <Grid mt="md">
         <Grid.Col span={split ? 7 : 12} miw={0}>

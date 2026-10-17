@@ -5,7 +5,7 @@
 
 // A4, black on white, bundled DejaVu Sans so Czech text needs no system fonts.
 #let doc(title, body) = {
-  set document(title: title, author: "Onko-koordinace", date: none)
+  set document(title: title, author: "Nessio", date: none)
   set page(paper: "a4", margin: 15mm)
   // No kerning: pypdf reads kerned pairs as spaces ("T omáš"), and our PDFs are parsed again.
   set text(font: "DejaVu Sans", size: 10pt, lang: "cs", kerning: false)

@@ -1,4 +1,4 @@
-import { Anchor, AppShell as MantineAppShell, Badge, Box, Button, Container, Group, Menu, Tooltip } from '@mantine/core'
+import { Anchor, AppShell as MantineAppShell, Badge, Box, Button, Container, Group, Image, Menu, Tooltip } from '@mantine/core'
 import { Link, Outlet } from '@tanstack/react-router'
 import { IconCheck, IconFlask, IconLanguage } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -39,9 +39,13 @@ export default function AppShell() {
     <Anchor href="#main-content" className="skip-link">{t('skip')}</Anchor>
     <header className="app-header">
       <Container size="xl" py={8}>
-        <Group justify="space-between" wrap="nowrap" gap="sm" mih={44}>
+        <Group justify="space-between" gap="sm" mih={44}>
           <nav aria-label={t('navigation')}>
-            <Anchor component={Link} to={session.actor ? roleHome(session.actor.role) : '/'} fw={700} size="lg" c="var(--mantine-color-text)" underline="never" style={{ whiteSpace: "nowrap", overflowWrap: "normal" }}>{t('appName')}</Anchor>
+            <Anchor component={Link} to={session.actor ? roleHome(session.actor.role) : '/'} fw={700} fz={{ base: 'md', sm: 'lg' }} c="var(--mantine-color-text)" underline="never"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', overflowWrap: 'normal' }}>
+              <Image src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" aria-hidden w={40} h={44} fit="contain" style={{ flexShrink: 0 }} />
+              {t('appName')}
+            </Anchor>
           </nav>
           <Group gap="xs" wrap="nowrap">
             {session.actor
@@ -52,7 +56,7 @@ export default function AppShell() {
                     styles={{ section: { marginInlineEnd: 0 } }}><Box component="span" visibleFrom="sm" ml={6}>{t('demo')}</Box></Button>
                 </Tooltip>
               </>
-              : <Badge variant="light" color={apiMode === 'mock' ? 'blue' : 'gray'} leftSection={<IconFlask size={12} aria-hidden />}>{mode}</Badge>}
+              : <Badge variant="light" color={apiMode === 'mock' ? 'nessie' : 'gray'} leftSection={<IconFlask size={12} aria-hidden />}>{mode}</Badge>}
             <LanguageMenu />
             {session.actor && <UserMenu actor={session.actor} onLeave={() => setDemoOpen(false)} />}
           </Group>
