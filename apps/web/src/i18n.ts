@@ -5,9 +5,11 @@ import { handoverEditCs, handoverEditEn } from './components/handover/translatio
 import { workflowCs, workflowEn } from './components/workflow/translations'
 import { caseDetailCs, caseDetailEn } from './screens/CaseDetail/translations'
 import { referralCs, referralEn } from './screens/Referral/translations'
+import { mdtCs, mdtEn } from './screens/CaseDetail/Mdt/translations'
 
 export const resources = {
   cs: { translation: {
+    mdt: mdtCs,
     workflow: workflowCs,
     caseDetail: caseDetailCs,
     referral: referralCs,
@@ -50,6 +52,7 @@ export const resources = {
     notFound: 'Stránka nebyla nalezena', notFoundDescription: 'Tato adresa v aplikaci neexistuje.', home: 'Přejít na úvod',
   } },
   en: { translation: {
+    mdt: mdtEn,
     workflow: workflowEn,
     caseDetail: caseDetailEn,
     referral: referralEn,

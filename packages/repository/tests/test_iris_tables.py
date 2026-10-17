@@ -6,14 +6,23 @@ from datetime import date, datetime
 
 from onko_contracts import (
     Case,
+    ConclusionPrefill,
+    DraftKind,
+    DraftResult,
     Evidence,
     Finding,
     FindingKind,
+    Job,
+    JobKind,
+    MdtMember,
+    MdtRecord,
+    MdtResultRow,
     Milestones,
     OnHold,
     Resolution,
     ResolutionKind,
     Severity,
+    Stamp,
     Task,
 )
 from onko_repository.adapters.iris_tables import ID, TEXT, ModelTable, _timestamp
@@ -63,6 +72,33 @@ def test_lists_and_optional_nested_models():
     task = Task(id="t1", case_id="c1", title="CT", kind="imaging", owner="koc", depends_on=["t0"],
                 external=True)
     assert _round_trip(tasks, task) == task
+
+
+def test_job_with_a_nested_draft_round_trips():
+    jobs = ModelTable("app_job", Job, key=("id",))
+    prefill = DraftResult(kind=DraftKind.MDT_CONCLUSION,
+                          fields=ConclusionPrefill(diagnosis_code="C25.0", date=date(2026, 10, 21),
+                                                   copy_to=["MUDr. Řezníček"]))
+    rows = DraftResult(kind=DraftKind.MDT_RESULTS,
+                       rows=[MdtResultRow(date=date(2026, 10, 8), examination="CT", result="35 mm")])
+    for draft in (prefill, rows, None):
+        job = Job(id="job-1", kind=JobKind.DRAFT, case_id="c1", created_at=NOW, draft=draft)
+        assert _round_trip(jobs, job) == job
+    assert jobs.column_types()["draft__fields__date"] == "DATE"
+
+
+def test_mdt_record_round_trip():
+    records = ModelTable("app_mdt_record", MdtRecord, key=("case_id",))
+    record = MdtRecord(
+        case_id="c1", mdt_date=date(2026, 10, 21), board_id="mdt-git",
+        members=[MdtMember(name="MUDr. Hrubý", specialty="chirurgie")],
+        patient_name="Jana Nováková", weight_kg=65.0, comorbidities=["hypertenze"],
+        results=[MdtResultRow(date=date(2026, 10, 8), examination="CT", result="tumor 35 mm")],
+        created=Stamp(by="k", at=NOW),
+    )
+    assert _round_trip(records, record) == record
+    assert records.column_types()["mdt_date"] == "DATE"
+    assert records.column_types()["members"] == TEXT
 
 
 def test_column_added_later_falls_back_to_the_default():

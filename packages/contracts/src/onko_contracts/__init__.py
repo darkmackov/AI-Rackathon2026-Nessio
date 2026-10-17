@@ -29,14 +29,23 @@ from .handover import (
     LabValue,
     PatientDetails,
 )
-from .jobs import Job, JobKind, JobStatus
-from .mdt import ConclusionSource, MdtBoard, MdtConclusion, MdtMember, MdtRecord, MdtResultRow
+from .jobs import TEXT_DRAFTS, DraftKind, DraftResult, Job, JobKind, JobStatus
+from .mdt import (
+    ConclusionPrefill,
+    ConclusionSource,
+    MdtBoard,
+    MdtConclusion,
+    MdtMember,
+    MdtRecord,
+    MdtResultRow,
+)
 from .messaging import Channel, DueNotice, Message, MessageKind, Receipt
 from .search import CaseAnswer, CodeCandidate, DocChunk
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
     "HANDOVER_SCHEMA_VERSION",
+    "TEXT_DRAFTS",
     "Actor",
     "AuditEvent",
     "Case",
@@ -45,11 +54,14 @@ __all__ = [
     "CaseState",
     "Channel",
     "CodeCandidate",
+    "ConclusionPrefill",
     "ConclusionSource",
     "Contacts",
     "DocChunk",
     "DocumentMeta",
     "DocumentType",
+    "DraftKind",
+    "DraftResult",
     "DueNotice",
     "Evidence",
     "Examination",

@@ -84,6 +84,8 @@ export default function DemoPanel({ opened, onClose }: { opened: boolean; onClos
         listCasesQueryKey(), getDemoClockQueryKey(), listActorsQueryKey(),
         listOrganizationsQueryKey(), listMdtBoardsQueryKey(),
       ].map((queryKey) => queryClient.invalidateQueries({ queryKey })))
+      // A single-board key requires its id; cover every cached roster without constructing a custom key.
+      await queryClient.invalidateQueries({ predicate: (query) => { const key = query.queryKey[0]; return !!key && typeof key === 'object' && '_id' in key && key._id === 'getMdtBoard' } })
       setScenario(null)
       setFeedback('resetSaved')
       setFormRevision((revision) => revision + 1)

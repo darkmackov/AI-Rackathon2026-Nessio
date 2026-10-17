@@ -1,4 +1,5 @@
 """Background AI jobs (Q-A1): the route saves a queued `Job` and returns, the worker runs it.
+Three kinds: document ingest (S2), drafts for the coordinator (S5) and 'ask the case' (S8).
 
 One worker thread (`max_workers=1`), so per-case extraction runs one at a time and two uploads to
 the same case never merge over each other. Tests swap in `ImmediateExecutor`.
@@ -17,12 +18,22 @@ from onko_ai import (
     analyse_case,
     apply_metadata,
     ask_case,
+    draft,
+    draft_results,
     extract_metadata,
     index_document,
     index_missing,
 )
-from onko_cases import sync_case_from_handover
-from onko_contracts import CaseAnswer, Job, JobKind, JobStatus, ParsedDocument
+from onko_cases import conclusion_prefill, result_rows, sync_case_from_handover
+from onko_contracts import (
+    CaseAnswer,
+    DraftKind,
+    DraftResult,
+    Job,
+    JobKind,
+    JobStatus,
+    ParsedDocument,
+)
 from onko_llm_gateway import Gateway
 from onko_repository import CaseRepository
 
@@ -32,6 +43,9 @@ log = logging.getLogger(__name__)
 
 NO_MODEL = "Není nastaven žádný jazykový model (ONKO_MODELS / ONKO_ACTIVE_MODEL)."
 NO_EMBED_MODEL = "Není nastaven embedding model (ONKO_EMBED_MODEL)."
+
+# Drafts that need the MDT snapshot and record; the conclusion prefill is not AI (Q-F37).
+RECORD_DRAFTS = frozenset({DraftKind.MDT_RESULTS, DraftKind.MDT_CONCLUSION})
 
 
 class ImmediateExecutor(Executor):
@@ -84,23 +98,45 @@ def run_ask(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gateway
     _run(job_id, repo, clock, gateway, lambda job, gw: {"answer": _ask(job, repo, clock, gw)})
 
 
+def queue_draft(repo: CaseRepository, now: dt.datetime, case_id: str, kind: str) -> Job:
+    """A draft for the coordinator (S5); `params.kind` is the `DraftKind`."""
+    job = Job(id=new_id("job"), kind=JobKind.DRAFT, case_id=case_id, params={"kind": kind},
+              created_at=now)
+    repo.save_job(job)
+    return job
+
+
+def run_draft(job_id: str, repo: CaseRepository, clock: AppClock, gateway: Gateway | None) -> None:
+    # The conclusion prefill needs no model; _draft asks for one where it does.
+    _run(job_id, repo, clock, gateway, lambda job, gw: {"draft": _draft(job, repo, gw)},
+         needs_model=False)
+
+
+def _require_model(gateway: Gateway | None) -> Gateway:
+    if gateway is None:
+        raise RuntimeError(NO_MODEL)
+    return gateway
+
+
 def _run(
     job_id: str,
     repo: CaseRepository,
     clock: AppClock,
     gateway: Gateway | None,
-    work: Callable[[Job, Gateway], dict[str, Any]],
+    work: Callable[[Job, Any], dict[str, Any]],
+    *,
+    needs_model: bool = True,
 ) -> None:
-    """Mark the job running, do the work, store what it returns (`result` / `answer`) or the
-    error."""
+    """Mark the job running, do the work, store what it returns (`result` / `answer` / `draft`)
+    or the error."""
     job = repo.get_job(job_id)
     if job is None:
         return
     job = job.model_copy(update={"status": JobStatus.RUNNING, "started_at": clock.now()})
     repo.save_job(job)
     try:
-        if gateway is None:
-            raise RuntimeError(NO_MODEL)
+        if needs_model:
+            _require_model(gateway)
         update = work(job, gateway)
         job = job.model_copy(
             update={"status": JobStatus.DONE, "finished_at": clock.now(), **update}
@@ -111,6 +147,35 @@ def _run(
             update={"status": JobStatus.FAILED, "finished_at": clock.now(), "error": str(e)[:500]}
         )
     repo.save_job(job)
+
+
+def _draft(job: Job, repo: CaseRepository, gateway: Gateway | None) -> DraftResult:
+    """`text` for the epikríza summary and the MDT question (from the live handover), `rows` for
+    the MDT record's result one-liners (from the frozen snapshot), `fields` for the conclusion
+    prefill (from the MDT record, no model)."""
+    kind = DraftKind(job.params["kind"])
+    case = repo.get_case(job.case_id)
+    if kind is DraftKind.MDT_CONCLUSION:
+        record = repo.get_mdt_record(case.id)
+        if record is None:
+            raise LookupError("MDT záznam zatím neexistuje.")
+        organizations = {o.id: o for o in repo.list_organizations()}
+        actors = {a.id: a for a in repo.list_actors()}
+        referrer = actors.get(case.referring_doctor_id)
+        practice = organizations.get(referrer.organization_id or "") if referrer else None
+        fields = conclusion_prefill(record, organizations.get(case.koc_id), referrer, practice)
+        return DraftResult(kind=kind, fields=fields)
+    model = _require_model(gateway)
+    if kind is DraftKind.MDT_RESULTS:
+        snapshot = repo.get_handover(case.id, snapshot=True)
+        if snapshot is None:
+            raise LookupError("Podklad pro MDT zatím neexistuje.")
+        return DraftResult(kind=kind, rows=draft_results(result_rows(snapshot), gateway=model))
+    handover = repo.get_handover(case.id)
+    if handover is None:
+        raise LookupError("Případ nemá handover.")
+    return DraftResult(kind=kind, text=draft(kind, handover, repo.list_findings(case.id),
+                                             gateway=model))
 
 
 def _snapshot(repo: CaseRepository, case_id: str, now: dt.datetime) -> list[ParsedDocument]:

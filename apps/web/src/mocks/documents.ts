@@ -73,6 +73,7 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
 
   return {
     saveResult: (caseId: string, value: ReturnType<typeof demoExtraction>) => results.set(caseId, structuredClone(value)),
+    detachJob: (id: string) => { jobs.delete(id) },
     reset: (withReference: boolean) => {
       documents.clear(); originals.clear(); jobs.clear(); results.clear(); texts.clear(); extracted.clear()
       if (!withReference) return
@@ -160,7 +161,7 @@ export function createDocumentHandlers(state: DemoState) {
       await delay(150)
       const now = state.clock().now
       const uploaded = state.documents.upload(id, file, request.headers.get('X-Actor-Id') ?? '', typeof receivedAt === 'string' ? receivedAt : now, now)
-      state.coordinator.record(id, request.headers.get('X-Actor-Id') ?? '', now, 'upload_document', file.name)
+      state.coordinator.record(id, request.headers.get('X-Actor-Id') ?? '', now, 'document_uploaded', file.name)
       return HttpResponse.json<UploadResult>(uploaded, { status: 201 })
     }),
     http.get('*/api/cases/:caseId/jobs', ({ request, params }) => {
@@ -177,7 +178,7 @@ export function createDocumentHandlers(state: DemoState) {
       if (error) return error
       if (!state.documents.list(id).length) return HttpResponse.json({ detail: 'no documents' }, { status: 409 })
       const job = state.documents.createJob(id, state.clock().now)
-      state.coordinator.record(id, request.headers.get('X-Actor-Id') ?? '', state.clock().now, 'reextract')
+      state.coordinator.record(id, request.headers.get('X-Actor-Id') ?? '', state.clock().now, 'reextraction_started')
       return HttpResponse.json<Job>(job, { status: 202 })
     }),
     http.patch('*/api/documents/:documentId', async ({ request, params }) => {
@@ -204,7 +205,7 @@ export function createDocumentHandlers(state: DemoState) {
       }
       if (errors.length) return validationResponse(errors)
       const updated = state.documents.update(id, body)!
-      if (updated.case_id) state.coordinator.record(updated.case_id, request.headers.get('X-Actor-Id') ?? '', state.clock().now, 'update_document', updated.filename)
+      if (updated.case_id) state.coordinator.record(updated.case_id, request.headers.get('X-Actor-Id') ?? '', state.clock().now, 'document_updated', updated.filename)
       return HttpResponse.json<DocumentMeta>(updated)
     }),
     http.get('*/api/documents/:documentId/text', ({ request, params }) => {

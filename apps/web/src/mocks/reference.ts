@@ -1,6 +1,7 @@
 import type { Case } from '../client/types.gen'
 
-// Snapshot of apps/api/src/onko_api/seed.py; no clinical rules are run in the web app.
+// Snapshot of apps/api/src/onko_api/seed.py: the MDT morning, complete, before the MDT snapshot
+// (Q-F40). No clinical rules are run in the web app.
 export const referenceCases: Case[] = [{
   id: 'vzp-prochazkova',
   patient_name: 'Alena Procházková',
@@ -9,7 +10,7 @@ export const referenceCases: Case[] = [{
   mdt_board_id: 'mdt-git-lipova',
   referring_doctor_id: 'pl-reznicek',
   coordinator_id: 'koordinator',
-  state: 'pripraveno_k_mdt',
+  state: 'kompletni',
   priority: 'high',
   queue: 'aktivni',
   on_move: 'koordinator',

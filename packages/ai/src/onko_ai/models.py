@@ -168,6 +168,17 @@ class ClinicalReview(BaseModel):
     notes: list[ReviewNote]
 
 
+class ResultLine(BaseModel):
+    index: int = Field(description="Index of the result row in the given list")
+    result: str = Field(description="One Czech line with the row's key findings, only from its text")
+
+
+class ResultLines(BaseModel):
+    """The `mdt_results` draft: one line per MDT record result row (S5)."""
+
+    lines: list[ResultLine]
+
+
 class AnswerDraft(BaseModel):
     """'Ask the case' (Q-I19): the model answers only with quotes from the chunks it was given."""
 

@@ -11,6 +11,7 @@ from onko_repository import CaseRepository
 
 from ..models import CheckContext, ExtractionResult
 from .checks import build_checks, check, reconcile_findings
+from .drafts import draft, draft_results, handover_digest
 from .extract import LlmExtractor, apply_metadata, extract_metadata, keep_manual, merge
 from .quotes import locate
 from .search import (
@@ -49,12 +50,6 @@ def analyse_case(
     return handover, findings, result
 
 
-def draft(kind: str, handover: Handover, findings: list[Finding]) -> str:
-    """Draft text for the coordinator to edit: 'epicrisis_summary' (Q-F15), 'mdt_question' (Q-F14),
-    'mdt_conclusion' (Q-F12). TODO S5."""
-    raise NotImplementedError
-
-
 __all__ = [
     "LlmExtractor",
     "analyse_case",
@@ -65,7 +60,9 @@ __all__ = [
     "chunk_document",
     "code_candidates",
     "draft",
+    "draft_results",
     "extract_metadata",
+    "handover_digest",
     "index_document",
     "index_missing",
     "keep_manual",

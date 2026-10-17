@@ -24,7 +24,7 @@ sequenceDiagram
   App-->>K: new findings F07/F08 (date conflicts), stale weight F12
   K->>App: write MDT question, confirm final epikríza
   K->>App: Připravit podklad pro MDT (21. 10.), confirm snapshot
-  K->>App: record MDT conclusion (AI draft edited, or upload)
+  K->>App: record MDT conclusion (written from the prefill, or upload)
   K->>App: send to GP
   GP->>App: Potvrzuji převzetí
   App-->>K: Uzavřeno, audit trail, T2 = 19 days
@@ -45,8 +45,8 @@ sequenceDiagram
 | 8 | Coordinator | Upload 08–11 as they "arrive" | Histology fills the diagnosis; new findings **F07/F08** (date conflicts in 09 and 11) → *Vyžádat* creates clarification request tasks; **F12** stale weight | |
 | 9 | Coordinator | Write the MDT question (AI prefill); pick the final epikríza (GP's verbatim text vs AI summary side by side) | Nothing is invented; ECOG stays visibly missing, overridden with a note; C25.0 stays provisional (F05) | |
 | 10 | Coordinator | *Informovat pacienta* about the MDT date | Recorded as sent, not actually delivered | |
-| 11 | Coordinator | *Připravit podklad pro MDT* (21. 10.) → confirm snapshot | MDT record in the `MDT_zapis` layout, members from the GIT board roster | MDT record |
-| 12 | Coordinator | After the MDT, record the conclusion + recommendations (edit the AI draft, or upload the MDT's report) and the definitive MKN-10 code from it (resolves F05) | Structured conclusion in the `MDT_zaver` layout | Structured KOC/MDT conclusion |
+| 11 | Coordinator | *Připravit podklad pro MDT* (21. 10.) → confirm snapshot. From the `reference_at_mdt` reset the case is *Kompletní*: the first try is refused until F01 is overridden (Q-F40) | MDT record in the `MDT_zapis` layout, members from the GIT board roster | MDT record |
+| 12 | Coordinator | After the MDT, record the conclusion + recommendations (type them in from the meeting, starting from the prefill of diagnosis, date, place and copy, or upload the MDT's report) and the definitive MKN-10 code from it; confirming writes the code into the handover, then resolve F05 | Structured conclusion in the `MDT_zaver` layout | Structured KOC/MDT conclusion |
 | 13 | Coordinator | Send to the GP | Result + original context attached | Feedback |
 | 14 | GP | In-app inbox (MDT results) → *Potvrzuji převzetí* | Receipt in the audit → **Uzavřeno**; T2 = 19 days | Confirmed delivery |
 | 15 | Coordinator | Upload 12–13 (after the MDT) | The live case updates, the MDT record does not | Brief rule: only what was known on 21. 10. |

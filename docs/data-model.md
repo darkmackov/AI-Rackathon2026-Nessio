@@ -109,7 +109,15 @@ classDiagram
   class Job {
     kind
     status
-    result
+    result: ingest counts
+    answer: CaseAnswer
+    draft: DraftResult
+  }
+  class DraftResult {
+    kind: DraftKind
+    text (epikríza, MDT question)
+    rows: MdtResultRow[] (mdt_results)
+    fields: ConclusionPrefill (mdt_conclusion, not AI)
   }
   class Organization {
     kind: koc|clinic|...
@@ -124,6 +132,7 @@ classDiagram
   Case "1" --> "0..1" MdtConclusion
   MdtRecord ..> MdtBoard : members from
   Case "1" --> "*" Job
+  Job *-- DraftResult
   Case "1" --> "*" AuditEvent
   Case ..> Organization : koc_id
   Case "1" --> "*" DocumentMeta
@@ -138,10 +147,12 @@ classDiagram
   Finding *-- Evidence
 ```
 
-How the MDT snapshot works:
-- `Handover.as_of` is set when the case moves to *Připraveno k MDT*.
-- The snapshot only uses documents with `received_at <= as_of`.
-- The live handover keeps updating; the snapshot stays frozen.
+How the MDT snapshot works (S5, Q-F39):
+- *Připravit podklad pro MDT* copies the live handover with `as_of` = the MDT date and `confirmed_by_coordinator` stamped, and the case moves to *Připraveno k MDT*. Nothing is re-extracted.
+- The snapshot only uses documents with `received_at <= as_of`: it is refused (409) when any value, examination or lab panel quotes a later document, and while blockers are unresolved.
+- The live handover keeps updating; the snapshot stays frozen. The `MdtRecord` is built from it once (members copied from the board roster) and edited only before the meeting.
+
+Drafts (S5, Q-F37) come back typed in `Job.draft` (`DraftResult`), exactly the part of their `DraftKind`: `text` for the epikríza summary and the MDT question, `rows` (`MdtResultRow`) for the record's result one-liners, `fields` (`ConclusionPrefill`) for the conclusion prefill, which is not AI and never holds the MDT's decision. A draft changes nothing until the coordinator applies it. In IRIS it is part of the job row (`draft__…` columns).
 
 ## FHIR R4 mapping
 
@@ -200,7 +211,7 @@ Package ids, versions, profile names and identifier systems below were **checked
 - `IrisRepository` pushes the projection on every save, as one FHIR transaction (`PUT` by id): `save_document` → `DocumentReference` + `Binary` (Q-I10; the parsed text when the original bytes are missing); `save_handover` → `Patient`, `Condition`, `Observation`, `DiagnosticReport`, `Composition`, `Provenance`; `save_task` → `Task`; `save_audit` → `AuditEvent`; `save_mdt_conclusion` with a confirmed conclusion → the MDT conclusion document `Bundle` + its `DocumentReference` (S9, Q-I20). Findings, cases and messages are not projected.
 - **`Task`** (S9): id `task-{task}`; status `planned` → `requested`, `booked` → `accepted`, `done` → `completed`, `cancelled` → `cancelled`; `intent=order`; priority `normal` → `routine`, `high` → `urgent`, `urgent` → `asap`; `requester` = the case's KOC, `owner` = `Task.owner` (both by name from the directory, as `display`); `restriction.period.end` = due; `for` = the case's `Patient` once a handover has been projected; the result document as `output` (`DocumentReference`).
 - **`AuditEvent`** (S9): id `audit-{event}`, type DICOM `110110` *Patient Record*, the app's `action` as `subtype`, `recorded` = `at`, the actor as the requesting `agent`, the case's `Patient` as `entity` (with `detail` as its description).
-- **MDT conclusion** (S9, Q-I20): built when a **confirmed** conclusion is saved (confirmation is required to send it). A FHIR **document `Bundle`** (`Bundle/{case}-mdt-conclusion-{confirmed.at}`): `identifier` `urn:ietf:rfc:3986` + a `urn:uuid` derived from the case and the confirmation time, `timestamp` = `confirmed.at`, `fullUrl`s and references as `urn:uuid`. Entries: the `Composition` first (*Závěr MDT*, `final`, sections Diagnóza / Klinické zhodnocení / Závěr / Doporučení), then only what it references: the `Patient` and the diagnosis `Condition`, now `confirmed` with the definitive MKN-10 code (Q-C9). A re-confirmed (corrected) conclusion gets a new id and identifier; an assembled Bundle is never changed. A `DocumentReference` with the same id indexes it: attachment 1 is the Bundle (`application/fhir+json`), attachment 2 the PDF: the uploaded report's `Binary` (source `uploaded`); the rendered PDF of a written conclusion joins when S5 renders it.
+- **MDT conclusion** (S9, Q-I20): built when a **confirmed** conclusion is saved (confirmation is required to send it). A FHIR **document `Bundle`** (`Bundle/{case}-mdt-conclusion-{confirmed.at}`): `identifier` `urn:ietf:rfc:3986` + a `urn:uuid` derived from the case and the confirmation time, `timestamp` = `confirmed.at`, `fullUrl`s and references as `urn:uuid`. Entries: the `Composition` first (*Závěr MDT*, `final`, sections Diagnóza / Klinické zhodnocení / Závěr / Doporučení), then only what it references: the `Patient` and the diagnosis `Condition`, now `confirmed` with the definitive MKN-10 code (Q-C9). A re-confirmed (corrected) conclusion gets a new id and identifier; an assembled Bundle is never changed. A `DocumentReference` with the same id indexes it: attachment 1 is the Bundle (`application/fhir+json`), attachment 2 the PDF: the uploaded report's `Binary` (source `uploaded`), or the rendered PDF of a written conclusion inline (S5: the API renders it on confirmation and passes it to `save_mdt_conclusion`).
 - FHIR ids derive from the app ids: `{case}-patient`, `{case}-dx`, `{case}-lab-1`, `{case}-handover`, `doc-{document}`. The MDT snapshot gets its own `{case}-mdt-…` resources (PER-9), sharing the case's `Patient`.
 - A failed projection never loses the app-state save. Every FHIR write goes through the **outbox** (S9, D-14): the transaction `Bundle` is stored in `fhir_outbox` in the same IRIS SQL transaction as the app-state save, then sent right after the commit. A write that fails stays in the outbox and a background thread retries it every 10 s. Writes are sent **in order**, oldest first, and a failure stops the round, so an older state never overwrites a newer one. Pending writes are visible in `/health` (`fhir_pending`). Without `ONKO_FHIR_BASE_URL` nothing is queued.
 - **MKN-10** is coded with `http://hl7.org/fhir/sid/icd-10`: cz.core 1.0.0 defines no MKN-10 system. The diagnosis `Condition` stays `provisional` (Q-C9).
@@ -238,6 +249,7 @@ Tables and columns missing on start are created (`ALTER TABLE … ADD COLUMN`), 
 | `app_handover` | `Handover` | `case_id`, `is_snapshot` | | `body`: the handover as **one JSON document** (live and the frozen MDT snapshot, PER-9) |
 | `app_audit` | `AuditEvent` | `id` | `case_id` | append-only (PER-13); foreign key `case_id` → `app_case` |
 | `app_mdt_conclusion` | `MdtConclusion` | `case_id` | | foreign key `case_id` → `app_case` |
+| `app_mdt_record` | `MdtRecord` | `case_id` | | members and results as JSON (read with the record); foreign key `case_id` → `app_case` (S5) |
 | `doc_chunk` | `DocChunk` | `id` (`{document_id}-{ord}`) | `case_id`, `document_id` | `embedding VECTOR(DOUBLE, n)`, `n` = `ONKO_EMBED_DIM` (Q-M7); foreign keys `case_id` → `app_case`, `document_id` → `app_document`; a document's chunks are replaced when it is indexed again (S8, Q-I19). Ranked by `VECTOR_COSINE` in an exact scan filtered by `case_id` (and `document_id` for an unverified-quote flag), no HNSW index |
 | `mkn10_code` | `CodeCandidate` | `code` | | `embedding VECTOR(DOUBLE, n)`: the MKN-10 code list (Q-C12) embedded by its Czech name, loaded by `scripts/load_mkn10.py`, ranked by `VECTOR_COSINE` against the diagnosis text (S8, Q-C11). Reference data: the demo reset keeps it |
 | `fhir_outbox` | (none) | `id` | | `case_id`, `bundle` (the transaction `Bundle` as JSON, stream), `attempts`, `last_error`; sent in insertion order, a row is deleted once sent (S9, D-14) |

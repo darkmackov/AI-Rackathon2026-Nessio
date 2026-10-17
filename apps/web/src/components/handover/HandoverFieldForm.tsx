@@ -13,8 +13,8 @@ import { refreshCaseResults } from '../documents/use-document-ingest'
 import { displayValue, type SourcedValue } from './clinical'
 
 /** Manual entry of one Sourced handover field, shared by the referring doctor and the coordinator. */
-export default function HandoverFieldForm({ caseId, actorId, path, value, unavailable = false, help, close, saved }: {
-  caseId: string; actorId: string; path: string; value?: SourcedValue; unavailable?: boolean; help?: string; close: () => void; saved: () => void;
+export default function HandoverFieldForm({ caseId, actorId, path, value, unavailable = false, help, initialText, close, saved }: {
+  caseId: string; actorId: string; path: string; value?: SourcedValue; unavailable?: boolean; help?: string; initialText?: string; close: () => void; saved: () => void;
 }) {
   const { t } = useTranslation()
   const client = useQueryClient()
@@ -23,7 +23,7 @@ export default function HandoverFieldForm({ caseId, actorId, path, value, unavai
   const list = path === 'comorbidities' || path === 'medications'
   const number = path === 'patient.age' || path === 'weight_kg' || path === 'height_cm'
   const date = path === 'patient.birth_date'
-  const form = useForm({ initialValues: { value: displayValue(value?.value), notAvailable: unavailable, note: value?.note ?? '' }, validateInputOnBlur: true,
+  const form = useForm({ initialValues: { value: initialText ?? displayValue(value?.value), notAvailable: unavailable, note: value?.note ?? '' }, validateInputOnBlur: true,
     validate: { value: (input, values) => {
       if (values.notAvailable) return null
       if (!input.trim()) return 'handoverEdit.required'

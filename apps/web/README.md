@@ -37,7 +37,7 @@ The Vite dev server proxies `/api` to FastAPI at `http://localhost:8000`. Produc
 - `/coordinator`: the existing provisional S1 read-only queue filtered by the selected person's KOC. Completing the dashboard and case detail remains S1 work. S0 supplies the common shell and role-based destination.
 - Wrong-role addresses return to the current role's home; unidentified visitors return to selection. Unknown addresses have a not-found page.
 
-Identity, language and simulated data live **only in the current tab's memory**. Reloading starts in Czech, asks for a person again (then reopens the reloaded page, or the role home if it belongs to the other role) and restores the reference scenario. The actual `/me` response stays in Query. Identity-dependent requests explicitly include `X-Actor-Id` in their generated options and query keys. Switching identities aborts requests and removes the previous identity's cached data; writes block switching.
+The chosen person's id lives in the tab's `sessionStorage`, so a reload keeps the person and the page. A new tab asks for a person (then opens the requested page, or the role home if it belongs to the other role). Language and simulated data live **only in the current tab's memory**: reloading starts in Czech and restores the reference scenario. The actual `/me` response stays in Query. Identity-dependent requests explicitly include `X-Actor-Id` in their generated options and query keys. Switching identities aborts requests and removes the previous identity's cached data; writes block switching.
 
 UI labels are Czech/English; clinical content, names and organisation names remain unchanged. Both translation dictionaries ship with the app; language switching needs no network requests or storage.
 
@@ -47,7 +47,7 @@ Both roles can open **Demo** in the header. Times mean **computer-local time**, 
 
 | Action | Result |
 |---|---|
-| Initial load / restore reference | Reference case before MDT, 21 October 2026 at 09:00 |
+| Initial load / restore reference | Reference case on the MDT morning (*Kompletní*, before the MDT snapshot), 21 October 2026 at 09:00 |
 | Restore empty demo | Directory only, 2 October 2026 at 14:00 |
 | Set date and time | Simulated server clock continues at real speed from that moment |
 | Use real time | Clock follows the computer's current time |
@@ -101,3 +101,17 @@ The reference reset now contains the unchanged reference case plus **Fiktivní p
 S4 prepares a Complete case with planned MDT and retained provenance, findings, tasks, results and audit. MDT snapshot, final epikríza, MDT question and conclusion remain S5. Unsupported endpoints continue to return 501. Existing reset choices and memory-only session/language behavior remain; empty reset removes cases and resets task templates, while reference reset restores both cases and the seeded template.
 
 Verification adds `coordinator-workflow-api.test.ts` (contracts and simulated backend rules) and `coordinator-workflow.test.tsx` (user-visible workflows) to the existing web suite. New strings ship in Czech and English. No additional dependencies or test framework were introduced.
+
+## S5 MDT workflow (Q-W15)
+
+The **MDT** tab runs the same rules in mock and real mode. The MSW mock mirrors the Python backend (Q-F34–Q-F40), and its audit events use the backend's action names (api.md).
+
+1. **Reference case:** `reference_at_mdt` starts it *Kompletní* on the MDT morning. **Připravit podklad pro MDT** is refused while blockers are open, while documents are still processing, or when the handover quotes a report received after the MDT date. Override the missing ECOG (F01) on **K řešení** first.
+2. **Snapshot:** the record is built from a frozen copy of the handover. The board's members are copied, and the results list examinations verbatim plus lab panels.
+3. **Drafts:** they come back typed in `Job.draft` and change nothing until used.
+   - The epikríza summary and the MDT question are AI text.
+   - The AI result one-liners open in the record editor.
+   - **Předvyplnit ze zápisu** is not AI. It fills only the diagnosis, code, date, place and copy in the conclusion, never the conclusion or the recommendations.
+4. **Conclusion:** write it or upload the MDT's report. The report becomes a case document with normal processing and stays the source when fields are typed in. Confirmation writes the definitive diagnosis into the handover and resolves no findings. After the meeting, the conclusion can still be corrected, which needs a new confirmation.
+
+Mock PDFs remain a labelled fixture, except that an uploaded PDF report is served as uploaded.

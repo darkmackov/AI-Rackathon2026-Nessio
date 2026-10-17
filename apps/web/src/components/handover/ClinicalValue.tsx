@@ -92,16 +92,16 @@ export function InlineFindings({ findings, showFinding }: { findings: Finding[];
 
 const focusField = (node: HTMLDivElement | null) => { node?.focus({ preventScroll: true }); node?.scrollIntoView?.({ block: 'center' }) }
 
-export default function ClinicalValue({ label, path, value, names, sources, findings, showFinding, formatted, actions, focused = false }: {
+export default function ClinicalValue({ label, path, value, names, sources, findings, showFinding, formatted, actions, focused = false, idPrefix = 'field' }: {
   label: string; path: string; value?: SourcedValue; names: Record<string, string>; sources: Sources; findings: Finding[]; showFinding: (id: string) => void; formatted?: string;
-  actions?: ReactNode; focused?: boolean;
+  actions?: ReactNode; focused?: boolean; idPrefix?: string;
 }) {
   const { t } = useTranslation()
   const labelId = useId()
   const status = value?.status ?? 'missing'
   // A found empty value ('' or []) is shown explicitly, never as a blank (UX-3).
   const shown = value?.value != null ? formatted ?? displayValue(value.value) : null
-  return <Box id={`field-${path}`} role="group" aria-labelledby={labelId} tabIndex={-1} ref={focused ? focusField : undefined} py="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+  return <Box id={`${idPrefix}-${path}`} role="group" aria-labelledby={labelId} tabIndex={-1} ref={focused ? focusField : undefined} py="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
     <Grid gap="xs">
       <Grid.Col span={{ base: 12, sm: 4 }}>
         <Text fw={600} size="sm" id={labelId}>{label}</Text>

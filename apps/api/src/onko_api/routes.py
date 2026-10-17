@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from typing import Annotated, NoReturn
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
@@ -17,15 +18,21 @@ from onko_ai import code_candidates
 from onko_cases import (
     CaseStateError,
     CodeNotNeededError,
+    ConclusionIncompleteError,
     HandoverEditError,
     HandoverLockedError,
+    MdtBoardError,
     NotValidatedError,
     OverrideNotAllowedError,
+    SnapshotBlockedError,
     TaskError,
     TransitionError,
+    attach_uploaded_conclusion,
     audit_event,
+    build_mdt_record,
     check_dependencies,
     check_task_set,
+    confirm_conclusion,
     diagnosis_for_code,
     due_notices,
     is_external,
@@ -33,6 +40,7 @@ from onko_cases import (
     matches_diagnosis,
     new_referral,
     owner_organization,
+    prepare_snapshot,
     put_on_hold,
     receive_referral,
     refresh_progress,
@@ -41,11 +49,13 @@ from onko_cases import (
     resolve_owners,
     resume,
     return_to_referrer,
+    save_conclusion,
     set_handover_field,
     sync_case_from_handover,
     take_over,
     task_set_started,
     time_to_treatment,
+    update_record,
 )
 from onko_cases import add_examination as add_manual_examination
 from onko_cases import (
@@ -63,7 +73,9 @@ from onko_contracts import (
     Case,
     Channel,
     CodeCandidate,
+    ConclusionSource,
     DocumentMeta,
+    DocumentType,
     DueNotice,
     Finding,
     Handover,
@@ -82,7 +94,7 @@ from onko_contracts import (
     TimeToTreatment,
 )
 from onko_documents import DOCX as DOCX_MIME
-from onko_documents import PARSERS, parse
+from onko_documents import PARSERS, parse, render_mdt_conclusion, render_mdt_record
 from onko_documents import PDF as PDF_MIME
 from onko_documents import PPTX as PPTX_MIME
 from onko_messaging import InAppInbox
@@ -91,7 +103,16 @@ from onko_repository import BundleError, CaseRepository, referral_attachments
 from pydantic import ValidationError
 
 from .deps import ActorId, Clock, CurrentUser, Jobs, Llm, Repo
-from .jobs import new_id, queue_ask, queue_ingest, run_ask, run_ingest
+from .jobs import (
+    RECORD_DRAFTS,
+    new_id,
+    queue_ask,
+    queue_draft,
+    queue_ingest,
+    run_ask,
+    run_draft,
+    run_ingest,
+)
 from .schemas import (
     CaseAsk,
     CaseReturn,
@@ -179,9 +200,20 @@ def get_mdt_board(board_id: str, repo: Repo) -> MdtBoard:
 
 
 @router.put("/mdt-boards/{board_id}/members", tags=["directory"])
-def update_mdt_board_members(board_id: str, body: MdtBoardMembersUpdate, actor_id: ActorId) -> MdtBoard:
-    """Edit the roster (Q-F13)."""
-    _todo()
+def update_mdt_board_members(
+    board_id: str, body: MdtBoardMembersUpdate, user: CurrentUser, repo: Repo
+) -> MdtBoard:
+    """Edit the roster (Q-F13): a coordinator of the board's KOC. MDT records already prepared
+    keep the members they were prepared with."""
+    try:
+        board = repo.get_mdt_board(board_id)
+    except KeyError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "MDT board not found") from None
+    if user.role != "coordinator" or user.organization_id != board.organization_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "only a coordinator of the board's KOC")
+    board = board.model_copy(update={"members": body.members})
+    repo.save_mdt_board(board)
+    return board
 
 
 # --- Flow 1: initial GP handover (slices S2, S3) -----------------------------------------------
@@ -266,6 +298,24 @@ def upload_document(
     + handover extraction + checks."""
     case = _case_or_404(repo, case_id)
     _require_party(user, case)
+    return _store_upload(case_id, user, file, repo, clock, llm, jobs, received_at)
+
+
+def _store_upload(
+    case_id: str,
+    user: Actor,
+    file: UploadFile,
+    repo: CaseRepository,
+    clock: Clock,
+    llm: Llm,
+    jobs: Jobs,
+    received_at: dt.datetime | None,
+    *,
+    document_id: str | None = None,
+    doc_type: DocumentType = DocumentType.OTHER,
+) -> UploadResult:
+    """Parse, store and queue the ingest of an uploaded file (415 / 422 before anything is
+    saved)."""
     mime = _mime_type(file)
     data = file.file.read()
     try:
@@ -274,9 +324,10 @@ def upload_document(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"cannot read the file: {e}") from None
     now = clock.now()
     meta = DocumentMeta(
-        id=new_id("doc"),
+        id=document_id or new_id("doc"),
         case_id=case_id,
         filename=file.filename or "dokument",
+        doc_type=doc_type,
         received_at=received_at or now,
         uploaded_by=user.id,
         mime_type=mime,
@@ -393,10 +444,16 @@ def update_document(
 
 @router.get("/documents/{document_id}/file", tags=["documents"], response_class=Response,
             responses={200: {"content": {"application/octet-stream": {}}, "description": "Original file"}})
-def get_document_file(document_id: str) -> Response:
+def get_document_file(document_id: str, repo: Repo) -> Response:
     """The original uploaded file, e.g. the GP's reports opened by the coordinator next to the
     structured handover (slide 9: 'strukturovaná zpráva + originál')."""
-    _todo()
+    meta = repo.get_document(document_id)
+    if meta is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
+    data = repo.document_data(document_id)
+    if not data:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "original file not stored")
+    return _file(data, meta.mime_type, meta.filename)
 
 
 @router.patch("/cases/{case_id}/handover", tags=["handover"])
@@ -555,10 +612,27 @@ def reextract_case(case_id: str, user: CurrentUser, repo: Repo, clock: Clock, ll
 
 
 @router.post("/cases/{case_id}/drafts", status_code=202, tags=["jobs"])
-def create_draft(case_id: str, body: DraftCreate, actor_id: ActorId) -> Job:
-    """AI draft for the coordinator to edit: epikríza summary, MDT question, MDT result rows,
-    MDT conclusion. Text arrives in `job.result.text` (`job.result.rows` for mdt_results)."""
-    _todo()
+def create_draft(
+    case_id: str, body: DraftCreate, user: CurrentUser, repo: Repo, clock: Clock, llm: Llm, jobs: Jobs
+) -> Job:
+    """A draft of what the MDT receives, for a coordinator of the case's KOC to edit and apply
+    (Q-F37). Nothing on the case changes; once done the result is in `job.draft`:
+    - `epicrisis_summary`, `mdt_question`: AI text from the live handover in `draft.text`; apply
+      it with `updateHandoverField` (`epicrisis`, `mdt_question`).
+    - `mdt_results`: AI one-liners for the MDT record's results in `draft.rows`; apply with
+      `updateMdtRecord`.
+    - `mdt_conclusion`: no AI, only the parts of `MDT_zaver` that restate the record (diagnosis,
+      date, place, copy to the referring doctor) in `draft.fields`; apply with
+      `upsertMdtConclusion`. The MDT's decision is never drafted.
+
+    The last two need the MDT record (409 before *Připravit podklad pro MDT*)."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    if body.kind in RECORD_DRAFTS and repo.get_mdt_record(case_id) is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "no MDT record yet: prepare the MDT input first")
+    job = queue_draft(repo, clock.now(), case_id, body.kind.value)
+    jobs.submit(run_draft, job.id, repo, clock, llm)
+    return job
 
 
 @router.post("/cases/{case_id}/suggestions/tasks", status_code=202, tags=["jobs"])
@@ -970,57 +1044,231 @@ def list_notifications(
 # --- MDT (slice S5) ----------------------------------------------------------------------------
 
 
+def _record_or_404(repo: CaseRepository, case_id: str) -> MdtRecord:
+    record = repo.get_mdt_record(case_id)
+    if record is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no MDT record yet")
+    return record
+
+
+def _conclusion_or_404(repo: CaseRepository, case_id: str) -> MdtConclusion:
+    conclusion = repo.get_mdt_conclusion(case_id)
+    if conclusion is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no MDT conclusion yet")
+    return conclusion
+
+
+def _actor_or_none(repo: CaseRepository, actor_id: str) -> Actor | None:
+    try:
+        return repo.get_actor(actor_id)
+    except KeyError:
+        return None
+
+
+def _conclusion_header(repo: CaseRepository, case: Case) -> list[str]:
+    """The `MDT_zaver` letterhead: the KOC, then the board with the KOC's address."""
+    koc = next((o for o in repo.list_organizations() if o.id == case.koc_id), None)
+    lines = [koc.name] if koc else []
+    if case.mdt_board_id:
+        try:
+            board = repo.get_mdt_board(case.mdt_board_id)
+        except KeyError:
+            return lines
+        lines.append(", ".join(v for v in (board.name, koc.address if koc else None) if v))
+    return lines
+
+
+def _render_conclusion(repo: CaseRepository, case: Case, conclusion: MdtConclusion) -> bytes:
+    return render_mdt_conclusion(conclusion, repo.get_mdt_record(case.id),
+                                 header=_conclusion_header(repo, case))
+
+
+def _pdf(data: bytes, filename: str) -> Response:
+    return _file(data, PDF_MIME, filename)
+
+
+def _file(data: bytes, mime_type: str, filename: str) -> Response:
+    """Inline file; `filename*` (RFC 6266) keeps Czech file names, the plain one is an ASCII fallback."""
+    fallback = filename.encode("ascii", "replace").decode().replace('"', "_")
+    disposition = f"inline; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
+    return Response(content=data, media_type=mime_type, headers={"Content-Disposition": disposition})
+
+
 @router.post("/cases/{case_id}/mdt/snapshot", status_code=201, tags=["mdt"])
-def create_mdt_snapshot(case_id: str, body: MdtSnapshotCreate, actor_id: ActorId) -> MdtRecord:
-    """Freeze the handover (as_of = mdt_date), coordinator confirms it, build the MDT record,
-    kompletni → pripraveno_k_mdt. 409 while non-overridden blockers remain."""
-    _todo()
+def create_mdt_snapshot(
+    case_id: str, body: MdtSnapshotCreate, user: CurrentUser, repo: Repo, clock: Clock
+) -> MdtRecord:
+    """'Připravit podklad pro MDT', a coordinator of the case's KOC: kompletni → pripraveno_k_mdt.
+    Freezes a copy of the live handover (`as_of` = `mdt_date`, confirmed by the coordinator; read it
+    with `getHandover?snapshot=true`) and builds the MDT record from it, with the board's members
+    and the referring doctor from the directory. 409 in another state, while blockers are
+    unresolved (resolve or override them first), while a document is still being extracted, or
+    when the handover uses a document received after `mdt_date`; 400 for a board that isn't the
+    KOC's."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    try:
+        board = repo.get_mdt_board(body.board_id)
+    except KeyError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "unknown MDT board") from None
+    handover = _handover_or_404(repo, case_id)
+    now = clock.now()
+    try:
+        ready, snapshot = prepare_snapshot(
+            case, handover, repo.list_findings(case_id), repo.list_documents(case_id),
+            board=board, mdt_date=body.mdt_date, by=user.id, now=now, jobs=repo.list_jobs(case_id),
+        )
+    except MdtBoardError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None
+    except (TransitionError, SnapshotBlockedError) as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    record = build_mdt_record(snapshot, ready, board,
+                              _actor_or_none(repo, case.referring_doctor_id), by=user.id, now=now)
+    ready = _save_progress(repo, ready)
+    repo.save_handover(snapshot, snapshot=True)
+    repo.save_mdt_record(record)
+    _audit(repo, case_id, user.id, "mdt_snapshot_created", now,
+           f"{case.state} → {ready.state}, MDT {body.mdt_date.isoformat()} ({board.name})")
+    return record
 
 
 @router.get("/cases/{case_id}/mdt/record", tags=["mdt"])
-def get_mdt_record(case_id: str) -> MdtRecord:
-    _todo()
+def get_mdt_record(case_id: str, repo: Repo) -> MdtRecord:
+    """The MDT record (`MDT_zapis` sections 1–5); 404 before the snapshot."""
+    _case_or_404(repo, case_id)
+    return _record_or_404(repo, case_id)
 
 
 @router.patch("/cases/{case_id}/mdt/record", tags=["mdt"])
-def update_mdt_record(case_id: str, body: MdtRecordUpdate, actor_id: ActorId) -> MdtRecord:
-    """Edit the record before the meeting (e.g. apply an `mdt_results` draft)."""
-    _todo()
+def update_mdt_record(
+    case_id: str, body: MdtRecordUpdate, user: CurrentUser, repo: Repo, clock: Clock
+) -> MdtRecord:
+    """Edit the record before the meeting (e.g. apply an `mdt_results` draft), a coordinator of the
+    case's KOC. Omitted fields stay unchanged. Only in pripraveno_k_mdt (409 otherwise)."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    record = _record_or_404(repo, case_id)
+    changes = body.model_dump(exclude_unset=True)
+    try:
+        record = update_record(case, record, changes)
+    except CaseStateError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    except ValidationError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
+    repo.save_mdt_record(record)
+    _audit(repo, case_id, user.id, "mdt_record_updated", clock.now(), ", ".join(changes) or "beze změny")
+    return record
 
 
 @router.get("/cases/{case_id}/mdt/record.pdf", tags=["mdt"], response_class=Response, responses=PDF)
-def get_mdt_record_pdf(case_id: str) -> Response:
-    _todo()
+def get_mdt_record_pdf(case_id: str, repo: Repo) -> Response:
+    """The MDT record as PDF in the `MDT_zapis` layout; sections 6–7 from a confirmed
+    conclusion."""
+    _case_or_404(repo, case_id)
+    record = _record_or_404(repo, case_id)
+    return _pdf(render_mdt_record(record, repo.get_mdt_conclusion(case_id)),
+                f"mdt-zapis-{case_id}.pdf")
 
 
 @router.put("/cases/{case_id}/mdt/conclusion", tags=["mdt"])
-def upsert_mdt_conclusion(case_id: str, body: MdtConclusionUpsert, actor_id: ActorId) -> MdtConclusion:
-    """Write / edit the conclusion (optionally starting from a `mdt_conclusion` draft)."""
-    _todo()
+def upsert_mdt_conclusion(
+    case_id: str, body: MdtConclusionUpsert, user: CurrentUser, repo: Repo, clock: Clock
+) -> MdtConclusion:
+    """Write / edit the conclusion (optionally starting from a `mdt_conclusion` draft), a
+    coordinator of the case's KOC, in pripraveno_k_mdt or zaver_mdt (409 otherwise). Replaces
+    every written field. After an upload the report stays the source and these are its structured
+    fields (e.g. the definitive MKN-10). A confirmed conclusion loses its confirmation and needs a
+    new one."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    existing = repo.get_mdt_conclusion(case_id)
+    try:
+        conclusion = save_conclusion(case, existing, body.model_dump())
+    except CaseStateError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    repo.save_mdt_conclusion(conclusion)
+    detail = conclusion.source.value
+    if existing is not None and existing.confirmed is not None:
+        detail += ", potvrzení zrušeno"
+    _audit(repo, case_id, user.id, "mdt_conclusion_saved", clock.now(), detail)
+    return conclusion
 
 
 @router.post("/cases/{case_id}/mdt/conclusion/upload", status_code=201, tags=["mdt"])
 def upload_mdt_conclusion(
-    case_id: str, actor_id: ActorId, file: Annotated[UploadFile, File()], received_at: ReceivedAt = None
+    case_id: str,
+    user: CurrentUser,
+    file: Annotated[UploadFile, File()],
+    repo: Repo,
+    clock: Clock,
+    llm: Llm,
+    jobs: Jobs,
+    received_at: ReceivedAt = None,
 ) -> UploadResult:
-    """Upload the MDT's own report instead of writing it (source=uploaded)."""
-    _todo()
+    """Upload the MDT's own report instead of writing it (source=uploaded), a coordinator of the
+    case's KOC, in pripraveno_k_mdt or zaver_mdt (409 otherwise). It becomes a case document and is
+    ingested like any upload; fields typed in earlier stay and a confirmation is dropped."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    document_id = new_id("doc")
+    try:
+        conclusion = attach_uploaded_conclusion(case, repo.get_mdt_conclusion(case_id), document_id)
+    except CaseStateError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    result = _store_upload(case_id, user, file, repo, clock, llm, jobs, received_at,
+                           document_id=document_id, doc_type=DocumentType.MDT_CONCLUSION)
+    repo.save_mdt_conclusion(conclusion)
+    _audit(repo, case_id, user.id, "mdt_conclusion_uploaded", clock.now(), result.document.filename)
+    return result
 
 
 @router.get("/cases/{case_id}/mdt/conclusion", tags=["mdt"])
-def get_mdt_conclusion(case_id: str) -> MdtConclusion:
-    _todo()
+def get_mdt_conclusion(case_id: str, repo: Repo) -> MdtConclusion:
+    """The MDT conclusion (`MDT_zaver`); 404 until one is written or uploaded."""
+    _case_or_404(repo, case_id)
+    return _conclusion_or_404(repo, case_id)
 
 
 @router.post("/cases/{case_id}/mdt/conclusion/confirm", tags=["mdt"])
-def confirm_mdt_conclusion(case_id: str, actor_id: ActorId) -> MdtConclusion:
-    """Coordinator confirms; pripraveno_k_mdt → zaver_mdt. Required before sending."""
-    _todo()
+def confirm_mdt_conclusion(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> MdtConclusion:
+    """A coordinator of the case's KOC confirms; pripraveno_k_mdt → zaver_mdt, or a correction is
+    confirmed again in zaver_mdt. Required before sending. The definitive diagnosis and MKN-10
+    code go into the live handover as manual values, and the MDT counts as held on the
+    conclusion's date (T2); findings such as a provisional code stay until resolved (Q-F36). 409
+    in another state or without the text (written) or the report (uploaded)."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    conclusion = _conclusion_or_404(repo, case_id)
+    now = clock.now()
+    try:
+        moved, confirmed, handover = confirm_conclusion(
+            case, conclusion, _handover_or_404(repo, case_id), by=user.id, now=now)
+    except (CaseStateError, ConclusionIncompleteError) as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    pdf = (None if confirmed.source is ConclusionSource.UPLOADED
+           else _render_conclusion(repo, moved, confirmed))
+    repo.save_handover(handover)
+    moved = _save_progress(repo, moved)
+    repo.save_mdt_conclusion(confirmed, pdf=pdf)
+    detail = f"{case.state} → {moved.state}"
+    if confirmed.diagnosis_code:
+        detail += f", definitivní kód {confirmed.diagnosis_code}"
+    _audit(repo, case_id, user.id, "mdt_conclusion_confirmed", now, detail)
+    return confirmed
 
 
 @router.get("/cases/{case_id}/mdt/conclusion.pdf", tags=["mdt"], response_class=Response, responses=PDF)
-def get_mdt_conclusion_pdf(case_id: str) -> Response:
-    _todo()
+def get_mdt_conclusion_pdf(case_id: str, repo: Repo) -> Response:
+    """The conclusion as PDF: an uploaded PDF report as it is, otherwise rendered in the
+    `MDT_zaver` layout from the conclusion and the MDT record."""
+    case = _case_or_404(repo, case_id)
+    conclusion = _conclusion_or_404(repo, case_id)
+    if conclusion.source is ConclusionSource.UPLOADED and conclusion.document_id:
+        meta = repo.get_document(conclusion.document_id)
+        data = repo.document_data(conclusion.document_id)
+        if meta is not None and meta.mime_type == PDF_MIME and data:
+            return _pdf(data, meta.filename)
+    return _pdf(_render_conclusion(repo, case, conclusion), f"mdt-zaver-{case_id}.pdf")
 
 
 # --- Feedback and messages (slice S6) ----------------------------------------------------------

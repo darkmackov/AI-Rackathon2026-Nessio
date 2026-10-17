@@ -47,7 +47,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
     route('post', '/cases/:caseId/take-over', (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item)
       if (item.state !== 'odeslano') fail(409, 'only a sent case can be taken over')
-      return save({ ...item, state: 'v_triage', coordinator_id: user.id }, user, 'take_over')
+      return save({ ...item, state: 'v_triage', coordinator_id: user.id }, user, 'case_taken_over')
     }),
     route('patch', '/cases/:caseId', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item); editable(item)
@@ -56,7 +56,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const coordinator = body.text('coordinator_id'), board = body.text('mdt_board_id'), date = body.date('mdt_date'); body.done()
       if (coordinator != null && !actors.some((person) => person.id === coordinator && person.role === 'coordinator' && person.organization_id === item.koc_id)) fail(400, 'unknown coordinator at this KOC')
       if (board != null && !boards.some((entry) => entry.id === board && entry.organization_id === item.koc_id)) fail(400, 'unknown MDT board at this KOC')
-      return save({ ...item, priority, ...(coordinator !== undefined ? { coordinator_id: coordinator } : {}), ...(board !== undefined ? { mdt_board_id: board } : {}), ...(date !== undefined ? { mdt_date: date } : {}) }, user, 'update_case', body.value)
+      return save({ ...item, priority, ...(coordinator !== undefined ? { coordinator_id: coordinator } : {}), ...(board !== undefined ? { mdt_board_id: board } : {}), ...(date !== undefined ? { mdt_date: date } : {}) }, user, 'case_updated', body.value)
     }),
     route('post', '/cases/:caseId/transition', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item)
@@ -64,7 +64,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       body.text('to', true)
       const to = body.pick('to', ['ceka_na_podklady', 'kompletni'] as const, 'ceka_na_podklady'); body.text('note'); body.done()
       if (!item.state || !transitions[item.state]?.includes(to)) fail(409, 'transition is not allowed')
-      return save({ ...item, state: to }, user, 'transition', body.value)
+      return save({ ...item, state: to }, user, 'case_transitioned', body.value)
     }),
     route('post', '/cases/:caseId/return', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item); editable(item)
@@ -72,22 +72,22 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       if (key) finding(item.id, key)
       store.saveMessage({ id: store.id('message'), case_id: item.id, kind: 'case_returned', channel: 'in_app', sender_id: user.id,
         recipient_ids: [item.referring_doctor_id], subject: 'Předávka vrácena k doplnění', body: note ?? '', finding_id: key, sent_at: now() })
-      return save({ ...item, state: 'vraceno_lekari' }, user, 'return_case', body.value)
+      return save({ ...item, state: 'vraceno_lekari' }, user, 'case_returned', body.value)
     }),
     route('put', '/cases/:caseId/hold', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item); editable(item)
       const body = await readBody(request, ['reason', 'until']), reason = body.text('reason', true), until = body.date('until'); body.done()
-      return save({ ...item, on_hold: { reason: reason ?? '', until, set_by: user.id, set_at: now() } }, user, 'hold', body.value)
+      return save({ ...item, on_hold: { reason: reason ?? '', until, set_by: user.id, set_at: now() } }, user, 'hold_set', body.value)
     }),
     route('delete', '/cases/:caseId/hold', (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item); editable(item)
-      return save({ ...item, on_hold: null }, user, 'resume')
+      return save({ ...item, on_hold: null }, user, 'hold_cleared')
     }),
     route('patch', '/cases/:caseId/milestones', async (request, params) => {
       const item = caseById(String(params.caseId)), user = access(request, item)
       const body = await readBody(request, ['symptom_onset', 'treatment_start'])
       const onset = body.date('symptom_onset'), start = body.date('treatment_start'); body.done()
-      return save({ ...item, milestones: { ...item.milestones, ...(onset !== undefined ? { symptom_onset: onset } : {}), ...(start !== undefined ? { treatment_start: start } : {}) } }, user, 'milestones', body.value)
+      return save({ ...item, milestones: { ...item.milestones, ...(onset !== undefined ? { symptom_onset: onset } : {}), ...(start !== undefined ? { treatment_start: start } : {}) } }, user, 'milestones_updated', body.value)
     }),
     route('get', '/cases/:caseId/audit', (request, params) => {
       const item = caseById(String(params.caseId)); access(request, item)
@@ -103,7 +103,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const updated = { ...issue, resolved: true, resolution: { kind, note, by: user.id, at: now() } }
       const current = result(item.id)
       state.documents.saveResult(item.id, { ...current, findings: current.findings.map((entry) => entry.id === issue.id ? updated : entry) })
-      record(item, user, 'resolve_finding', { finding_id: issue.id, ...updated.resolution })
+      record(item, user, 'finding_resolved', { finding_id: issue.id, ...updated.resolution })
       return HttpResponse.json(updated)
     }),
     route('post', '/cases/:caseId/findings/:findingId/request', async (request, params) => {
@@ -113,7 +113,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const body = await readBody(request, ['owner_id', 'title', 'due', 'priority', 'note'])
       const id = body.text('owner_id', true), title = body.text('title'), due = body.date('due', true), priority = body.pick('priority', priorities, 'normal'), note = body.text('note'); body.done()
       const task: Task = { id: store.id('task'), case_id: item.id, title: title || issue.message_cs, kind: 'request_documents', owner: owner(id), due, priority, status: 'planned', finding_id: issue.id, depends_on: [] }
-      store.saveTask(task); record(item, user, 'request_finding', { task, note })
+      store.saveTask(task); record(item, user, 'finding_requested', { task, note })
       return HttpResponse.json(task, { status: 201 })
     }),
     route('post', '/cases/:caseId/tasks', async (request, params) => {
@@ -121,7 +121,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const body = await readBody(request, ['title', 'kind', 'owner_id', 'location', 'due', 'priority', 'depends_on', 'external'])
       const task = taskBody(body, { id: store.id('task'), case_id: item.id, title: '', kind: '', owner: '' }, false)
       body.done(); owner(task.owner); validateGraph([...store.tasks(item.id), task].map((entry) => ({ key: entry.id, depends_on: entry.depends_on })))
-      store.saveTask(task); record(item, user, 'create_task', task)
+      store.saveTask(task); record(item, user, 'task_created', task)
       return HttpResponse.json(task, { status: 201 })
     }),
     route('patch', '/tasks/:taskId', async (request, params) => {
@@ -130,7 +130,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
       const updated = taskBody(body, task, true); body.done(); owner(updated.owner)
       if (updated.result_document_id && state.documents.get(updated.result_document_id)?.case_id !== item.id) fail(400, 'result document must belong to this case')
       validateGraph(store.tasks(item.id).map((entry) => ({ key: entry.id, depends_on: entry.id === task.id ? updated.depends_on : entry.depends_on })))
-      store.saveTask(updated); record(item, user, 'update_task', updated)
+      store.saveTask(updated); record(item, user, 'task_updated', updated)
       return HttpResponse.json(updated)
     }),
     route('get', '/task-sets', (request) => {
@@ -173,7 +173,7 @@ export function createCoordinatorHandlers(state: ReturnType<typeof createDemoSta
           due: step.due_offset_days == null ? null : localDateTime(due), depends_on: (step.depends_on ?? []).map((key) => ids[key]) }
       })
       for (const task of tasks) store.saveTask(task)
-      store.markRun(item.id, set.id); record(item, user, 'start_task_set', { task_set_id: set.id, tasks: tasks.map((task) => task.id) })
+      store.markRun(item.id, set.id); record(item, user, 'task_set_started', { task_set_id: set.id, tasks: tasks.map((task) => task.id) })
       return HttpResponse.json(tasks, { status: 201 })
     }),
     route('get', '/notifications', (request) => {

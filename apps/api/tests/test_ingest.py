@@ -55,6 +55,15 @@ def test_upload_stores_the_document_and_the_job_fills_handover_and_metadata(clie
     assert [j["id"] for j in client.get(f"/cases/{CASE}/jobs").json()] == [job["id"]]
 
 
+def test_uploaded_document_opens_as_the_original_file_with_its_czech_name(client):
+    doc = _upload(client, name="Žádost PL.docx").json()["document"]
+    r = client.get(f"/documents/{doc['id']}/file")
+    assert r.status_code == 200
+    assert r.content == REFERRAL.read_bytes()
+    assert r.headers["content-type"] == doc["mime_type"]
+    assert "filename*=UTF-8''%C5%BD%C3%A1dost%20PL.docx" in r.headers["content-disposition"]
+
+
 def test_job_fails_with_a_reason_when_no_model_is_configured(client):
     client.app.state.gateway = None
     job = _upload(client).json()["job"]
