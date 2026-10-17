@@ -109,7 +109,7 @@ function DetailContent({ caseId }: { caseId: string }) {
               findingActions={(finding) => <FindingActions caseId={caseId} finding={finding} handover={handover.data} />} />}
           </Tabs.Panel>
           <Tabs.Panel value="tasks">{seen('tasks') && <TasksTab caseId={caseId} openSource={openSource} showFinding={showFinding} />}</Tabs.Panel>
-          <Tabs.Panel value="mdt">{seen('mdt') && <MdtTab item={current} handover={handover.data} handoverState={handover.isPending ? <LoadingState rows={2} /> : handoverError} documents={documents.data ?? []} names={names} sources={sources} showFindings={() => { void navigate({ search: { tab: 'findings' } }) }} />}</Tabs.Panel>
+          <Tabs.Panel value="mdt">{seen('mdt') && <MdtTab item={current} handover={handover.data} handoverState={handover.isPending ? <LoadingState rows={2} /> : handoverError} documents={documents.data ?? []} names={names} sources={sources} showFindings={() => { void navigate({ search: { tab: 'findings' } }) }} showCommunication={() => { void navigate({ search: { tab: 'communication' } }) }} />}</Tabs.Panel>
           <Tabs.Panel value="communication">{seen('communication') && <CommunicationTab item={current} />}</Tabs.Panel>
           <Tabs.Panel value="audit">{seen('audit') && <AuditTab caseId={caseId} />}</Tabs.Panel>
           <Tabs.Panel value="documents">{seen('documents') && <DocumentsTab item={current} names={names} openSource={openSource} />}</Tabs.Panel>

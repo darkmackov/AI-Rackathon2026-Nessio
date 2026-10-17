@@ -1,93 +1,87 @@
-import { Alert, Button, Group, Modal, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { Accordion, Alert, Badge, Button, Group, Modal, Stack, Text } from '@mantine/core'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { IconAlertTriangle, IconCircleCheck, IconCircleDashed, IconLock } from '@tabler/icons-react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, actorHeaders } from '../../../api'
 import { confirmMdtConclusionMutation, getMdtConclusionOptions, getMdtRecordOptions, listCaseJobsOptions } from '../../../client/@tanstack/react-query.gen'
-import type { Case, ConclusionPrefill, DocumentMeta, Handover, MdtResultRow } from '../../../client/types.gen'
-import LoadingState, { EmptyState, QueryError } from '../../../components/DataState'
-import JobProgress from '../../../components/documents/JobProgress'
+import type { Case, DocumentMeta, Handover } from '../../../client/types.gen'
+import { QueryError } from '../../../components/DataState'
 import { terminalJob } from '../../../components/documents/document-utils'
 import { refreshCaseResults } from '../../../components/documents/use-document-ingest'
-import ClinicalValue, { type Sources } from '../../../components/handover/ClinicalValue'
-import HandoverFieldForm from '../../../components/handover/HandoverFieldForm'
+import type { Sources } from '../../../components/handover/ClinicalValue'
 import { useSession } from '../../../session'
-import ConclusionEditor from './ConclusionEditor'
-import ConclusionUpload from './ConclusionUpload'
-import ConclusionView from './ConclusionView'
-import DraftPanel from './DraftPanel'
-import PdfDownload from './PdfDownload'
-import RecordEditor from './RecordEditor'
-import RecordView from './RecordView'
-import SnapshotForm from './SnapshotForm'
+import { formatDate } from '../../../time'
+import ConclusionSection from './ConclusionSection'
+import NextStep, { MdtProgress } from './NextStep'
+import PreparationSection from './PreparationSection'
+import RecordSection from './RecordSection'
+import { loaded } from './loaded'
+import { mdtStage, openSections, preparationStates, type MdtSection, type MdtStage } from './mdt-progress'
 
-type Editor = { kind: 'field'; path: 'epicrisis' | 'mdt_question'; draft?: string } | { kind: 'record'; rows?: MdtResultRow[] } | { kind: 'conclusion'; prefill?: ConclusionPrefill } | null
-const missing = (error: unknown) => error instanceof ApiError && error.status === 404
 const conflict = (error: unknown) => error instanceof ApiError && error.status === 409
 
-export default function MdtTab({ item, handover, documents, names, sources, showFindings, handoverState }: { item: Case; handover?: Handover; documents: DocumentMeta[]; names: Record<string, string>; sources: Sources; showFindings: () => void; handoverState?: ReactNode }) {
-  const { t } = useTranslation(), { actorId } = useSession(), client = useQueryClient(), busy = useIsMutating() > 0
+function SectionTitle({ title, status }: { title: string; status?: ReactNode }) {
+  return <Group gap="sm" wrap="wrap"><Text fw={650}>{title}</Text>{status}</Group>
+}
+
+export default function MdtTab({ item, handover, documents, names, sources, showFindings, showCommunication, handoverState }: {
+  item: Case; handover?: Handover; documents: DocumentMeta[]; names: Record<string, string>; sources: Sources; showFindings: () => void; showCommunication: () => void; handoverState?: ReactNode;
+}) {
+  const { t, i18n } = useTranslation(), { actorId } = useSession(), client = useQueryClient(), busy = useIsMutating() > 0
   const actor = actorId ?? '', options = { headers: actorHeaders(actor), path: { case_id: item.id } }
-  const [editor, setEditor] = useState<Editor>(null), [confirm, setConfirm] = useState(false), [feedback, setFeedback] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState(false), [feedback, setFeedback] = useState<string | null>(null)
+  // Open sections follow the stage until the coordinator opens or closes one in it.
+  const [opened, setOpened] = useState<{ stage: MdtStage; value: string[] } | null>(null)
+  const controls = useRef<Partial<Record<MdtSection, HTMLButtonElement | null>>>({})
   const record = useQuery(getMdtRecordOptions(options))
   const conclusion = useQuery({ ...getMdtConclusionOptions(options), enabled: !!record.data })
   const jobs = useQuery(listCaseJobsOptions(options))
-  const pre = ['v_triage', 'ceka_na_podklady', 'kompletni'].includes(item.state ?? ''), ready = item.state === 'pripraveno_k_mdt'
+  const pre = preparationStates.includes(item.state ?? 'koncept'), ready = item.state === 'pripraveno_k_mdt'
   // The conclusion can be corrected until the feedback is sent; a change needs a new confirmation (Q-F34).
   const conclusionOpen = ready || item.state === 'zaver_mdt'
   const ingest = jobs.data?.filter((job) => job.kind === 'ingest_document' && (!terminalJob(job) || job.status === 'failed')) ?? []
   const pending = ingest.some((job) => !terminalJob(job))
+  const recordState = loaded(record), conclusionState = loaded(conclusion)
+  const known = conclusionState.kind === 'ready' ? conclusionState.data : conclusionState.kind === 'missing' ? null : undefined
+  const stage = mdtStage(item.state, known)
+  const value = opened?.stage === stage ? opened.value : openSections(stage)
+  const reveal = (section: MdtSection) => {
+    if (!value.includes(section)) setOpened({ stage, value: [...value, section] })
+    const control = controls.current[section]
+    control?.focus(); control?.scrollIntoView?.({ block: 'center' })
+  }
   const confirmMutation = useMutation({ ...confirmMdtConclusionMutation(), onSuccess: async () => { await refreshCaseResults(client, item.id); setConfirm(false); setFeedback('mdt.confirmed') } })
-  const saved = () => { setEditor(null); setFeedback('mdt.saved') }
-  const fieldActions = (path: 'epicrisis' | 'mdt_question') => <Button variant="outline" size="compact-sm" disabled={busy || pending} onClick={() => setEditor({ kind: 'field', path })}>{t('mdt.edit')}</Button>
-  return <Stack component="section" aria-label={t('mdt.title')} gap="lg">
-    {feedback && <Alert color="green" role="status">{t(feedback)}</Alert>}
-    {pre && <Stack gap="sm"><Title order={2} size="h4">{t('mdt.preparation')}</Title>
-      {handoverState}
-      {!handover ? !handoverState && <EmptyState title={t('caseDetail.noHandover')} /> : <>
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="sm">
-          <ClinicalValue idPrefix="mdt-field" label={t('mdt.sourceEpicrisis')} path="epicrisis_source" value={handover.epicrisis_source} names={names} sources={sources} findings={[]} showFinding={showFindings} />
-          <Stack><ClinicalValue idPrefix="mdt-field" label={t('mdt.finalEpicrisis')} path="epicrisis" value={handover.epicrisis} names={names} sources={sources} findings={[]} showFinding={showFindings} actions={fieldActions('epicrisis')} />
-            <DraftPanel caseId={item.id} actorId={actor} kind="epicrisis_summary" onUse={(draft) => setEditor({ kind: 'field', path: 'epicrisis', draft: draft.text ?? '' })} />
-          </Stack>
-        </SimpleGrid>
-        <ClinicalValue idPrefix="mdt-field" label={t('mdt.question')} path="mdt_question" value={handover.mdt_question} names={names} sources={sources} findings={[]} showFinding={showFindings} actions={fieldActions('mdt_question')} />
-        <DraftPanel caseId={item.id} actorId={actor} kind="mdt_question" onUse={(draft) => setEditor({ kind: 'field', path: 'mdt_question', draft: draft.text ?? '' })} />
-      </>}
-    </Stack>}
-    <Stack gap="sm"><Title order={2} size="h4">{t('mdt.record')}</Title>
-      {record.isPending && <LoadingState rows={3} />}
-      {record.isError && (missing(record.error) ? <EmptyState title={t('mdt.noRecord')} description={item.state !== 'kompletni' ? t('mdt.notComplete') : undefined} /> : <QueryError error={record.error} retry={() => { void record.refetch() }} />)}
-      {item.state === 'kompletni' && <SnapshotForm item={item} actorId={actor} showFindings={showFindings} />}
-      {record.data && <>
-        <RecordView record={record.data} />
-        <Group align="flex-start"><PdfDownload caseId={item.id} actorId={actor} kind="record" />{ready && <Button variant="outline" size="compact-sm" disabled={busy} onClick={() => setEditor({ kind: 'record' })}>{t('mdt.editRecord')}</Button>}</Group>
-        {ready && <><Text size="sm" c="dimmed">{t('mdt.resultsDraftHelp')}</Text><DraftPanel caseId={item.id} actorId={actor} kind="mdt_results" onUse={(draft) => setEditor({ kind: 'record', rows: draft.rows ?? [] })} /></>}
-      </>}
-    </Stack>
-    {record.data && <Stack gap="sm"><Title order={2} size="h4">{t('mdt.conclusion')}</Title>
-      {conclusion.isPending && <LoadingState rows={3} />}
-      {conclusion.isError && (missing(conclusion.error) ? <EmptyState title={t('mdt.noConclusion')} /> : <QueryError error={conclusion.error} retry={() => { void conclusion.refetch() }} />)}
-      {conclusion.data && <><ConclusionView conclusion={conclusion.data} /><PdfDownload caseId={item.id} actorId={actor} kind="conclusion" />
-        {conclusion.data.document_id && <Button variant="outline" size="compact-sm" disabled={!documents.some((document) => document.id === conclusion.data.document_id)} onClick={(event) => { if (conclusion.data.document_id) sources.openSource({ documentId: conclusion.data.document_id }, event.currentTarget) }}>{t('mdt.source')}</Button>}
-        {conclusion.data.document_id && !documents.some((document) => document.id === conclusion.data.document_id) && <Alert color="orange" role="status">{t('mdt.noSource')}</Alert>}
-      </>}
-      {conclusionOpen && <>
-        {item.state === 'zaver_mdt' && <Text size="sm" c="dimmed">{t('mdt.correctionHelp')}</Text>}
-        <Button variant="outline" disabled={busy || pending} onClick={() => setEditor({ kind: 'conclusion' })}>{t('mdt.editConclusion')}</Button>
-        <DraftPanel caseId={item.id} actorId={actor} kind="mdt_conclusion" onUse={(draft) => setEditor({ kind: 'conclusion', prefill: draft.fields ?? undefined })} />
-        <ConclusionUpload caseId={item.id} actorId={actor} disabled={pending} />
-        {ingest.map((job) => <JobProgress key={job.id} job={job} actorId={actor} documents={documents} />)}
-        {pending && <Alert color="blue" role="status">{t('mdt.pendingUpload')}</Alert>}
-        {jobs.isError && <QueryError error={jobs.error} retry={() => { void jobs.refetch() }} />}
-        {conclusion.data && !conclusion.data.confirmed && <Button disabled={busy || pending || !jobs.isSuccess || !conclusion.isSuccess} onClick={() => { confirmMutation.reset(); setConfirm(true) }}>{t('mdt.confirm')}</Button>}
-      </>}
-    </Stack>}
-    <Modal opened={!!editor} onClose={() => { if (!busy) setEditor(null) }} size="lg" title={t(editor?.kind === 'record' ? 'mdt.editRecord' : editor?.kind === 'conclusion' ? 'mdt.editConclusion' : editor?.kind === 'field' && editor.path === 'mdt_question' ? 'mdt.question' : 'mdt.finalEpicrisis')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
-      {editor?.kind === 'field' && pre && <HandoverFieldForm key={editor.path} caseId={item.id} actorId={actor} path={editor.path} value={handover?.[editor.path]} initialText={editor.draft} close={() => setEditor(null)} saved={saved} />}
-      {editor?.kind === 'record' && ready && record.data && <RecordEditor record={record.data} rows={editor.rows} actorId={actor} saved={saved} />}
-      {editor?.kind === 'conclusion' && conclusionOpen && record.data && <ConclusionEditor caseId={item.id} actorId={actor} conclusion={conclusion.data} prefill={editor.prefill} meetingDate={record.data.mdt_date} saved={saved} />}
-    </Modal>
+  const settled = recordState.kind !== 'loading' && !(record.data && conclusionState.kind === 'loading')
+
+  const recordStatus = record.data
+    ? <Badge variant="light" color="blue" leftSection={<IconLock size={12} aria-hidden />}>{t('mdt.recordFrozen', { date: formatDate(record.data.mdt_date, i18n.language) })}</Badge>
+    : recordState.kind === 'missing' ? <Badge variant="light" color="gray" c="dark.9" leftSection={<IconCircleDashed size={12} aria-hidden />}>{t('mdt.recordNone')}</Badge> : undefined
+  const conclusionStatus = conclusion.data
+    ? conclusion.data.confirmed
+      ? <Badge variant="light" color="green" c="green.9" leftSection={<IconCircleCheck size={12} aria-hidden />}>{t('mdt.conclusionConfirmed')}</Badge>
+      : <Badge variant="light" color="orange" c="orange.9" leftSection={<IconAlertTriangle size={12} aria-hidden />}>{t('mdt.conclusionUnconfirmed')}</Badge>
+    : known === null ? <Badge variant="light" color="gray" c="dark.9" leftSection={<IconCircleDashed size={12} aria-hidden />}>{t('mdt.conclusionNone')}</Badge> : undefined
+  const control = (section: MdtSection) => ({ ref: (node: HTMLButtonElement | null) => { controls.current[section] = node } })
+
+  return <Stack component="section" aria-label={t('mdt.title')} gap="md">
+    <MdtProgress stage={stage} />
+    {settled && <NextStep stage={stage} feedback={feedback} disabled={busy || !jobs.isSuccess || !conclusion.isSuccess} pending={pending}
+      goSnapshot={() => reveal('record')} goConclusion={() => reveal('conclusion')} goSend={showCommunication} confirm={() => { confirmMutation.reset(); setConfirm(true) }} />}
+    <Accordion multiple variant="separated" order={2} chevronPosition="left" value={value} onChange={(next) => setOpened({ stage, value: next })}>
+      {pre && <Accordion.Item value="preparation">
+        <Accordion.Control {...control('preparation')}><SectionTitle title={t('mdt.preparation')} /></Accordion.Control>
+        <Accordion.Panel><PreparationSection caseId={item.id} actorId={actor} handover={handover} handoverState={handoverState} names={names} sources={sources} showFindings={showFindings} locked={pending} /></Accordion.Panel>
+      </Accordion.Item>}
+      <Accordion.Item value="record">
+        <Accordion.Control {...control('record')}><SectionTitle title={t('mdt.record')} status={recordStatus} /></Accordion.Control>
+        <Accordion.Panel><RecordSection item={item} actorId={actor} record={recordState} retry={() => { void record.refetch() }} editable={ready} showFindings={showFindings} /></Accordion.Panel>
+      </Accordion.Item>
+      {record.data && <Accordion.Item value="conclusion">
+        <Accordion.Control {...control('conclusion')}><SectionTitle title={t('mdt.conclusion')} status={conclusionStatus} /></Accordion.Control>
+        <Accordion.Panel><ConclusionSection caseId={item.id} actorId={actor} record={record.data} conclusion={conclusionState} retry={() => { void conclusion.refetch() }} jobs={jobs} ingest={ingest} pending={pending} editable={conclusionOpen} documents={documents} sources={sources} /></Accordion.Panel>
+      </Accordion.Item>}
+    </Accordion>
     <Modal opened={confirm} onClose={() => { if (!busy) setConfirm(false) }} title={t('mdt.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
       <Stack><Text>{t('mdt.confirmHelp')}</Text>{confirmMutation.isError && (conflict(confirmMutation.error) ? <Alert color="orange" role="alert">{t('mdt.confirmIncomplete')}</Alert> : <QueryError error={confirmMutation.error} />)}
         <Group><Button loading={confirmMutation.isPending} disabled={busy || pending} onClick={() => confirmMutation.mutate(options)}>{t('mdt.confirm')}</Button><Button variant="default" disabled={busy} onClick={() => setConfirm(false)}>{t('cancel')}</Button></Group>

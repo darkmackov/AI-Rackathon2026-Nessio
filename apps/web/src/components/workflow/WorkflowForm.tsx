@@ -24,8 +24,8 @@ export function WorkflowError({ error }: { error: unknown }) {
 }
 
 /** Only form drafts live here; server models remain in Query. */
-export default function WorkflowForm({ fields, initial, submit, onSaved, submitLabel, submitDisabled = false, help, children }: {
-  fields: WorkflowField[]; initial: WorkflowValues; submit: (values: WorkflowValues) => Promise<unknown>; onSaved: () => void;
+export default function WorkflowForm({ fields, initial, submit, onSaved, onCancel, submitLabel, submitDisabled = false, help, children }: {
+  fields: WorkflowField[]; initial: WorkflowValues; submit: (values: WorkflowValues) => Promise<unknown>; onSaved: () => void; onCancel?: () => void;
   submitLabel?: string; submitDisabled?: boolean; help?: string; children?: ReactNode;
 }) {
   const { t } = useTranslation()
@@ -61,7 +61,7 @@ export default function WorkflowForm({ fields, initial, submit, onSaved, submitL
       })}
       {children}
       {error != null && <WorkflowError error={error} />}
-      <Group justify="flex-end"><Button type="submit" loading={busy} disabled={submitDisabled}>{submitLabel ?? t('workflow.save')}</Button></Group>
+      <Group justify="flex-end">{onCancel && <Button variant="default" disabled={busy} onClick={onCancel}>{t('cancel')}</Button>}<Button type="submit" loading={busy} disabled={submitDisabled}>{submitLabel ?? t('workflow.save')}</Button></Group>
     </Stack>
   </form>
 }

@@ -44,11 +44,17 @@ export default function SnapshotForm({ item, actorId, showFindings }: { item: Ca
     {boards.isSuccess && !choices.length && <EmptyState title={t('mdt.noBoards')} retry={() => { void boards.refetch() }} />}
     {boards.isSuccess && choices.length > 0 && <form noValidate onSubmit={(event) => { if (busy) { event.preventDefault(); return }; setSubmitted(true); form.onSubmit(() => { mutation.reset(); setConfirm(true) })(event) }}><Stack gap="sm">
       {submitted && Object.keys(form.errors).length > 0 && <FormErrorSummary errors={Object.values(form.errors).map((value) => t(String(value)))} />}
-      <NativeSelect label={t('mdt.board')} data={[{ value: '', label: t('mdt.selectBoard'), disabled: true }, ...choices.map((board) => ({ value: board.id, label: board.name }))]}
-        {...form.getInputProps('board_id')} error={form.errors.board_id ? t('mdt.required') : undefined} disabled={busy} />
-      <TextInput type="date" label={t('mdt.date')} {...form.getInputProps('mdt_date')} error={form.errors.mdt_date ? t('mdt.invalidDate') : undefined} disabled={busy} />
-      <Group><Button type="submit" disabled={busy}>{t('mdt.snapshot')}</Button><Button variant="outline" onClick={() => { setSaved(false); setRoster(true) }} disabled={!selected || busy}>{t('mdt.roster')}</Button></Group>
-      {saved && <Text size="sm" role="status">{t('mdt.saved')}</Text>}
+      <Text size="sm">{t('mdt.snapshotIntro')}</Text>
+      <Group align="flex-start" gap="sm" grow maw={640}>
+        <Stack gap={4}>
+          <NativeSelect label={t('mdt.board')} data={[{ value: '', label: t('mdt.selectBoard'), disabled: true }, ...choices.map((board) => ({ value: board.id, label: board.name }))]}
+            {...form.getInputProps('board_id')} error={form.errors.board_id ? t('mdt.required') : undefined} disabled={busy} />
+          <Group><Button variant="subtle" size="compact-sm" px={4} onClick={() => { setSaved(false); setRoster(true) }} disabled={!selected || busy}>{t('mdt.roster')}</Button></Group>
+        </Stack>
+        <TextInput type="date" label={t('mdt.date')} {...form.getInputProps('mdt_date')} error={form.errors.mdt_date ? t('mdt.invalidDate') : undefined} disabled={busy} />
+      </Group>
+      {saved && <Alert color="green" role="status">{t('mdt.rosterSaved')}</Alert>}
+      <Group><Button type="submit" disabled={busy}>{t('mdt.snapshot')}</Button></Group>
     </Stack></form>}
     <Modal opened={confirm} onClose={() => { if (!busy) setConfirm(false) }} title={t('mdt.snapshotTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
       <Stack><Text>{t('mdt.snapshotHelp')}</Text><Text fw={600}>{selected?.name} · {formatDate(form.values.mdt_date, i18n.language)}</Text>
