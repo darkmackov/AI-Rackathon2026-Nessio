@@ -1,4 +1,4 @@
-# Onko-koordinace
+# Nessio
 
 Rakathon 2026. **VZP: Cesta pacienta bez ztráty informací** + **InterSystems challenge**.
 

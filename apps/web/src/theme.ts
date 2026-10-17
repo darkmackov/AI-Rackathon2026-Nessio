@@ -1,11 +1,13 @@
 import { createTheme } from '@mantine/core'
 
 export const theme = createTheme({
-  primaryColor: 'blue',
+  primaryColor: 'nessie',
   primaryShade: 9,
+  black: '#23342B',
   // Mantine's default dimmed gray is too light for small clinical text (A11Y-3).
   colors: {
-    gray: ['#f8f9fa', '#f1f3f5', '#e9ecef', '#dee2e6', '#ced4da', '#adb5bd', '#5f6871', '#495057', '#343a40', '#212529'],
+    nessie: ['#F4F7F2', '#E9F0E1', '#DAE6C4', '#B7C98B', '#A1B676', '#8EAA6B', '#769857', '#548357', '#387456', '#25634B'],
+    gray: ['#f8f9fa', '#f1f3f5', '#e9ecef', '#dee2e6', '#ced4da', '#adb5bd', '#59636b', '#495057', '#343a40', '#212529'],
   },
   fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   defaultRadius: 'md',
