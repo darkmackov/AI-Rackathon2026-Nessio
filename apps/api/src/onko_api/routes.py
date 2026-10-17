@@ -609,13 +609,13 @@ def create_draft(
     case_id: str, body: DraftCreate, user: CurrentUser, repo: Repo, clock: Clock, llm: Llm, jobs: Jobs
 ) -> Job:
     """A draft of what the MDT receives, for a coordinator of the case's KOC to edit and apply
-    (Q-F37). Nothing on the case changes; the result arrives in the job:
-    - `epicrisis_summary`, `mdt_question`: AI text from the live handover in `job.result.text`;
-      apply it with `updateHandoverField` (`epicrisis`, `mdt_question`).
-    - `mdt_results`: AI one-liners for the MDT record's results in `job.result.rows`; apply with
+    (Q-F37). Nothing on the case changes; once done the result is in `job.draft`:
+    - `epicrisis_summary`, `mdt_question`: AI text from the live handover in `draft.text`; apply
+      it with `updateHandoverField` (`epicrisis`, `mdt_question`).
+    - `mdt_results`: AI one-liners for the MDT record's results in `draft.rows`; apply with
       `updateMdtRecord`.
     - `mdt_conclusion`: no AI, only the parts of `MDT_zaver` that restate the record (diagnosis,
-      date, place, copy to the referring doctor) in `job.result.fields`; apply with
+      date, place, copy to the referring doctor) in `draft.fields`; apply with
       `upsertMdtConclusion`. The MDT's decision is never drafted.
 
     The last two need the MDT record (409 before *Připravit podklad pro MDT*)."""
@@ -1089,8 +1089,9 @@ def create_mdt_snapshot(
     Freezes a copy of the live handover (`as_of` = `mdt_date`, confirmed by the coordinator; read it
     with `getHandover?snapshot=true`) and builds the MDT record from it, with the board's members
     and the referring doctor from the directory. 409 in another state, while blockers are
-    unresolved (resolve or override them first), or when the handover uses a document received
-    after `mdt_date`; 400 for a board that isn't the KOC's."""
+    unresolved (resolve or override them first), while a document is still being extracted, or
+    when the handover uses a document received after `mdt_date`; 400 for a board that isn't the
+    KOC's."""
     case = _case_or_404(repo, case_id)
     _require_koc_coordinator(user, case)
     try:
@@ -1102,7 +1103,7 @@ def create_mdt_snapshot(
     try:
         ready, snapshot = prepare_snapshot(
             case, handover, repo.list_findings(case_id), repo.list_documents(case_id),
-            board=board, mdt_date=body.mdt_date, by=user.id, now=now,
+            board=board, mdt_date=body.mdt_date, by=user.id, now=now, jobs=repo.list_jobs(case_id),
         )
     except MdtBoardError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from None

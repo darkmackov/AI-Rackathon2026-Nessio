@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from onko_ai import ResultLine, ResultLines
 from onko_api.jobs import ImmediateExecutor
 from onko_api.main import app
-from onko_contracts import CaseState, MdtRecord, Stamp
+from onko_contracts import CaseState, Job, JobKind, JobStatus, MdtRecord, Stamp
 from onko_documents import parse, render_mdt_record
 
 CASE = "vzp-prochazkova"
@@ -91,8 +91,9 @@ def test_mdt_from_the_input_to_the_confirmed_conclusion(client):
 
     # Step 9: AI drafts of what the MDT gets; the coordinator applies the question as her own.
     epicrisis = _draft(client, "epicrisis_summary")
-    assert (epicrisis["status"], epicrisis["result"]) == ("done", {"text": "AI epikríza."})
-    question = _draft(client, "mdt_question")["result"]["text"]
+    assert epicrisis["status"] == "done" and epicrisis["result"] is None
+    assert epicrisis["draft"] == {"kind": "epicrisis_summary", "text": "AI epikríza.", "rows": [], "fields": None}
+    question = _draft(client, "mdt_question")["draft"]["text"]
     assert client.patch(f"/cases/{CASE}/handover", headers=COORDINATOR,
                         json={"path": "mdt_question", "value": question}).status_code == 200
     for kind in ("mdt_results", "mdt_conclusion"):  # these need the MDT record
@@ -126,7 +127,7 @@ def test_mdt_from_the_input_to_the_confirmed_conclusion(client):
     assert "Alena Procházková" in parse(pdf.content, "application/pdf")
 
     # The AI one-liners for the results table, applied to the record.
-    rows = _draft(client, "mdt_results")["result"]["rows"]
+    rows = _draft(client, "mdt_results")["draft"]["rows"]
     assert len(rows) == len(record["results"])
     assert rows[0]["result"] == "Jedna řádka."
     assert rows[1] == record["results"][1]  # the model left it out: full text stays
@@ -134,7 +135,7 @@ def test_mdt_from_the_input_to_the_confirmed_conclusion(client):
     assert r.status_code == 200 and r.json()["results"] == rows
 
     # Step 12: the conclusion prefill restates the record, the decision is the coordinator's input.
-    fields = _draft(client, "mdt_conclusion")["result"]["fields"]
+    fields = _draft(client, "mdt_conclusion")["draft"]["fields"]
     assert fields == {
         "diagnosis_name": record["diagnosis_name"],
         "diagnosis_code": record["diagnosis_code"],
@@ -197,6 +198,21 @@ def test_reports_after_the_mdt_never_change_the_record(client):
 
     assert client.get(f"/cases/{CASE}/mdt/record").json() == record
     assert client.get(f"/cases/{CASE}/handover", params={"snapshot": True}).json() == snapshot
+
+
+def test_the_snapshot_waits_for_documents_still_being_extracted(client):
+    _clear_blockers(client)
+    repo = _repo(client)
+    job = Job(id="job-busy", kind=JobKind.INGEST_DOCUMENT, case_id=CASE, document_id="08",
+              status=JobStatus.RUNNING, created_at="2026-10-21T08:30:00")
+    repo.save_job(job)
+
+    r = client.post(f"/cases/{CASE}/mdt/snapshot", headers=COORDINATOR, json=SNAPSHOT)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "documents still processing: job-busy"
+
+    repo.save_job(job.model_copy(update={"status": JobStatus.DONE}))
+    assert client.post(f"/cases/{CASE}/mdt/snapshot", headers=COORDINATOR, json=SNAPSHOT).status_code == 201
 
 
 def test_the_snapshot_refuses_a_handover_that_uses_a_later_document(client):
@@ -313,7 +329,7 @@ def test_drafts_need_a_model_except_the_conclusion_prefill(client):
     assert failed["status"] == "failed"
     assert "jazykový model" in failed["error"]
     prefill = _draft(client, "mdt_conclusion")
-    assert prefill["status"] == "done" and prefill["result"]["fields"]["date"] == "2026-10-21"
+    assert prefill["status"] == "done" and prefill["draft"]["fields"]["date"] == "2026-10-21"
 
 
 def test_board_roster_is_edited_by_its_koc_and_records_keep_theirs(client):

@@ -1172,7 +1172,7 @@
           "jobs"
         ],
         "summary": "Create Draft",
-        "description": "A draft of what the MDT receives, for a coordinator of the case's KOC to edit and apply\n(Q-F37). Nothing on the case changes; the result arrives in the job:\n- `epicrisis_summary`, `mdt_question`: AI text from the live handover in `job.result.text`;\n  apply it with `updateHandoverField` (`epicrisis`, `mdt_question`).\n- `mdt_results`: AI one-liners for the MDT record's results in `job.result.rows`; apply with\n  `updateMdtRecord`.\n- `mdt_conclusion`: no AI, only the parts of `MDT_zaver` that restate the record (diagnosis,\n  date, place, copy to the referring doctor) in `job.result.fields`; apply with\n  `upsertMdtConclusion`. The MDT's decision is never drafted.\n\nThe last two need the MDT record (409 before *Připravit podklad pro MDT*).",
+        "description": "A draft of what the MDT receives, for a coordinator of the case's KOC to edit and apply\n(Q-F37). Nothing on the case changes; once done the result is in `job.draft`:\n- `epicrisis_summary`, `mdt_question`: AI text from the live handover in `draft.text`; apply\n  it with `updateHandoverField` (`epicrisis`, `mdt_question`).\n- `mdt_results`: AI one-liners for the MDT record's results in `draft.rows`; apply with\n  `updateMdtRecord`.\n- `mdt_conclusion`: no AI, only the parts of `MDT_zaver` that restate the record (diagnosis,\n  date, place, copy to the referring doctor) in `draft.fields`; apply with\n  `upsertMdtConclusion`. The MDT's decision is never drafted.\n\nThe last two need the MDT record (409 before *Připravit podklad pro MDT*).",
         "operationId": "create_draft",
         "parameters": [
           {
@@ -2527,7 +2527,7 @@
           "mdt"
         ],
         "summary": "Create Mdt Snapshot",
-        "description": "'Připravit podklad pro MDT', a coordinator of the case's KOC: kompletni → pripraveno_k_mdt.\nFreezes a copy of the live handover (`as_of` = `mdt_date`, confirmed by the coordinator; read it\nwith `getHandover?snapshot=true`) and builds the MDT record from it, with the board's members\nand the referring doctor from the directory. 409 in another state, while blockers are\nunresolved (resolve or override them first), or when the handover uses a document received\nafter `mdt_date`; 400 for a board that isn't the KOC's.",
+        "description": "'Připravit podklad pro MDT', a coordinator of the case's KOC: kompletni → pripraveno_k_mdt.\nFreezes a copy of the live handover (`as_of` = `mdt_date`, confirmed by the coordinator; read it\nwith `getHandover?snapshot=true`) and builds the MDT record from it, with the board's members\nand the referring doctor from the directory. 409 in another state, while blockers are\nunresolved (resolve or override them first), while a document is still being extracted, or\nwhen the handover uses a document received after `mdt_date`; 400 for a board that isn't the\nKOC's.",
         "operationId": "create_mdt_snapshot",
         "parameters": [
           {
