@@ -75,7 +75,7 @@ flowchart LR
 - **Done when:** demo steps 3 and 5 can be shown read-only on the seeded case, and every seeded document opens as its original.
 
 ## S2: Document ingest + AI extraction
-- **Status:** backend done. Extraction, quote verification, AI metadata and re-extraction work; the model is chosen (Q-M1, bench on both reference cases). The duplicate check (Q-I22) and the normalization (Q-C13) landed on 17. 10. with the shared normalizer in `contracts` (Q-K12); the web shows the duplicate warning after an upload.
+- **Status:** backend done. Extraction, quote verification, AI metadata and re-extraction work; the model is chosen (Q-M1, bench on both reference cases). The duplicate check (Q-I22) and the normalization (Q-C13) landed on 17. 10. with the shared normalizer in `contracts` (Q-K12); the web shows the duplicate warning after an upload. Re-extraction keeps people's finding resolutions even when a finding's id drifts with the model's output (Q-C14).
 - **Goal:** pillar 02. Uploaded reports turn into a handover with verbatim evidence, plus findings.
 - **Endpoints:** `uploadDocument` (with `received_at`), `getJob`, `listCaseJobs`, `updateDocument` (correct AI metadata), `reextractCase`.
 - **Modules:**

@@ -29,7 +29,15 @@ from onko_ai.models import (
     ReferenceMatches,
     ReviewNote,
 )
-from onko_contracts import DocumentType, FindingKind, Severity
+from onko_contracts import (
+    DocumentType,
+    Evidence,
+    Finding,
+    FindingKind,
+    Resolution,
+    ResolutionKind,
+    Severity,
+)
 
 AS_OF = dt.date(2026, 10, 20)
 
@@ -323,3 +331,76 @@ def test_a_finding_that_comes_back_is_open_again_after_an_automatic_resolution()
     closed = reconcile_findings(first, first[1:], NOW)
     back = by_id(reconcile_findings(closed, first, NOW))
     assert not back[gone.id].resolved and back[gone.id].resolution is None
+
+
+def finding(id, fields=("labs",), docs=("a",), severity=Severity.INFO, message="Nález.", by=None):
+    resolution = None
+    if by is not None:
+        resolution = Resolution(kind=ResolutionKind.DISMISSED, note="Viděno.", by=by, at=NOW)
+    return Finding(
+        id=id,
+        kind=FindingKind.MISSING,
+        severity=severity,
+        fields=list(fields),
+        message_cs=message,
+        evidence=[Evidence(document_id=d, quote="x") for d in docs],
+        resolved=resolution is not None,
+        resolution=resolution,
+    )
+
+
+def test_a_resolution_follows_a_finding_whose_id_drifted():
+    old = finding("review:labs", fields=("labs", "medications"), docs=("a", "b"), by="koordinator")
+    new = finding("review:medications+labs", fields=("medications", "labs"), docs=("b",),
+                  message="Jinak formulováno.")
+    merged = reconcile_findings([old], [new], NOW)
+    assert [f.id for f in merged] == [new.id]
+    assert merged[0].resolved and merged[0].resolution == old.resolution
+    assert merged[0].message_cs == "Jinak formulováno."
+
+
+def test_a_drifted_blocker_takes_the_resolution_even_with_a_new_message():
+    old = finding("unattached:a", severity=Severity.BLOCKER, message="Chybí MR.", by="koordinator")
+    new = finding("unattached:a2", severity=Severity.BLOCKER, message="Chybí MR mozku.")
+    merged = reconcile_findings([old], [new], NOW)
+    assert [f.id for f in merged] == [new.id] and merged[0].resolution == old.resolution
+
+
+def test_a_resolution_does_not_follow_onto_other_fields_or_documents():
+    old = finding("review:labs", by="koordinator")
+    other_fields = finding("review:medications", fields=("medications",))
+    other_docs = finding("review:labs2", docs=("b",))
+    merged = by_id(reconcile_findings([old], [other_fields, other_docs], NOW))
+    assert not merged[other_fields.id].resolved and not merged[other_docs.id].resolved
+    assert merged[old.id].resolution == old.resolution
+
+
+def test_an_automatic_resolution_does_not_follow_a_drifted_id():
+    old = finding("review:labs", by="ai")
+    new = finding("review:labs2")
+    merged = by_id(reconcile_findings([old], [new], NOW))
+    assert not merged[new.id].resolved and merged[old.id].resolution.by == "ai"
+
+
+def test_one_new_finding_takes_at_most_one_drifted_resolution():
+    first = finding("review:labs1", by="koordinator")
+    second = finding("review:labs2", by="koordinator")
+    new = finding("review:labs3")
+    merged = by_id(reconcile_findings([first, second], [new], NOW))
+    assert merged[new.id].resolution == first.resolution
+    assert merged[second.id].resolution == second.resolution
+
+
+def test_clinical_review_is_told_about_dismissed_findings():
+    doc = make_doc("a", "AA: neguje", dt.date(2026, 10, 1))
+    gw = FakeGateway(
+        {
+            DocExtraction: out(claim(FieldPath.ALLERGIES, "neguje", "AA: neguje")),
+            ClinicalReview: ClinicalReview(notes=[]),
+        }
+    )
+    dismissed = finding("review:labs", message="Sideropenie bez substituce.", by="koordinator")
+    auto = finding("review:other", message="Samo zavřené.", by="ai")
+    analyse_case("c", [doc], gateway=gw, as_of=AS_OF, now=NOW, previous_findings=[dismissed, auto])
+    payload = next(m for schema, m in gw.seen if schema is ClinicalReview)[1]["content"]
+    assert "Sideropenie bez substituce." in payload and "Samo zavřené." not in payload
