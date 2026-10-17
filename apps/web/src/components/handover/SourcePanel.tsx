@@ -1,4 +1,4 @@
-import { Alert, Button, Drawer, EmptyState, Group, Mark, Paper, Stack, Text, Title } from '@mantine/core'
+import { Alert, Button, Drawer, EmptyState, Group, Mark, Paper, Stack, Table, Text, Title } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { IconFileSearch } from '@tabler/icons-react'
@@ -11,7 +11,7 @@ import LoadingState, { EmptyState as NoData, QueryError } from '../DataState'
 import { useSession } from '../../session'
 import { CopySection } from './ClinicalValue'
 import { DownloadOriginal, MissingDocument } from '../documents/DocumentsTab'
-import { quoteSegments } from './clinical'
+import { documentBlocks, quoteSegments, type TextPiece } from './clinical'
 
 // The side column sticks below the sticky case header and scrolls on its own.
 const sideColumn: CSSProperties = { position: 'sticky', top: 'calc(var(--case-header-height, 0px) + 16px)', maxHeight: 'calc(100dvh - var(--case-header-height, 0px) - 32px)', overflowY: 'auto' }
@@ -25,6 +25,23 @@ function scrollToMark(mark: HTMLElement | null) {
 }
 
 const focusTitle = (node: HTMLHeadingElement | null) => { node?.focus({ preventScroll: true }) }
+
+const textStyle: CSSProperties = { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }
+
+// Plain text keeps its line breaks; Markdown tables from Word documents render as tables. The first highlight scrolls into view.
+function DocumentText({ pieces }: { pieces: TextPiece[] }) {
+  const blocks = documentBlocks(pieces)
+  const first = blocks.flatMap((block) => block.kind === 'text' ? block.pieces : [...block.header, ...block.rows.flat()].flat()).find((part) => part.highlight)
+  const spans = (cell: TextPiece[]) => cell.map((part, index) => part.highlight ? <Mark key={index} color="yellow" ref={part === first ? scrollToMark : undefined}>{part.text}</Mark> : <span key={index}>{part.text}</span>)
+  return <Stack gap="sm" data-testid="document-text">
+    {blocks.map((block, index) => block.kind === 'text'
+      ? <Text key={index} component="div" size="sm" style={textStyle}>{spans(block.pieces)}</Text>
+      : <Table.ScrollContainer key={index} minWidth={block.header.length * 110}><Table withTableBorder withColumnBorders verticalSpacing={4} horizontalSpacing="xs" fz="sm">
+        <Table.Thead><Table.Tr>{block.header.map((cell, column) => <Table.Th key={column}>{spans(cell)}</Table.Th>)}</Table.Tr></Table.Thead>
+        <Table.Tbody>{block.rows.map((row, rowIndex) => <Table.Tr key={rowIndex}>{row.map((cell, column) => <Table.Td key={column}>{spans(cell)}</Table.Td>)}</Table.Tr>)}</Table.Tbody>
+      </Table></Table.ScrollContainer>)}
+  </Stack>
+}
 
 export function SourcePlaceholder() {
   const { t } = useTranslation()
@@ -41,7 +58,7 @@ export default function SourcePanel({ document, evidence, close, fallback, force
   const query = useQuery({ ...documentTextOptions({ path: { document_id: document?.id ?? '' }, headers: actorHeaders(actorId ?? '') }), enabled: !!document })
   const text = query.data?.text ?? ''
   const segments = quoteSegments(text, evidence)
-  const firstMark = segments.findIndex((part) => part.highlight)
+  const quoteFound = segments.some((part) => part.highlight)
   const content = <Stack gap="sm">
     <Group justify="space-between" align="flex-start" style={wide ? { position: 'sticky', top: 0, zIndex: 1, background: 'var(--mantine-color-body)', paddingBlock: 8 } : undefined}><Title order={2} size="h4" tabIndex={-1} ref={focusTitle}>{t('caseDetail.source')}</Title>{wide && <Button variant="outline" size="xs" onClick={close}>{t('caseDetail.closeSource')}</Button>}</Group>
     {!document ? fallback ?? <MissingDocument /> : <>
@@ -53,11 +70,9 @@ export default function SourcePanel({ document, evidence, close, fallback, force
     {query.isError && <QueryError error={query.error} pending={query.isFetching} retry={() => { void query.refetch() }} />}
     {query.isSuccess && !text && <NoData title={t('caseDetail.noText')} />}
     {query.isSuccess && text && <>
-      {evidence && firstMark === -1 && <Alert color="orange" role="status">{t('caseDetail.quoteMissing')}</Alert>}
+      {evidence && !quoteFound && <Alert color="orange" role="status">{t('caseDetail.quoteMissing')}</Alert>}
       <CopySection text={() => text} />
-      <Text component="div" size="sm" data-testid="document-text" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-        {segments.map((part, index) => part.highlight ? <Mark key={index} color="yellow" ref={index === firstMark ? scrollToMark : undefined}>{part.text}</Mark> : <span key={index}>{part.text}</span>)}
-      </Text>
+      <DocumentText pieces={segments} />
     </>}
     </>}
   </Stack>

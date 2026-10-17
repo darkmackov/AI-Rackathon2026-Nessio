@@ -6,7 +6,7 @@ import { getDemoClockQueryKey } from '../client/@tanstack/react-query.gen'
 import { isCaseQuery } from '../case-queries'
 import { referenceCases } from '../mocks/reference'
 import { referenceFindings } from '../mocks/reference-data'
-import { quoteSegments } from '../components/handover/clinical'
+import { documentBlocks, quoteSegments } from '../components/handover/clinical'
 import { renderApp } from './renderApp'
 import { changeIdentity, finding, openReferenceCase, openTab, setLanguage, signIn, wideScreen } from './shell'
 import { demoState, server } from './setup'
@@ -222,5 +222,17 @@ describe('source panel', () => {
     expect(quoteSegments(text, { document_id: 'x', quote: 'lék', start: 2, end: 5 }).filter((item) => item.highlight)).toHaveLength(1)
     expect(quoteSegments(text, { document_id: 'x', quote: 'lék', start: 99, end: 103 }).filter((item) => item.highlight)).toHaveLength(2)
     expect(quoteSegments(text, { document_id: 'x', quote: 'neexistuje' })).toEqual([{ text, highlight: false }])
+  })
+
+  it('turns Markdown tables in document text into rows, keeps the highlight inside a cell and hides comment lines', () => {
+    const text = '<!-- source: 02_Laborator.docx -->\n\nBIOCHEMIE\n\n| Vyšetření | Výsledek |\n| --- | --- |\n| Sodík | 139 |\n| A \\| B |\n\nKonec'
+    const blocks = documentBlocks(quoteSegments(text, { document_id: 'x', quote: '139' }))
+    expect(blocks.map((block) => block.kind)).toEqual(['text', 'table', 'text'])
+    const table = blocks[1]
+    if (table.kind !== 'table') throw new Error('expected a table')
+    expect(table.header).toEqual([[{ text: 'Vyšetření', highlight: false }], [{ text: 'Výsledek', highlight: false }]])
+    expect(table.rows).toEqual([[[{ text: 'Sodík', highlight: false }], [{ text: '139', highlight: true }]], [[{ text: 'A | B', highlight: false }], []]])
+    expect(blocks[0]).toEqual({ kind: 'text', pieces: [{ text: 'BIOCHEMIE', highlight: false }] })
+    expect(documentBlocks([{ text: '| jen řádek |', highlight: false }])).toEqual([{ kind: 'text', pieces: [{ text: '| jen řádek |', highlight: false }] }])
   })
 })
