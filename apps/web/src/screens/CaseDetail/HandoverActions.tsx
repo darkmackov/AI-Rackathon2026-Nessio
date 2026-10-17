@@ -1,18 +1,17 @@
-import { Button, Group, Modal, Stack, Text } from '@mantine/core'
+import { Modal, Stack, Text } from '@mantine/core'
 import { useIsMutating } from '@tanstack/react-query'
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Finding, Handover } from '../../client/types.gen'
+import { FindingActionGroup } from '../../components/workflow/FindingActionGroup'
 import { FieldEditor } from './FindingActions'
 import TaskEditor from './TaskEditor'
 
 const Actions = createContext<{ fill: (path: string) => void; request: (label: string) => void } | null>(null)
 export function FieldActions({ path, label, findings, showFinding }: { path: string; label: string; findings: Finding[]; showFinding: (id: string) => void }) {
-  const actions = useContext(Actions), busy = useIsMutating() > 0, { t } = useTranslation()
-  return <Group gap="xs">
-    <Button size="compact-sm" disabled={!actions || busy} onClick={() => actions?.fill(path)}>{t('caseDetail.fill')}</Button>
-    <Button size="compact-sm" variant="outline" disabled={!actions || busy} onClick={() => findings[0] ? showFinding(findings[0].id) : actions?.request(label)}>{t('caseDetail.request')}</Button>
-  </Group>
+  const actions = useContext(Actions), busy = useIsMutating() > 0
+  return <FindingActionGroup actions={['fill', 'request']} disabled={!actions || busy}
+    onAction={(action) => action === 'fill' ? actions?.fill(path) : findings[0] ? showFinding(findings[0].id) : actions?.request(label)} />
 }
 export default function HandoverActions({ caseId, handover, children }: { caseId: string; handover: Handover; children: ReactNode }) {
   const [path, setPath] = useState<string | null>(null), [request, setRequest] = useState<string | null>(null), [saved, setSaved] = useState(false)

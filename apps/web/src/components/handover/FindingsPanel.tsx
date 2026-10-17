@@ -1,4 +1,4 @@
-import { Accordion, Anchor, Badge, Group, Paper, Stack, Text, Title } from '@mantine/core'
+import { Accordion, Anchor, Badge, Divider, Group, Paper, Stack, Text, Title } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { IconArrowRight } from '@tabler/icons-react'
 import { useId, type ReactNode } from 'react'
@@ -34,7 +34,7 @@ function FindingItem({ finding, names, fieldLink, sources, actions }: { finding:
         {finding.resolution.note && <Text size="sm" c="dimmed">{finding.resolution.note}</Text>}
         <StampView stamp={finding.resolution} names={names} size="xs" />
       </Stack>}
-      {!finding.resolved && actions}
+      {!finding.resolved && actions && <><Divider mt={4} />{actions}</>}
     </Stack>
   </Paper>
 }
