@@ -81,7 +81,7 @@ Who answers open items: **VZP** = challenge mentors, **Clin** = clinician mentor
 | Q-C1 | Date conflicts in 09 and 11 deliberate? | Deliberate traps; `temporal` finding, warning, request clarification | F07, F08 |
 | Q-C2 | Missing ECOG? | A blocker the coordinator **can override** with a note | `Finding.overridable`, F01 |
 | Q-C3 | Raise "no documented biliary drainage"? | Yes, as **advisory** info, clearly marked as such | `Finding.advisory`, F06 |
-| Q-C4 | Which fields are required? | Everything in `Handover_obsah` + `MDT_zapis`; contact emails at warning level | F02, F03 |
+| Q-C4 | Which fields are required? | Everything in `Handover_obsah` + `MDT_zapis`; contact emails at warning level. **Refined 17. 10.:** a missing patient first name, last name, RČ, insurer code or patient phone is a blocker the coordinator **cannot override** (`overridable=false`); it must be filled in before the MDT snapshot | F02, F03, `onko_ai` `REQUIRED` |
 | Q-C5 | Derive sex from the RČ? | Yes, with a "derived from RČ" note | expected_handover `patient.sex` |
 | Q-C6 | Stale weight? | Use 65 kg and add an info finding that it's 5 weeks old | F12 |
 | Q-C7 | Which examinations to list? | **All of them**, including the GP's own examinations (04 on 1. 9., 07 on 2. 10.) | expected_handover `examinations` |

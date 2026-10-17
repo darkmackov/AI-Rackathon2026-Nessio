@@ -83,7 +83,7 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
       texts.set(sampleId, demoDocumentText)
       originals.set(sampleId, new File([demoDocumentText], 'fiktivni-zprava-s4.txt', { type: 'text/plain' }))
       const sample = demoExtraction(s4CaseId, sampleId, '2026-10-21T08:00:00')
-      sample.findings.push({ id: `${s4CaseId}-request`, kind: 'unattached_reference', severity: 'warning', message_cs: 'Fiktivní ukázka: vyžádejte chybějící zprávu.', suggested_action: 'request', resolved: false })
+      sample.findings.push({ id: `${s4CaseId}-request`, kind: 'unattached_reference', severity: 'blocker', fields: ['examinations'], overridable: true, message_cs: 'Fiktivní ukázka: vyžádejte chybějící zprávu.', suggested_action: 'request', resolved: false })
       results.set(s4CaseId, sample)
       extracted.add(s4CaseId)
       for (const document of referenceDocuments) {
