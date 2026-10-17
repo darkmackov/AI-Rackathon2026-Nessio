@@ -4,6 +4,7 @@ import { actors } from './directory'
 import type { createDemoState } from './handlers'
 import { fail, readBody } from './coordinator-validation'
 import { validationResponse } from './validation'
+import { transition } from './audit-text'
 
 // User-authorized S6 simulation at the HTTP boundary (Q-W16): the only owner of feedback, inbox and receipt rules.
 const noticeStates = ['v_triage', 'ceka_na_podklady', 'kompletni', 'pripraveno_k_mdt', 'zaver_mdt', 'zpetna_vazba_odeslana']
@@ -52,7 +53,7 @@ export function createFeedbackHandlers(state: ReturnType<typeof createDemoState>
             }
             store.saveMessage(message)
             store.saveCase({ ...item, state: 'zpetna_vazba_odeslana' }); store.sync(item.id)
-            store.record(item.id, user.id, now(), 'feedback_sent', `zaver_mdt → zpetna_vazba_odeslana${note ? `\nPoznámka: ${note}` : ''}`)
+            store.record(item.id, user.id, now(), 'feedback_sent', `${transition('zaver_mdt', 'zpetna_vazba_odeslana')}${note ? `\nPoznámka: ${note}` : ''}`)
             return HttpResponse.json(message, { status: 201 })
         }),
         route('post', '/cases/:caseId/patient-notices', async (request, params) => {
@@ -94,7 +95,7 @@ export function createFeedbackHandlers(state: ReturnType<typeof createDemoState>
             // Only the MDT result closes the case; a returned referral's note never does.
             const closes = message.kind === 'mdt_result' && item.state === 'zpetna_vazba_odeslana'
             if (closes) { store.saveCase({ ...item, state: 'uzavreno' }); store.sync(item.id) }
-            store.record(item.id, user.id, now(), 'receipt_confirmed', `${message.subject}${closes ? '\nzpetna_vazba_odeslana → uzavreno' : ''}`)
+            store.record(item.id, user.id, now(), 'receipt_confirmed', `${message.subject}${closes ? `\n${transition('zpetna_vazba_odeslana', 'uzavreno')}` : ''}`)
             return HttpResponse.json(receipt, { status: 201 })
         }),
     ]

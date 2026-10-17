@@ -17,6 +17,10 @@ export function formatDateTime(value: string, language: string) {
   }).format(new Date(value))
 }
 
+export function formatTime(value: string, language: string) {
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'cs-CZ', { timeStyle: 'short' }).format(new Date(value))
+}
+
 export function formatDate(value: string, language: string) {
   return new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'cs-CZ', { dateStyle: 'medium' }).format(new Date(`${value}T12:00:00`))
 }

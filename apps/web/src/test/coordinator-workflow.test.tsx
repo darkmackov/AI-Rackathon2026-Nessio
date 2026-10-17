@@ -41,6 +41,11 @@ describe('S4 coordinator screens', () => {
     expect(await within(audit).findByText('Převzetí případu')).toBeVisible()
     expect(within(audit).getByText('Úprava případu')).toBeVisible()
     expect(within(audit).getByText('Obnovení')).toBeVisible()
+    // Grouped under a day heading, newest first.
+    expect(within(audit).getAllByRole('heading', { level: 3 })).toHaveLength(1)
+    const events = within(audit).getAllByRole('listitem')
+    expect(events[0]).toHaveTextContent('Obnovení')
+    expect(events.at(-1)).toHaveTextContent('Převzetí případu')
   })
 
   it('fills a handover field without resolving its finding and requires an override reason', async () => {

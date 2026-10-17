@@ -176,13 +176,16 @@ def test_mdt_from_the_input_to_the_confirmed_conclusion(client):
     assert client.post(f"/cases/{CASE}/mdt/conclusion/confirm", headers=COORDINATOR).status_code == 200
     assert _state(client) == "zaver_mdt"
 
-    actions = [e["action"] for e in client.get(f"/cases/{CASE}/audit").json()]
-    for action in ("mdt_snapshot_created", "mdt_record_updated", "mdt_conclusion_saved",
-                   "mdt_conclusion_confirmed"):
-        assert action in actions
-    confirmed = [e for e in client.get(f"/cases/{CASE}/audit").json()
-                 if e["action"] == "mdt_conclusion_confirmed"]
-    assert confirmed[0]["detail"] == "pripraveno_k_mdt → zaver_mdt, definitivní kód C25.0"
+    details = [(e["action"], e["detail"]) for e in client.get(f"/cases/{CASE}/audit").json()
+               if e["action"].startswith("mdt_")]
+    assert details == [
+        ("mdt_snapshot_created", "Kompletní → Připraveno k MDT, MDT 21. 10. 2026 (MDT pro nádory GIT)"),
+        ("mdt_record_updated", "Výsledky stávajících vyšetření"),
+        ("mdt_conclusion_saved", "Zapsáno v aplikaci"),
+        ("mdt_conclusion_confirmed", "Připraveno k MDT → Závěr KOC / MDT, definitivní kód C25.0"),
+        ("mdt_conclusion_saved", "Zapsáno v aplikaci, potvrzení zrušeno"),
+        ("mdt_conclusion_confirmed", "Závěr KOC / MDT → Závěr KOC / MDT, definitivní kód C25.0"),
+    ]
 
 
 def test_reports_after_the_mdt_never_change_the_record(client):

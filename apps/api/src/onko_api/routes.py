@@ -115,6 +115,7 @@ from onko_messaging import send as send_message
 from onko_repository import BundleError, CaseRepository, referral_attachments
 from pydantic import ValidationError
 
+from . import audit_text
 from .deps import ActorId, Clock, CurrentUser, Jobs, Llm, Repo
 from .jobs import (
     RECORD_DRAFTS,
@@ -242,7 +243,7 @@ def create_referral(body: ReferralCreate, user: CurrentUser, repo: Repo, clock: 
     case, handover = new_referral(new_id("case"), body.koc_id, user.id, clock.now())
     repo.save_case(case)
     repo.save_handover(handover)
-    _audit(repo, case.id, user.id, "referral_created", case.created_at, f"KOC {body.koc_id}")
+    _audit(repo, case.id, user.id, "referral_created", case.created_at, _org_name(repo, body.koc_id))
     return case
 
 
@@ -284,7 +285,7 @@ def create_referral_from_bundle(
     case, handover = receive_referral(new_id("case"), koc_id, user.id, now)
     repo.save_case(case)
     repo.save_handover(handover)
-    _audit(repo, case.id, user.id, "referral_created", now, f"KOC {koc_id}, FHIR Bundle")
+    _audit(repo, case.id, user.id, "referral_created", now, f"{_org_name(repo, koc_id)}, FHIR Bundle")
     for attachment, mime, text in documents:
         meta = DocumentMeta(id=new_id("doc"), case_id=case.id, filename=attachment.filename,
                             received_at=now, uploaded_by=user.id, mime_type=mime)
@@ -451,7 +452,7 @@ def update_document(
     meta = meta.model_copy(update=changes)
     repo.update_document(meta)
     _audit(repo, case.id, user.id, "document_updated", clock.now(),
-           f"{meta.filename}: {', '.join(changes) or 'beze změny'}")
+           f"{meta.filename}: {audit_text.changed(changes, labels=audit_text.DOCUMENT_LABELS)}")
     return meta
 
 
@@ -493,8 +494,9 @@ def update_handover_field(
     except ValidationError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
     handover = _save_handover(repo, case, handover)
+    field = audit_text.HANDOVER_LABELS.get(body.path, body.path)
     _audit(repo, case_id, user.id, "handover_field_updated", clock.now(),
-           f"{body.path}: není k dispozici" if body.not_available else body.path)
+           f"{field}: není k dispozici" if body.not_available else field)
     return handover
 
 
@@ -510,7 +512,7 @@ def add_examination(
     )
     handover = _save_handover(repo, case, handover)
     _audit(repo, case_id, user.id, "examination_added", clock.now(),
-           f"{body.date.isoformat()} {body.type}")
+           f"{audit_text.date(body.date)} {body.type}")
     return handover
 
 
@@ -590,7 +592,7 @@ def send_referral(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> 
     except (NotValidatedError, TransitionError) as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
     sent = _save_progress(repo, sent)
-    _audit(repo, case_id, user.id, "referral_sent", now, f"{case.state} → {sent.state}")
+    _audit(repo, case_id, user.id, "referral_sent", now, audit_text.transition(case.state, sent.state))
     return sent
 
 
@@ -680,7 +682,7 @@ def take_over_case(case_id: str, user: CurrentUser, repo: Repo, clock: Clock) ->
     except TransitionError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
     repo.save_case(taken)
-    _audit(repo, case_id, user.id, "case_taken_over", clock.now(), f"{case.state} → {taken.state}")
+    _audit(repo, case_id, user.id, "case_taken_over", clock.now(), audit_text.transition(case.state, taken.state))
     return taken
 
 
@@ -708,14 +710,24 @@ def update_case(case_id: str, body: CaseUpdate, user: CurrentUser, repo: Repo, c
     except ValidationError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
     updated = _save_progress(repo, updated)
-    _audit(repo, case_id, user.id, "case_updated", clock.now(), _changed(changes))
+    _audit(repo, case_id, user.id, "case_updated", clock.now(), audit_text.changed(changes, _names(repo, case_id)))
     return updated
 
 
-def _changed(changes: dict[str, object]) -> str:
-    """`priority=high, mdt_date=2026-10-21` for the audit detail."""
-    return ", ".join(f"{k}={'—' if v is None else getattr(v, 'value', v)}"
-                     for k, v in changes.items()) or "beze změny"
+def _org_name(repo: CaseRepository, organization_id: str) -> str:
+    return next((o.name for o in repo.list_organizations() if o.id == organization_id), organization_id)
+
+
+def _names(repo: CaseRepository, case_id: str) -> dict[str, str]:
+    """Names for the ids an audit detail mentions: people, organizations, MDT boards and the
+    case's tasks and documents."""
+    return {
+        **{o.id: o.name for o in repo.list_organizations()},
+        **{b.id: b.name for b in repo.list_mdt_boards()},
+        **{a.id: a.name for a in repo.list_actors()},
+        **{t.id: t.title for t in repo.list_tasks(case_id)},
+        **{d.id: d.filename for d in repo.list_documents(case_id)},
+    }
 
 
 @router.post("/cases/{case_id}/transition", tags=["cases"])
@@ -730,8 +742,8 @@ def transition_case(case_id: str, body: CaseTransition, user: CurrentUser, repo:
     except TransitionError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
     repo.save_case(moved)
-    detail = f"{case.state} → {moved.state}" + (f": {body.note}" if body.note else "")
-    _audit(repo, case_id, user.id, "case_transitioned", clock.now(), detail)
+    _audit(repo, case_id, user.id, "case_transitioned", clock.now(),
+           audit_text.with_note(audit_text.transition(case.state, moved.state), body.note))
     return moved
 
 
@@ -777,7 +789,7 @@ def set_hold(case_id: str, body: HoldSet, user: CurrentUser, repo: Repo, clock: 
     except CaseStateError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
     repo.save_case(held)
-    until = f" (do {body.until.isoformat()})" if body.until else ""
+    until = f" (obnovit od {audit_text.date(body.until)})" if body.until else ""
     _audit(repo, case_id, user.id, "hold_set", now, body.reason + until)
     return held
 
@@ -805,7 +817,7 @@ def update_milestones(case_id: str, body: MilestonesUpdate, user: CurrentUser, r
     milestones = Milestones.model_validate({**case.milestones.model_dump(), **changes})
     updated = case.model_copy(update={"milestones": milestones})
     repo.save_case(updated)
-    _audit(repo, case_id, user.id, "milestones_updated", clock.now(), _changed(changes))
+    _audit(repo, case_id, user.id, "milestones_updated", clock.now(), audit_text.changed(changes))
     return updated
 
 
@@ -851,8 +863,8 @@ def resolve_finding(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, e.errors()[0]["msg"]) from None
     findings[i] = resolved
     repo.save_findings(case_id, findings)
-    detail = f"{finding_id}: {body.kind.value}" + (f": {body.note}" if body.note else "")
-    _audit(repo, case_id, user.id, "finding_resolved", now, detail)
+    detail = f"{audit_text.quoted(resolved.message_cs)}: {audit_text.RESOLUTIONS[body.kind.value]}"
+    _audit(repo, case_id, user.id, "finding_resolved", now, audit_text.with_note(detail, body.note))
     return resolved
 
 
@@ -896,8 +908,9 @@ def request_from_finding(
     )
     repo.save_task(task)
     _save_progress(repo, case)
-    detail = f"{finding.id} → {body.owner_id}" + (f": {body.note}" if body.note else "")
-    _audit(repo, case_id, user.id, "finding_requested", clock.now(), detail)
+    owner = _names(repo, case_id).get(body.owner_id, body.owner_id)
+    _audit(repo, case_id, user.id, "finding_requested", clock.now(),
+           audit_text.with_note(f"{audit_text.quoted(finding.message_cs)} → {owner}", body.note))
     return task
 
 
@@ -963,7 +976,8 @@ def update_task(task_id: str, body: TaskUpdate, user: CurrentUser, repo: Repo, c
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
     repo.save_task(updated)
     _save_progress(repo, case)
-    _audit(repo, case.id, user.id, "task_updated", clock.now(), f"{updated.title}: {_changed(changes)}")
+    _audit(repo, case.id, user.id, "task_updated", clock.now(),
+           f"{updated.title}: {audit_text.changed(changes, _names(repo, case.id))}")
     return updated
 
 
@@ -1141,7 +1155,7 @@ def create_mdt_snapshot(
     repo.save_handover(snapshot, snapshot=True)
     repo.save_mdt_record(record)
     _audit(repo, case_id, user.id, "mdt_snapshot_created", now,
-           f"{case.state} → {ready.state}, MDT {body.mdt_date.isoformat()} ({board.name})")
+           f"{audit_text.transition(case.state, ready.state)}, MDT {audit_text.date(body.mdt_date)} ({board.name})")
     return record
 
 
@@ -1169,7 +1183,8 @@ def update_mdt_record(
     except ValidationError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid value: {e.errors()[0]['msg']}") from None
     repo.save_mdt_record(record)
-    _audit(repo, case_id, user.id, "mdt_record_updated", clock.now(), ", ".join(changes) or "beze změny")
+    _audit(repo, case_id, user.id, "mdt_record_updated", clock.now(),
+           audit_text.fields(changes, audit_text.MDT_RECORD_LABELS))
     return record
 
 
@@ -1200,7 +1215,7 @@ def upsert_mdt_conclusion(
     except CaseStateError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
     repo.save_mdt_conclusion(conclusion)
-    detail = conclusion.source.value
+    detail = audit_text.CONCLUSION_SOURCES[conclusion.source.value]
     if existing is not None and existing.confirmed is not None:
         detail += ", potvrzení zrušeno"
     _audit(repo, case_id, user.id, "mdt_conclusion_saved", clock.now(), detail)
@@ -1263,7 +1278,7 @@ def confirm_mdt_conclusion(case_id: str, user: CurrentUser, repo: Repo, clock: C
     repo.save_handover(handover)
     moved = _save_progress(repo, moved)
     repo.save_mdt_conclusion(confirmed, pdf=pdf)
-    detail = f"{case.state} → {moved.state}"
+    detail = audit_text.transition(case.state, moved.state)
     if confirmed.diagnosis_code:
         detail += f", definitivní kód {confirmed.diagnosis_code}"
     _audit(repo, case_id, user.id, "mdt_conclusion_confirmed", now, detail)
@@ -1315,7 +1330,7 @@ def send_feedback(
     message = send_message(message, {Channel.IN_APP: InAppInbox(repo)}, now)
     sent_case = _save_progress(repo, sent_case)
     _audit(repo, case_id, user.id, "feedback_sent", now,
-           f"{case.state} → {sent_case.state}, příloh: {len(attachments)}")
+           f"{audit_text.transition(case.state, sent_case.state)}, příloh: {len(attachments)}")
     return message
 
 
@@ -1384,7 +1399,7 @@ def confirm_receipt(message_id: str, user: CurrentUser, repo: Repo, clock: Clock
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
     repo.save_receipt(receipt)
     closed = _save_progress(repo, closed)
-    detail = f"{case.state} → {closed.state}"
+    detail = audit_text.transition(case.state, closed.state)
     if case.on_hold is not None:
         detail += ", odložení zrušeno"
     _audit(repo, case.id, user.id, "receipt_confirmed", now, detail)

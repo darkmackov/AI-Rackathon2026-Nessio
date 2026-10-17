@@ -103,7 +103,7 @@ def test_feedback_loop_from_the_patient_notice_to_the_closed_case(client):
     case = _case(client)
     assert (case["state"], case["on_move"], case["next_step"]) == ("zpetna_vazba_odeslana", "pl-reznicek", None)
     assert _audit(client, "feedback_sent")["detail"] == (
-        f"zaver_mdt → zpetna_vazba_odeslana, příloh: {len(message['attachment_document_ids'])}")
+        f"Závěr KOC / MDT → Zpětná vazba odeslána, příloh: {len(message['attachment_document_ids'])}")
     assert client.post(f"/cases/{CASE}/feedback", headers=COORDINATOR, json={}).status_code == 409  # once
 
     # Step 14: the GP's inbox, then 'Potvrzuji převzetí'.
@@ -120,7 +120,7 @@ def test_feedback_loop_from_the_patient_notice_to_the_closed_case(client):
     assert client.get(f"/cases/{CASE}/time-to-treatment").json()["t2"] == 19  # 2. 10. → 21. 10.
     assert client.get(f"/cases/{CASE}/receipts").json() == [receipt]
     assert _audit(client, "receipt_confirmed")["actor_id"] == "pl-reznicek"
-    assert _audit(client, "receipt_confirmed")["detail"] == "zpetna_vazba_odeslana → uzavreno"
+    assert _audit(client, "receipt_confirmed")["detail"] == "Zpětná vazba odeslána → Uzavřeno"
     assert _actions(client)[-3:] == ["mdt_conclusion_confirmed", "feedback_sent", "receipt_confirmed"]
     assert "patient_notice_sent" in _actions(client)
     assert [m["kind"] for m in client.get(f"/cases/{CASE}/messages").json()] == ["patient_notice", "mdt_result"]
@@ -195,7 +195,7 @@ def test_closing_ends_a_hold(client):
     assert client.post(f"/messages/{message['id']}/confirm", headers=GP).status_code == 201
     case = _case(client)
     assert (case["state"], case["on_hold"], case["queue"]) == ("uzavreno", None, "aktivni")
-    assert _audit(client, "receipt_confirmed")["detail"] == "zpetna_vazba_odeslana → uzavreno, odložení zrušeno"
+    assert _audit(client, "receipt_confirmed")["detail"] == "Zpětná vazba odeslána → Uzavřeno, odložení zrušeno"
 
 
 def test_a_returned_referral_is_in_the_inbox_but_not_confirmable(client):

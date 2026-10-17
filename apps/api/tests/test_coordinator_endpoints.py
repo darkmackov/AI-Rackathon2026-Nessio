@@ -132,8 +132,23 @@ def test_coordinator_runs_the_case_from_take_over_to_complete(client):
         "task_updated", "hold_cleared", "finding_resolved", "case_transitioned",
     ]
     audit = client.get(f"/cases/{case_id}/audit").json()
-    assert audit[5]["detail"] == "v_triage → ceka_na_podklady: čekáme na 01–06"
-    assert audit[4]["detail"] == "F09 → pl-reznicek: zprávy 01–06"
+    # Czech labels and values, ids shown by name (api.md › Audit).
+    assert [e["detail"] for e in audit] == [
+        "KOC Nemocnice Lipová",
+        None,
+        "Koncept → Odesláno",
+        "Odesláno → V triage",
+        "„07 uvádí 5 vyšetření bez výsledků“ → MUDr. Tomáš Řezníček: zprávy 01–06",
+        "V triage → Čeká na podklady: čekáme na 01–06",
+        "Vyžádat: 07 uvádí 5 vyšetření bez výsledků: Stav: Dokončeno",
+        "Karcinom pankreatu – diagnostika do MDT",
+        "čeká na termín CT v KOC 1 (obnovit od 8. 10. 2026)",
+        ("CT břicha a hrudníku, pankreatický protokol (KOC 1): Stav: Objednáno, Místo: KOC 1, CT, "
+         "Termín: 8. 10. 2026 9:00"),
+        "čeká na termín CT v KOC 1",
+        "„Chybí ECOG“: Překonáno s poznámkou: ECOG nelze doložit",
+        "Čeká na podklady → Kompletní",
+    ]
 
 
 def test_transition_takes_only_the_coordinators_own_moves(client):
@@ -182,7 +197,7 @@ def test_document_corrections_are_koc_scoped_and_audited(client):
     assert client.patch("/documents/doc-1", headers=COORDINATOR, json=body).status_code == 200
     assert client.patch("/documents/doc-1", headers=GP, json=body).status_code == 200
     events = [e for e in client.get(f"/cases/{case_id}/audit").json() if e["action"] == "document_updated"]
-    assert [e["detail"] for e in events] == ["01.docx: document_date"] * 2
+    assert [e["detail"] for e in events] == ["01.docx: Datum dokumentu: 1. 9. 2026"] * 2
 
 
 def test_return_notifies_the_gp_and_the_resend_comes_back_to_triage(client):
@@ -240,6 +255,13 @@ def test_case_details_and_time_to_treatment(client):
     assert r.status_code == 200 and r.json()["milestones"]["symptom_onset"] == "2026-08-15"
     ttt = client.get(f"{url}/time-to-treatment").json()
     assert (ttt["t1"], ttt["t2"], ttt["total"]) == (48, None, None)
+    details = [e["detail"] for e in client.get(f"{url}/audit").json()
+               if e["action"] in ("case_updated", "milestones_updated")]
+    assert details == [
+        "Priorita: Vysoká, MDT tým: MDT pro nádory GIT, Plánované MDT: 21. 10. 2026",
+        "Plánované MDT: neuvedeno",
+        "Začátek obtíží: 15. 8. 2026",
+    ]
     assert client.get("/cases/nope/time-to-treatment").status_code == 404
     assert client.get("/cases/nope/audit").status_code == 404
 
