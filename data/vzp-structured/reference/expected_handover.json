@@ -1,5 +1,5 @@
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "case_id": "vzp-prochazkova",
   "as_of": "2026-10-21",
   "patient": {
@@ -87,7 +87,7 @@
   },
   "contacts": {
     "patient_phone": {
-      "value": "+420 777 000 541",
+      "value": "+420777000541",
       "status": "found",
       "evidence": [
         {
@@ -112,7 +112,7 @@
       ]
     },
     "contact_person_phone": {
-      "value": "+420 777 000 542",
+      "value": "+420777000542",
       "status": "found",
       "evidence": [
         {
@@ -248,6 +248,7 @@
     ],
     "note": "ECOG ani Karnofsky nejsou v podkladech výslovně stanoveny; uvedeno jen 'soběstačná'. Nedomýšlet."
   },
+  "performance_score": null,
   "weight_kg": {
     "value": 65,
     "status": "found",
@@ -403,148 +404,240 @@
           "value": "12,8",
           "unit": "10⁹/l",
           "reference_range": "4,0–10,0",
-          "flag": "H"
+          "flag": "H",
+          "number": 12.8,
+          "comparator": null,
+          "ucum": "10*9/L"
         },
         {
           "name": "Erytrocyty",
           "value": "4,21",
           "unit": "10¹²/l",
-          "reference_range": "3,80–5,20"
+          "reference_range": "3,80–5,20",
+          "flag": null,
+          "number": 4.21,
+          "comparator": null,
+          "ucum": "10*12/L"
         },
         {
           "name": "Hemoglobin",
           "value": "124",
           "unit": "g/l",
-          "reference_range": "120–160"
+          "reference_range": "120–160",
+          "flag": null,
+          "number": 124.0,
+          "comparator": null,
+          "ucum": "g/L"
         },
         {
           "name": "Hematokrit",
           "value": "0,37",
           "unit": "1",
-          "reference_range": "0,35–0,47"
+          "reference_range": "0,35–0,47",
+          "flag": null,
+          "number": 0.37,
+          "comparator": null,
+          "ucum": "1"
         },
         {
           "name": "Trombocyty",
           "value": "298",
           "unit": "10⁹/l",
-          "reference_range": "150–400"
+          "reference_range": "150–400",
+          "flag": null,
+          "number": 298.0,
+          "comparator": null,
+          "ucum": "10*9/L"
         },
         {
           "name": "Neutrofily",
           "value": "82",
           "unit": "%",
           "reference_range": "45–70",
-          "flag": "H"
+          "flag": "H",
+          "number": 82.0,
+          "comparator": null,
+          "ucum": "%"
         },
         {
           "name": "Lymfocyty",
           "value": "12",
           "unit": "%",
           "reference_range": "20–45",
-          "flag": "L"
+          "flag": "L",
+          "number": 12.0,
+          "comparator": null,
+          "ucum": "%"
         },
         {
           "name": "Sodík",
           "value": "136",
           "unit": "mmol/l",
-          "reference_range": "136–145"
+          "reference_range": "136–145",
+          "flag": null,
+          "number": 136.0,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Draslík",
           "value": "4,0",
           "unit": "mmol/l",
-          "reference_range": "3,5–5,1"
+          "reference_range": "3,5–5,1",
+          "flag": null,
+          "number": 4.0,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Chloridy",
           "value": "99",
           "unit": "mmol/l",
-          "reference_range": "98–107"
+          "reference_range": "98–107",
+          "flag": null,
+          "number": 99.0,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Urea",
           "value": "5,1",
           "unit": "mmol/l",
-          "reference_range": "2,8–8,1"
+          "reference_range": "2,8–8,1",
+          "flag": null,
+          "number": 5.1,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Kreatinin",
           "value": "78",
           "unit": "µmol/l",
-          "reference_range": "45–84"
+          "reference_range": "45–84",
+          "flag": null,
+          "number": 78.0,
+          "comparator": null,
+          "ucum": "umol/L"
         },
         {
           "name": "Glukóza",
           "value": "6,4",
           "unit": "mmol/l",
           "reference_range": "3,9–5,6",
-          "flag": "H"
+          "flag": "H",
+          "number": 6.4,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Bilirubin celkový",
           "value": "38",
           "unit": "µmol/l",
           "reference_range": "2–17",
-          "flag": "H"
+          "flag": "H",
+          "number": 38.0,
+          "comparator": null,
+          "ucum": "umol/L"
         },
         {
           "name": "ALT",
           "value": "1,92",
           "unit": "µkat/l",
           "reference_range": "0,10–0,60",
-          "flag": "H"
+          "flag": "H",
+          "number": 1.92,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "AST",
           "value": "1,45",
           "unit": "µkat/l",
           "reference_range": "0,10–0,60",
-          "flag": "H"
+          "flag": "H",
+          "number": 1.45,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "GGT",
           "value": "4,20",
           "unit": "µkat/l",
           "reference_range": "0,10–0,70",
-          "flag": "H"
+          "flag": "H",
+          "number": 4.2,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "ALP",
           "value": "3,10",
           "unit": "µkat/l",
           "reference_range": "0,58–1,75",
-          "flag": "H"
+          "flag": "H",
+          "number": 3.1,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "Amyláza",
           "value": "1,10",
           "unit": "µkat/l",
-          "reference_range": "0,47–1,67"
+          "reference_range": "0,47–1,67",
+          "flag": null,
+          "number": 1.1,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "Lipáza",
           "value": "0,85",
           "unit": "µkat/l",
-          "reference_range": "0,22–1,00"
+          "reference_range": "0,22–1,00",
+          "flag": null,
+          "number": 0.85,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "CRP",
           "value": "86",
           "unit": "mg/l",
           "reference_range": "0–5",
-          "flag": "H"
+          "flag": "H",
+          "number": 86.0,
+          "comparator": null,
+          "ucum": "mg/L"
         },
         {
           "name": "Moč chemicky",
-          "value": "bílkovina +, bilirubin ++, krev +, leukocyty ++, nitrity neg."
+          "value": "bílkovina +, bilirubin ++, krev +, leukocyty ++, nitrity neg.",
+          "unit": null,
+          "reference_range": null,
+          "flag": null,
+          "number": null,
+          "comparator": null,
+          "ucum": null
         },
         {
           "name": "Moč sediment",
-          "value": "erytrocyty 8/µl, leukocyty 65/µl (H), bakterie +"
+          "value": "erytrocyty 8/µl, leukocyty 65/µl (H), bakterie +",
+          "unit": null,
+          "reference_range": null,
+          "flag": null,
+          "number": null,
+          "comparator": null,
+          "ucum": null
         },
         {
           "name": "Kultivace moči",
-          "value": "Escherichia coli 10⁴ CFU/ml; R: ampicilin; C: amoxicilin/klavulanát, cefuroxim, ciprofloxacin, kotrimoxazol, nitrofurantoin; signifikance hraniční"
+          "value": "Escherichia coli 10⁴ CFU/ml; R: ampicilin; C: amoxicilin/klavulanát, cefuroxim, ciprofloxacin, kotrimoxazol, nitrofurantoin; signifikance hraniční",
+          "unit": null,
+          "reference_range": null,
+          "flag": null,
+          "number": null,
+          "comparator": null,
+          "ucum": null
         }
       ],
       "evidence": [
@@ -562,174 +655,271 @@
           "name": "Leukocyty",
           "value": "8,9",
           "unit": "10⁹/l",
-          "reference_range": "4,0–10,0"
+          "reference_range": "4,0–10,0",
+          "flag": null,
+          "number": 8.9,
+          "comparator": null,
+          "ucum": "10*9/L"
         },
         {
           "name": "Erytrocyty",
           "value": "3,98",
           "unit": "10¹²/l",
-          "reference_range": "3,80–5,20"
+          "reference_range": "3,80–5,20",
+          "flag": null,
+          "number": 3.98,
+          "comparator": null,
+          "ucum": "10*12/L"
         },
         {
           "name": "Hemoglobin",
           "value": "118",
           "unit": "g/l",
           "reference_range": "120–160",
-          "flag": "L"
+          "flag": "L",
+          "number": 118.0,
+          "comparator": null,
+          "ucum": "g/L"
         },
         {
           "name": "Hematokrit",
           "value": "0,35",
           "unit": "1",
-          "reference_range": "0,35–0,47"
+          "reference_range": "0,35–0,47",
+          "flag": null,
+          "number": 0.35,
+          "comparator": null,
+          "ucum": "1"
         },
         {
           "name": "MCV",
           "value": "88",
           "unit": "fl",
-          "reference_range": "82–98"
+          "reference_range": "82–98",
+          "flag": null,
+          "number": 88.0,
+          "comparator": null,
+          "ucum": "fL"
         },
         {
           "name": "Trombocyty",
           "value": "312",
           "unit": "10⁹/l",
-          "reference_range": "150–400"
+          "reference_range": "150–400",
+          "flag": null,
+          "number": 312.0,
+          "comparator": null,
+          "ucum": "10*9/L"
         },
         {
           "name": "Neutrofily",
           "value": "68",
           "unit": "%",
-          "reference_range": "45–70"
+          "reference_range": "45–70",
+          "flag": null,
+          "number": 68.0,
+          "comparator": null,
+          "ucum": "%"
         },
         {
           "name": "Lymfocyty",
           "value": "22",
           "unit": "%",
-          "reference_range": "20–45"
+          "reference_range": "20–45",
+          "flag": null,
+          "number": 22.0,
+          "comparator": null,
+          "ucum": "%"
         },
         {
           "name": "Sodík",
           "value": "137",
           "unit": "mmol/l",
-          "reference_range": "136–145"
+          "reference_range": "136–145",
+          "flag": null,
+          "number": 137.0,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Draslík",
           "value": "4,1",
           "unit": "mmol/l",
-          "reference_range": "3,5–5,1"
+          "reference_range": "3,5–5,1",
+          "flag": null,
+          "number": 4.1,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Vápník",
           "value": "2,31",
           "unit": "mmol/l",
-          "reference_range": "2,15–2,55"
+          "reference_range": "2,15–2,55",
+          "flag": null,
+          "number": 2.31,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Urea",
           "value": "4,6",
           "unit": "mmol/l",
-          "reference_range": "2,8–8,1"
+          "reference_range": "2,8–8,1",
+          "flag": null,
+          "number": 4.6,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Kreatinin",
           "value": "74",
           "unit": "µmol/l",
-          "reference_range": "45–84"
+          "reference_range": "45–84",
+          "flag": null,
+          "number": 74.0,
+          "comparator": null,
+          "ucum": "umol/L"
         },
         {
           "name": "eGFR (CKD-EPI)",
           "value": "1,25",
           "unit": "ml/s/1,73 m²",
-          "reference_range": "> 1,0"
+          "reference_range": "> 1,0",
+          "flag": null,
+          "number": 1.25,
+          "comparator": null,
+          "ucum": "mL/s/{1.73_m2}"
         },
         {
           "name": "Glukóza",
           "value": "6,2",
           "unit": "mmol/l",
           "reference_range": "3,9–5,6",
-          "flag": "H"
+          "flag": "H",
+          "number": 6.2,
+          "comparator": null,
+          "ucum": "mmol/L"
         },
         {
           "name": "Bilirubin celkový",
           "value": "23",
           "unit": "µmol/l",
           "reference_range": "2–17",
-          "flag": "H"
+          "flag": "H",
+          "number": 23.0,
+          "comparator": null,
+          "ucum": "umol/L"
         },
         {
           "name": "Bilirubin konjugovaný",
           "value": "6",
           "unit": "µmol/l",
           "reference_range": "0–5",
-          "flag": "H"
+          "flag": "H",
+          "number": 6.0,
+          "comparator": null,
+          "ucum": "umol/L"
         },
         {
           "name": "ALT",
           "value": "1,62",
           "unit": "µkat/l",
           "reference_range": "0,10–0,60",
-          "flag": "H"
+          "flag": "H",
+          "number": 1.62,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "AST",
           "value": "1,20",
           "unit": "µkat/l",
           "reference_range": "0,10–0,60",
-          "flag": "H"
+          "flag": "H",
+          "number": 1.2,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "GGT",
           "value": "5,00",
           "unit": "µkat/l",
           "reference_range": "0,10–0,70",
-          "flag": "H"
+          "flag": "H",
+          "number": 5.0,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "ALP",
           "value": "3,40",
           "unit": "µkat/l",
           "reference_range": "0,58–1,75",
-          "flag": "H"
+          "flag": "H",
+          "number": 3.4,
+          "comparator": null,
+          "ucum": "ukat/L"
         },
         {
           "name": "Celková bílkovina",
           "value": "66",
           "unit": "g/l",
-          "reference_range": "64–83"
+          "reference_range": "64–83",
+          "flag": null,
+          "number": 66.0,
+          "comparator": null,
+          "ucum": "g/L"
         },
         {
           "name": "Albumin",
           "value": "36",
           "unit": "g/l",
-          "reference_range": "35–52"
+          "reference_range": "35–52",
+          "flag": null,
+          "number": 36.0,
+          "comparator": null,
+          "ucum": "g/L"
         },
         {
           "name": "CRP",
           "value": "18",
           "unit": "mg/l",
           "reference_range": "0–5",
-          "flag": "H"
+          "flag": "H",
+          "number": 18.0,
+          "comparator": null,
+          "ucum": "mg/L"
         },
         {
           "name": "CA 19-9",
           "value": "312",
           "unit": "kU/l",
           "reference_range": "< 37",
-          "flag": "H"
+          "flag": "H",
+          "number": 312.0,
+          "comparator": null,
+          "ucum": "kU/L"
         },
         {
           "name": "CEA",
           "value": "4,1",
           "unit": "µg/l",
-          "reference_range": "< 5,0"
+          "reference_range": "< 5,0",
+          "flag": null,
+          "number": 4.1,
+          "comparator": null,
+          "ucum": "ug/L"
         },
         {
           "name": "CA 125",
           "value": "48",
           "unit": "kU/l",
           "reference_range": "< 35",
-          "flag": "H"
+          "flag": "H",
+          "number": 48.0,
+          "comparator": null,
+          "ucum": "kU/L"
         }
       ],
       "evidence": [
