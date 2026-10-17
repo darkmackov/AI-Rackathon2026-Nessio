@@ -96,10 +96,25 @@ class CaseRepository(Protocol):
         ...
 
     def save_message(self, message: Message) -> None:
-        """`KeyError` if the case is unknown."""
+        """Store a message (replacing one with the same id) and index its recipients for
+        `list_inbox`, in one save (Q-I26). `KeyError` if the case is unknown."""
         ...
-    def list_messages(self, case_id: str) -> list[Message]: ...
+
+    def get_message(self, message_id: str) -> Message | None: ...
+
+    def list_messages(self, case_id: str) -> list[Message]:
+        """The case's messages, oldest `sent_at` first (unsent ones before any sent)."""
+        ...
+
+    def list_inbox(self, recipient_id: str) -> list[Message]:
+        """Every message addressed to `recipient_id`, across cases, newest `sent_at` first."""
+        ...
+
     def save_receipt(self, receipt: Receipt) -> None: ...
+
+    def list_receipts(self, case_id: str) -> list[Receipt]:
+        """Receipts for the case's messages, oldest `confirmed_at` first."""
+        ...
 
     def save_audit(self, event: AuditEvent) -> None:
         """Append one audit event (PER-13): `ValueError` if its id is taken, `KeyError` if the case

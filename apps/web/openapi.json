@@ -2997,7 +2997,7 @@
           "feedback"
         ],
         "summary": "Send Feedback",
-        "description": "Send the confirmed conclusion to the GP's inbox; zaver_mdt → zpetna_vazba_odeslana.",
+        "description": "'Odeslat PL', a coordinator of the case's KOC: the confirmed conclusion goes to the referring\ndoctor's in-app inbox as an `mdt_result` message; zaver_mdt → zpetna_vazba_odeslana, and the\nreferring doctor is on the move until they confirm receipt. Attached: the uploaded MDT report\n(if any), then every document the frozen MDT snapshot quotes (the original context). Subject\n'Závěr MDT ze dne …'; body = `note`, then the conclusion text. The conclusion can't be changed\nafterwards. 404 without a conclusion; 409 in another state or while the conclusion isn't\n(re-)confirmed.",
         "operationId": "send_feedback",
         "parameters": [
           {
@@ -3061,7 +3061,7 @@
           "feedback"
         ],
         "summary": "Create Patient Notice",
-        "description": "'Informovat pacienta': recorded, simulated=True, never delivered (Q-F16).",
+        "description": "'Informovat pacienta', a coordinator of the case's KOC: recorded as sent with\n`simulated=True` and no recipients, never delivered (Q-F16), so it is in no inbox. 409 before\nthe take-over or once the case is closed.",
         "operationId": "create_patient_notice",
         "parameters": [
           {
@@ -3125,6 +3125,7 @@
           "feedback"
         ],
         "summary": "List Case Messages",
+        "description": "Every message of the case (MDT result, returned referral, patient notices), oldest first.",
         "operationId": "list_case_messages",
         "parameters": [
           {
@@ -3171,7 +3172,7 @@
           "feedback"
         ],
         "summary": "List Case Receipts",
-        "description": "Proof of delivery ('doložit doručení').",
+        "description": "Proof of delivery ('doložit doručení'): the confirmed receipts, oldest first.",
         "operationId": "list_case_receipts",
         "parameters": [
           {
@@ -3218,7 +3219,7 @@
           "feedback"
         ],
         "summary": "List Inbox",
-        "description": "The current user's in-app inbox (MVP: the GP's MDT results and returned referrals).",
+        "description": "The current user's in-app inbox (MVP: the GP's MDT results and returned referrals), across\ncases, newest first.",
         "operationId": "list_inbox",
         "parameters": [
           {
@@ -3267,7 +3268,7 @@
           "feedback"
         ],
         "summary": "Confirm Receipt",
-        "description": "'Potvrzuji převzetí'; zpetna_vazba_odeslana → uzavreno.",
+        "description": "'Potvrzuji převzetí', a recipient of an `mdt_result` message: zpetna_vazba_odeslana →\nuzavreno. Closing ends a hold; open tasks stay. 404 for an unknown message; 403 for anyone\nbut a recipient; 409 for another kind of message, a receipt already confirmed, or a case not\nawaiting it.",
         "operationId": "confirm_receipt",
         "parameters": [
           {

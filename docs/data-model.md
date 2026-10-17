@@ -244,7 +244,8 @@ Tables and columns missing on start are created (`ALTER TABLE … ADD COLUMN`), 
 | `app_task` | `Task` | `id` | `case_id`, `owner`, `due` | |
 | `app_task_set` | `TaskSet` | `id` | | steps as JSON (always read with their set, Q-I26); user data, not projected to FHIR (S4) |
 | `app_message` | `Message` | `id` | `case_id` | |
-| `app_receipt` | `Receipt` | `message_id`, `recipient_id` | | |
+| `app_message_recipient` | (none) | `message_id`, `recipient_id` | `recipient_id` | one row per `Message.recipient_ids` entry, replaced in the same transaction as the `app_message` save, so the inbox (`listInbox`) is an indexed lookup instead of a JSON scan (S6, Q-I26). Keyed like `app_receipt`, no foreign key |
+| `app_receipt` | `Receipt` | `message_id`, `recipient_id` | | listed per case through `app_message.case_id` (S6) |
 | `app_job` | `Job` | `id` | `case_id` | |
 | `app_handover` | `Handover` | `case_id`, `is_snapshot` | | `body`: the handover as **one JSON document** (live and the frozen MDT snapshot, PER-9) |
 | `app_audit` | `AuditEvent` | `id` | `case_id` | append-only (PER-13); foreign key `case_id` → `app_case` |
@@ -259,7 +260,7 @@ The handover is the one document: 26 `Sourced` values with evidence, read and wr
 A new port method that stores a new model adds its table here (PER-11). The two vector tables exist only with `ONKO_EMBED_DIM` set; they are not projected to FHIR.
 
 **Planned schema changes (Q-I26)**, all plain IRIS SQL:
-- `app_message_recipient(message_id, recipient_id)`, indexed on `recipient_id`, written in the same save as `app_message` (S6). Keyed like `app_receipt`.
+- `app_message_recipient(message_id, recipient_id)`: done in S6 (table above).
 - Foreign keys: `case_id` in `app_document`, `app_finding`, `app_task`, `app_message`, `app_handover`, `doc_chunk` → `app_case` (`app_audit` and `app_mdt_conclusion` have theirs since S9; `fhir_outbox.case_id` stays unconstrained, a document can be saved before its case); `document_id` in `doc_chunk` → `app_document` (S7). `clear()` deletes child tables first.
 - Bitmap indexes instead of normal ones on `state`, `queue` (`app_case`), `kind` (`app_organization`), `role` (`app_actor`), if the tables keep IRIS's integer row ID (Q-I27).
 

@@ -44,11 +44,14 @@ def _moved(case: Case, to: CaseState) -> Case:
 
 
 def refresh_progress(case: Case, tasks: list[Task]) -> Case:
-    """Who is on the move, the next step and its due date. A returned case waits on the referring
-    doctor; otherwise the earliest ready task decides, and without one the coordinator is on the
-    move with no step. The step text only ever comes from a task title."""
-    if case.state is CaseState.RETURNED_TO_REFERRER:
+    """Who is on the move, the next step and its due date. A returned case, or one whose feedback
+    awaits the receipt, waits on the referring doctor; a closed case on nobody. Otherwise the
+    earliest ready task decides, and without one the coordinator is on the move with no step. The
+    step text only ever comes from a task title."""
+    if case.state in (CaseState.RETURNED_TO_REFERRER, CaseState.FEEDBACK_SENT):
         on_move, title, due = case.referring_doctor_id, None, None
+    elif case.state is CaseState.CLOSED:
+        on_move, title, due = None, None, None
     elif (step := next_step(tasks)) is not None:
         on_move, title, due = step.owner, step.title, step.due
     else:

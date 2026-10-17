@@ -117,6 +117,12 @@ HANDOVER_TABLE = "app_handover"
 HANDOVER_COLUMNS = {"case_id": ID, "is_snapshot": "BIT", "body": TEXT}
 HANDOVER_FK = "fk_app_handover_case_id"  # case_id -> app_case
 
+# Who each message is addressed to, so the inbox is an indexed lookup instead of a JSON scan
+# (Q-I26). Written in the same save as `app_message`; keyed like `app_receipt`, no foreign key.
+RECIPIENT_TABLE = "app_message_recipient"
+RECIPIENT_COLUMNS = {"message_id": ID, "recipient_id": ID}
+RECIPIENT_INDEX = f"idx_{RECIPIENT_TABLE}_recipient_id"
+
 # What IRIS reports for a foreign-key violation on INSERT or UPDATE.
 _FK_VIOLATION = "SQLCODE: <-121>"
 
@@ -262,6 +268,11 @@ class IrisRepository:
                 cur.execute(f"CREATE TABLE {self._t(OUTBOX_TABLE)} ({columns}, "
                             f"PRIMARY KEY ({quote('id')}))")
 
+            if RECIPIENT_TABLE not in existing:
+                columns = ", ".join(f"{quote(n)} {t}" for n, t in RECIPIENT_COLUMNS.items())
+                cur.execute(f"CREATE TABLE {self._t(RECIPIENT_TABLE)} ({columns}, "
+                            f"PRIMARY KEY ({quote('message_id')}, {quote('recipient_id')}))")
+
             cur.execute("SELECT TABLE_NAME, INDEX_NAME FROM INFORMATION_SCHEMA.INDEXES "
                         "WHERE TABLE_SCHEMA = ?", [self.schema])
             indexes = {(t.lower(), i.lower()) for t, i in cur.fetchall()}
@@ -289,6 +300,9 @@ class IrisRepository:
                 cur.execute(f"ALTER TABLE {self._t(HANDOVER_TABLE)} ADD CONSTRAINT {HANDOVER_FK} "
                             f"FOREIGN KEY ({quote('case_id')}) "
                             f"REFERENCES {self._t(CASES.name)} ({quote('id')})")
+            if (RECIPIENT_TABLE, RECIPIENT_INDEX) not in indexes:
+                cur.execute(f"CREATE INDEX {RECIPIENT_INDEX} ON {self._t(RECIPIENT_TABLE)} "
+                            f"({quote('recipient_id')})")
 
     def drop_tables(self) -> None:
         """Drop every app-state table in this schema (tests and demo resets only)."""
@@ -309,7 +323,8 @@ class IrisRepository:
     def _table_names(self) -> list[str]:
         """The app-state tables, children first, so foreign keys hold while rows or tables go."""
         chunks = [self._vectors[0].name] if self._vectors else []
-        return [*chunks, OUTBOX_TABLE, HANDOVER_TABLE, *reversed([t.name for t in MODEL_TABLES])]
+        return [*chunks, OUTBOX_TABLE, HANDOVER_TABLE, RECIPIENT_TABLE,
+                *reversed([t.name for t in MODEL_TABLES])]
 
     def _reference_tables(self) -> list[str]:
         """Reference data the demo reset keeps (the MKN-10 code list)."""
@@ -584,14 +599,39 @@ class IrisRepository:
     # --- messages ----------------------------------------------------------------------------
 
     def save_message(self, message: Message) -> None:
-        self._write([self._upsert_sql(MESSAGES.name, MESSAGES.row(message))],
-                    case_id=message.case_id)
+        """The message and its recipient rows in one transaction (Q-I26)."""
+        recipients = self._t(RECIPIENT_TABLE)
+        statements = [
+            self._upsert_sql(MESSAGES.name, MESSAGES.row(message)),
+            (f'DELETE FROM {recipients} WHERE "message_id" = ?', [message.id]),
+        ]
+        statements += [self._upsert_sql(RECIPIENT_TABLE, {"message_id": message.id,
+                                                          "recipient_id": r}, verb="INSERT")
+                       for r in dict.fromkeys(message.recipient_ids)]
+        self._write(statements, case_id=message.case_id)
+
+    def get_message(self, message_id: str) -> Message | None:
+        found = self._select(MESSAGES, '"id" = ?', [message_id])
+        return found[0] if found else None
 
     def list_messages(self, case_id: str) -> list[Message]:
-        return self._select(MESSAGES, '"case_id" = ?', [case_id])
+        return self._select(MESSAGES, '"case_id" = ?', [case_id], order='"sent_at", %ID')
+
+    def list_inbox(self, recipient_id: str) -> list[Message]:
+        return self._select(
+            MESSAGES,
+            f'"id" IN (SELECT "message_id" FROM {self._t(RECIPIENT_TABLE)} '
+            'WHERE "recipient_id" = ?)',
+            [recipient_id], order='"sent_at" DESC, %ID DESC')
 
     def save_receipt(self, receipt: Receipt) -> None:
         self._upsert(RECEIPTS.name, RECEIPTS.row(receipt))
+
+    def list_receipts(self, case_id: str) -> list[Receipt]:
+        return self._select(
+            RECEIPTS,
+            f'"message_id" IN (SELECT "id" FROM {self._t(MESSAGES.name)} WHERE "case_id" = ?)',
+            [case_id], order='"confirmed_at", %ID')
 
     # --- jobs --------------------------------------------------------------------------------
 

@@ -19,6 +19,7 @@ from onko_cases import (
     CaseStateError,
     CodeNotNeededError,
     ConclusionIncompleteError,
+    ConclusionNotConfirmedError,
     HandoverEditError,
     HandoverLockedError,
     MdtBoardError,
@@ -32,9 +33,11 @@ from onko_cases import (
     build_mdt_record,
     check_dependencies,
     check_task_set,
+    close_after_receipt,
     confirm_conclusion,
     diagnosis_for_code,
     due_notices,
+    feedback_attachments,
     is_external,
     manual_transition,
     matches_diagnosis,
@@ -45,6 +48,7 @@ from onko_cases import (
     receive_referral,
     refresh_progress,
     require_editable,
+    require_patient_notice_allowed,
     require_tasks_writable,
     resolve_owners,
     resume,
@@ -62,6 +66,7 @@ from onko_cases import (
     pick_diagnosis_code as pick_code,
 )
 from onko_cases import resolve_finding as resolve_case_finding
+from onko_cases import send_feedback as send_feedback_case
 from onko_cases import (
     send_referral as send_case,
 )
@@ -97,7 +102,15 @@ from onko_documents import DOCX as DOCX_MIME
 from onko_documents import PARSERS, parse, render_mdt_conclusion, render_mdt_record
 from onko_documents import PDF as PDF_MIME
 from onko_documents import PPTX as PPTX_MIME
-from onko_messaging import InAppInbox
+from onko_messaging import (
+    AlreadyConfirmedError,
+    InAppInbox,
+    NotConfirmableError,
+    NotRecipientError,
+    mdt_result_message,
+    patient_notice,
+)
+from onko_messaging import confirm as confirm_message
 from onko_messaging import send as send_message
 from onko_repository import BundleError, CaseRepository, referral_attachments
 from pydantic import ValidationError
@@ -1275,38 +1288,107 @@ def get_mdt_conclusion_pdf(case_id: str, repo: Repo) -> Response:
 
 
 @router.post("/cases/{case_id}/feedback", status_code=201, tags=["feedback"])
-def send_feedback(case_id: str, body: FeedbackSend, actor_id: ActorId) -> Message:
-    """Send the confirmed conclusion to the GP's inbox; zaver_mdt → zpetna_vazba_odeslana."""
-    _todo()
+def send_feedback(
+    case_id: str, body: FeedbackSend, user: CurrentUser, repo: Repo, clock: Clock
+) -> Message:
+    """'Odeslat PL', a coordinator of the case's KOC: the confirmed conclusion goes to the referring
+    doctor's in-app inbox as an `mdt_result` message; zaver_mdt → zpetna_vazba_odeslana, and the
+    referring doctor is on the move until they confirm receipt. Attached: the uploaded MDT report
+    (if any), then every document the frozen MDT snapshot quotes (the original context). Subject
+    'Závěr MDT ze dne …'; body = `note`, then the conclusion text. The conclusion can't be changed
+    afterwards. 404 without a conclusion; 409 in another state or while the conclusion isn't
+    (re-)confirmed."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    conclusion = _conclusion_or_404(repo, case_id)
+    try:
+        sent_case = send_feedback_case(case, conclusion)
+    except (TransitionError, ConclusionNotConfirmedError) as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    now = clock.now()
+    attachments = feedback_attachments(conclusion, repo.get_handover(case_id, snapshot=True))
+    message = mdt_result_message(
+        message_id=new_id("msg"), case_id=case_id, sender_id=user.id,
+        recipient_id=case.referring_doctor_id, conclusion=conclusion, mdt_date=case.mdt_date,
+        attachment_document_ids=attachments, note=body.note,
+    )
+    message = send_message(message, {Channel.IN_APP: InAppInbox(repo)}, now)
+    sent_case = _save_progress(repo, sent_case)
+    _audit(repo, case_id, user.id, "feedback_sent", now,
+           f"{case.state} → {sent_case.state}, příloh: {len(attachments)}")
+    return message
 
 
 @router.post("/cases/{case_id}/patient-notices", status_code=201, tags=["feedback"])
-def create_patient_notice(case_id: str, body: PatientNoticeCreate, actor_id: ActorId) -> Message:
-    """'Informovat pacienta': recorded, simulated=True, never delivered (Q-F16)."""
-    _todo()
+def create_patient_notice(
+    case_id: str, body: PatientNoticeCreate, user: CurrentUser, repo: Repo, clock: Clock
+) -> Message:
+    """'Informovat pacienta', a coordinator of the case's KOC: recorded as sent with
+    `simulated=True` and no recipients, never delivered (Q-F16), so it is in no inbox. 409 before
+    the take-over or once the case is closed."""
+    case = _case_or_404(repo, case_id)
+    _require_koc_coordinator(user, case)
+    try:
+        require_patient_notice_allowed(case)
+    except CaseStateError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    now = clock.now()
+    notice = patient_notice(message_id=new_id("msg"), case_id=case_id, sender_id=user.id,
+                            subject=body.subject, body=body.body, now=now)
+    repo.save_message(notice)
+    _audit(repo, case_id, user.id, "patient_notice_sent", now, f"{body.subject} (simulováno)")
+    return notice
 
 
 @router.get("/cases/{case_id}/messages", tags=["feedback"])
-def list_case_messages(case_id: str) -> list[Message]:
-    _todo()
+def list_case_messages(case_id: str, repo: Repo) -> list[Message]:
+    """Every message of the case (MDT result, returned referral, patient notices), oldest first."""
+    _case_or_404(repo, case_id)
+    return repo.list_messages(case_id)
 
 
 @router.get("/cases/{case_id}/receipts", tags=["feedback"])
-def list_case_receipts(case_id: str) -> list[Receipt]:
-    """Proof of delivery ('doložit doručení')."""
-    _todo()
+def list_case_receipts(case_id: str, repo: Repo) -> list[Receipt]:
+    """Proof of delivery ('doložit doručení'): the confirmed receipts, oldest first."""
+    _case_or_404(repo, case_id)
+    return repo.list_receipts(case_id)
 
 
 @router.get("/inbox", tags=["feedback"])
-def list_inbox(actor_id: ActorId) -> list[Message]:
-    """The current user's in-app inbox (MVP: the GP's MDT results and returned referrals)."""
-    _todo()
+def list_inbox(user: CurrentUser, repo: Repo) -> list[Message]:
+    """The current user's in-app inbox (MVP: the GP's MDT results and returned referrals), across
+    cases, newest first."""
+    return repo.list_inbox(user.id)
 
 
 @router.post("/messages/{message_id}/confirm", status_code=201, tags=["feedback"])
-def confirm_receipt(message_id: str, actor_id: ActorId) -> Receipt:
-    """'Potvrzuji převzetí'; zpetna_vazba_odeslana → uzavreno."""
-    _todo()
+def confirm_receipt(message_id: str, user: CurrentUser, repo: Repo, clock: Clock) -> Receipt:
+    """'Potvrzuji převzetí', a recipient of an `mdt_result` message: zpetna_vazba_odeslana →
+    uzavreno. Closing ends a hold; open tasks stay. 404 for an unknown message; 403 for anyone
+    but a recipient; 409 for another kind of message, a receipt already confirmed, or a case not
+    awaiting it."""
+    message = repo.get_message(message_id)
+    if message is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "message not found")
+    case = _case_or_404(repo, message.case_id)
+    now = clock.now()
+    try:
+        receipt = confirm_message(message, user.id, now, receipts=repo.list_receipts(case.id))
+    except NotRecipientError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e)) from None
+    except (NotConfirmableError, AlreadyConfirmedError) as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    try:
+        closed = close_after_receipt(case)
+    except TransitionError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from None
+    repo.save_receipt(receipt)
+    closed = _save_progress(repo, closed)
+    detail = f"{case.state} → {closed.state}"
+    if case.on_hold is not None:
+        detail += ", odložení zrušeno"
+    _audit(repo, case.id, user.id, "receipt_confirmed", now, detail)
+    return receipt
 
 
 # --- Demo support (slice S0) -------------------------------------------------------------------

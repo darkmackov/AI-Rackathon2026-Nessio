@@ -276,6 +276,55 @@ def test_messages_and_receipts(repo):
 
     assert repo.list_messages("c1") == [message]
     assert [m.id for m in repo.list_messages("c2")] == ["m2"]
+    assert repo.get_message("m1") == message
+    assert repo.get_message("nope") is None
+    assert repo.list_receipts("c1") == [Receipt(message_id="m1", recipient_id="pl-a",
+                                                confirmed_at=NOW)]
+    assert repo.list_receipts("c2") == []
+
+
+def _sent(message_id: str, case_id: str, recipients: list[str], at: datetime | None) -> Message:
+    return Message(id=message_id, case_id=case_id, kind=MessageKind.MDT_RESULT, sender_id="k",
+                   recipient_ids=recipients, subject="Závěr MDT", body="…", sent_at=at)
+
+
+def test_inbox_is_by_recipient_across_cases_newest_first(repo):
+    _cases(repo, "c1", "c2")
+    repo.save_message(_sent("m1", "c1", ["pl-a"], NOW))
+    repo.save_message(_sent("m2", "c2", ["pl-a", "pl-b"], NOW + timedelta(hours=1)))
+    repo.save_message(_sent("m3", "c1", ["pl-b"], NOW + timedelta(hours=2)))
+    repo.save_message(_sent("m4", "c1", [], NOW))  # a patient notice: nobody's inbox
+
+    assert [m.id for m in repo.list_inbox("pl-a")] == ["m2", "m1"]
+    assert [m.id for m in repo.list_inbox("pl-b")] == ["m3", "m2"]
+    assert repo.list_inbox("nobody") == []
+
+
+def test_saving_a_message_again_replaces_its_recipients(repo):
+    _cases(repo, "c1")
+    repo.save_message(_sent("m1", "c1", ["pl-a"], NOW))
+    repo.save_message(_sent("m1", "c1", ["pl-b"], NOW))
+
+    assert repo.list_inbox("pl-a") == []
+    assert [m.id for m in repo.list_inbox("pl-b")] == ["m1"]
+
+
+def test_case_messages_and_receipts_oldest_first(repo):
+    _cases(repo, "c1")
+    repo.save_message(_sent("m-late", "c1", ["pl-a"], NOW + timedelta(days=1)))
+    repo.save_message(_sent("m-early", "c1", ["pl-a"], NOW))
+    repo.save_receipt(Receipt(message_id="m-late", recipient_id="pl-a",
+                              confirmed_at=NOW + timedelta(days=2)))
+    repo.save_receipt(Receipt(message_id="m-early", recipient_id="pl-a", confirmed_at=NOW))
+
+    assert [m.id for m in repo.list_messages("c1")] == ["m-early", "m-late"]
+    assert [r.message_id for r in repo.list_receipts("c1")] == ["m-early", "m-late"]
+
+
+def test_a_message_of_an_unknown_case_is_rejected_with_its_recipients(repo):
+    with pytest.raises(KeyError):
+        repo.save_message(_sent("m1", "nope", ["pl-a"], NOW))
+    assert repo.list_inbox("pl-a") == []
 
 
 def test_directory_round_trip_and_upsert(repo):
