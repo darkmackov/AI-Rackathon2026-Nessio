@@ -11,6 +11,7 @@ import { confirmMdtConclusionMutation, getMdtConclusionOptions, getMdtRecordOpti
 import type { Case, DocumentMeta, Handover } from '../../../client/types.gen'
 import { terminalJob } from '../../../components/documents/document-utils'
 import { refreshCaseResults } from '../../../components/documents/use-document-ingest'
+import NessieGameDialog from '../../../components/nessie-game/NessieGameDialog'
 import type { Sources } from '../../../components/handover/ClinicalValue'
 import { useSession } from '../../../session'
 import { formatDate } from '../../../time'
@@ -45,6 +46,8 @@ export default function MdtTab({ item, handover, documents, names, sources, show
   const { t, i18n } = useTranslation(), { actorId } = useSession()
   const actor = actorId ?? '', options = { headers: actorHeaders(actor), path: { case_id: item.id } }
   const [confirm, setConfirm] = useState(false), [feedback, setFeedback] = useState<string | null>(null)
+  // The game dialog lives here, outside the accordion, so it stays open when the conclusion section re-renders.
+  const [playing, setPlaying] = useState(false)
   // Open sections follow the stage until the coordinator opens or closes one in it.
   const [opened, setOpened] = useState<{ stage: MdtStage; value: string[] } | null>(null)
   const controls = useRef<Partial<Record<MdtSection, HTMLButtonElement | null>>>({})
@@ -92,9 +95,10 @@ export default function MdtTab({ item, handover, documents, names, sources, show
       </Accordion.Item>
       {record.data && <Accordion.Item value="conclusion">
         <Accordion.Control {...control('conclusion')}><SectionTitle title={t('mdt.conclusion')} status={conclusionStatus} /></Accordion.Control>
-        <Accordion.Panel><ConclusionSection caseId={item.id} actorId={actor} record={record.data} conclusion={conclusionState} retry={() => { void conclusion.refetch() }} jobs={jobs} ingest={ingest} pending={pending} editable={conclusionOpen} documents={documents} sources={sources} /></Accordion.Panel>
+        <Accordion.Panel><ConclusionSection caseId={item.id} actorId={actor} record={record.data} conclusion={conclusionState} retry={() => { void conclusion.refetch() }} jobs={jobs} ingest={ingest} pending={pending} play={() => setPlaying(true)} editable={conclusionOpen} documents={documents} sources={sources} /></Accordion.Panel>
       </Accordion.Item>}
     </Accordion>
     <ConclusionConfirmation opened={confirm} caseId={item.id} actorId={actor} pending={pending} close={() => setConfirm(false)} confirmed={() => setFeedback('mdt.confirmed')} />
+    <NessieGameDialog caseId={item.id} actorId={actor} opened={playing} onClose={() => setPlaying(false)} />
   </Stack>
 }

@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import type { ConclusionPrefill, DocumentMeta, Job, MdtConclusion, MdtRecord } from '../../../client/types.gen'
 import LoadingState, { EmptyState, QueryError } from '../../../components/DataState'
 import JobProgress from '../../../components/documents/JobProgress'
+import { JobsWithGame } from '../../../components/documents/DocumentJobs'
 import { StampView, type Sources } from '../../../components/handover/ClinicalValue'
 import ConclusionEditor from './ConclusionEditor'
 import ConclusionUpload from './ConclusionUpload'
@@ -30,15 +31,15 @@ function WriteConclusion({ caseId, actorId, record, conclusion, close, saved }: 
   </Stack></Paper>
 }
 
-export default function ConclusionSection({ caseId, actorId, record, conclusion, retry, jobs, ingest, pending, editable, documents, sources }: {
-  caseId: string; actorId: string; record: MdtRecord; conclusion: Loaded<MdtConclusion>; retry: () => void; jobs: UseQueryResult<Job[], unknown>; ingest: Job[]; pending: boolean
+export default function ConclusionSection({ caseId, actorId, record, conclusion, retry, jobs, ingest, pending, play, editable, documents, sources }: {
+  caseId: string; actorId: string; record: MdtRecord; conclusion: Loaded<MdtConclusion>; retry: () => void; jobs: UseQueryResult<Job[], unknown>; ingest: Job[]; pending: boolean; play: () => void
   editable: boolean; documents: DocumentMeta[]; sources: Sources;
 }) {
   const { t } = useTranslation(), busy = useIsMutating() > 0
   const [mode, setMode] = useState<'write' | 'upload'>('write'), [editing, setEditing] = useState<'write' | 'upload' | null>(null), [saved, setSaved] = useState(false)
   const close = (changed: boolean) => { setEditing(null); setSaved(changed) }
   const progress = <>
-    {ingest.map((job) => <JobProgress key={job.id} job={job} actorId={actorId} documents={documents} />)}
+    {ingest.length > 0 && <JobsWithGame jobs={ingest.map((job) => <JobProgress key={job.id} job={job} actorId={actorId} documents={documents} />)} running={pending} play={play} />}
     {pending && <Alert color="blue" role="status">{t('mdt.pendingUpload')}</Alert>}
     {jobs.isError && <QueryError error={jobs.error} retry={() => { void jobs.refetch() }} />}
   </>

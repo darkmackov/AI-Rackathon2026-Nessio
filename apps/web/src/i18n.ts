@@ -10,6 +10,7 @@ import { messagesCs, messagesEn } from './components/messages/translations'
 import { s8Cs, s8En } from './screens/CaseDetail/S8/translations'
 import { noticesCs, noticesEn } from './notifications/translations'
 import { fhirExportCs, fhirExportEn } from './components/fhir/translations'
+import { nessieGameCs, nessieGameEn } from './components/nessie-game/translations'
 
 export const resources = {
   cs: { translation: {
@@ -23,6 +24,7 @@ export const resources = {
     referral: referralCs,
     documents: documentsCs,
     handoverEdit: handoverEditCs,
+    nessieGame: nessieGameCs,
     appName: 'Nessio', skip: 'Přejít k obsahu', navigation: 'Hlavní navigace',
     language: 'Jazyk', demoData: 'Demo s fiktivními daty', realApi: 'Režim skutečného API', userMenu: 'Uživatel {{name}}', contactsOf: 'Kontakty: {{name}}', address: 'Adresa', changeLanguage: 'Změnit jazyk', referrerWelcome: 'Vítejte, {{name}}',
     selectTitle: 'Vyberte svou identitu', selectIntro: 'Zvolte roli a osobu, za kterou chcete pracovat.',
@@ -70,6 +72,7 @@ export const resources = {
     referral: referralEn,
     documents: documentsEn,
     handoverEdit: handoverEditEn,
+    nessieGame: nessieGameEn,
     appName: 'Nessio', skip: 'Skip to content', navigation: 'Main navigation',
     language: 'Language', demoData: 'Demo with fictional data', realApi: 'Real API mode', userMenu: 'User {{name}}', contactsOf: 'Contacts: {{name}}', address: 'Address', changeLanguage: 'Change language', referrerWelcome: 'Welcome, {{name}}',
     selectTitle: 'Choose your identity', selectIntro: 'Choose the role and person you want to work as.',

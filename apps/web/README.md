@@ -89,6 +89,15 @@ with the selected case; it does not claim to reproduce an IRIS projection. Outbo
 AuditEvents, Tasks and outbox retries remain backend responsibilities (Q-W18).
 Local S9 tests are in `src/test/fhir-referral.test.tsx` and `src/test/fhir-export.test.tsx`; no browser automation is required.
 
+## Nessie game while documents process (Q-W19)
+
+While a document of the case is being processed, a quiet inline action at the end of the running job rows
+(Documents tab and the MDT conclusion) offers **Zahrát si s Nessie, než AI skončí**. It opens a modal with a snake game in
+`src/components/nessie-game`: Nessie eats fish on a lake that wraps at its edges. The modal's status line
+follows the same jobs query and offers **Zpět k práci** once processing ends. The best score lives in
+`localStorage` (`onko.nessieGame.best`). In the dummy demo, jobs finish within a few seconds, so open
+the game right after uploading. Tests: `src/test/nessie-game.test.ts` (rules) and `src/test/nessie-game-ui.test.tsx`.
+
 ## Verification and fixtures
 
 Shared error/warning toasts, concrete form summaries, safe API mapping and job-failure delivery are described in [Application notifications](../../docs/notifications.md). The system uses one Mantine notification host; error and warning messages have no timeout. Clinical findings and personal deadline notices remain their existing data views.
