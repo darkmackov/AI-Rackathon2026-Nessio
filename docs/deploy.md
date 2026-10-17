@@ -53,7 +53,7 @@ The script:
 - pins the app to one replica (the demo clock and the job runner live in the process) with 1.5 CPU and 3 GiB, since the local embedding model (fastembed, Q-M2) runs in the process too. The image bakes the model in (Dockerfile stage `embed-model`), so the app never downloads it; to embed with it, set the `local` embedding slot and `ONKO_EMBED_DIM=768` from `.env.example`.
 - runs the container in `TZ=Europe/Prague` (set in the `Dockerfile`). App datetimes are naive local time from the app clock, and the FHIR projection tags them as Europe/Prague (D-13); in UTC the projected timestamps would be 1–2 h off. Keep it if you run the image elsewhere. A restart (or rollout) also fails any AI job still queued or running, since the worker lives in the process (api.md › Slow AI work).
 
-The MKN-10 code list is reference data: load it once into IRIS with `scripts/load_mkn10.py` (same embedding settings as the app).
+The MKN-10 code list is reference data: load it once into IRIS with `scripts/load_mkn10.py` (same embedding settings as the app). The source is the ÚZIS open-data CSV (Q-C12), filtered to the rows whose `kod_kapitola_rozsah` is `C00-D48` plus the pre-histology codes listed in Q-C12, then `uv run python scripts/load_mkn10.py <filtered.csv> kod_tecka nazev`. Reload it after changing the embedding model.
 
 It prints the public URL; the API answers at `/api/health`. Re-run it to change settings; new versions ship through CD.
 
