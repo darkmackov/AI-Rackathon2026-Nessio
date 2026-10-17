@@ -1,6 +1,6 @@
 """Documents module: turn uploaded files into text the AI pipeline can read, and render outputs:
-the MDT record (`MDT_zapis`) and the MDT conclusion (`MDT_zaver`) as PDF, with bundled DejaVu
-fonts for Czech text (S5).
+the MDT record (`MDT_zapis`) and the MDT conclusion (`MDT_zaver`) as PDF from Typst templates,
+with bundled DejaVu fonts for Czech text (S5, Q-K13).
 
 Owner: stream A. Contract: `onko_contracts.ParsedDocument`.
 Public API: only what `__all__` lists. Layout: docs/conventions/implementation.md.
@@ -15,8 +15,6 @@ from .service import (
     PDF,
     PPTX,
     RENDER_KINDS,
-    mdt_conclusion_html,
-    mdt_record_html,
     parse,
     render_mdt_conclusion,
     render_mdt_record,
@@ -31,8 +29,6 @@ __all__ = [
     "PPTX",
     "RENDER_KINDS",
     "docx_to_md",
-    "mdt_conclusion_html",
-    "mdt_record_html",
     "parse",
     "pptx_to_md",
     "render_mdt_conclusion",
