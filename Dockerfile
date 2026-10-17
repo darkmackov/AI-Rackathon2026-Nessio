@@ -9,6 +9,14 @@ COPY apps/web/ ./
 ARG VITE_API_MODE=real
 RUN VITE_API_MODE=$VITE_API_MODE npm run build
 
+# The local embedding model (ONKO_MODEL_EMBED_BASE_URL=local, Q-M2) in its own stage, so a code change
+# doesn't download it again. fastembed as in uv.lock.
+FROM python:3.13-slim AS embed-model
+ARG ONKO_LOCAL_EMBED_MODEL=sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+ENV FASTEMBED_CACHE_PATH=/models
+RUN pip install --no-cache-dir fastembed==0.9.0 \
+    && python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='$ONKO_LOCAL_EMBED_MODEL')"
+
 FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:0.12.20 /uv /bin/uv
 # tzdata: the FHIR projection converts naive datetimes to Europe/Prague (D-13)
@@ -25,9 +33,12 @@ COPY data/vzp-structured/ data/vzp-structured/
 COPY data/demo/ data/demo/
 COPY data/cesta-pacienta-data/Pacient/ data/cesta-pacienta-data/Pacient/
 COPY --from=web /web/dist/ apps/web/dist/
+COPY --from=embed-model /models/ models/
 
 ENV PATH=/app/.venv/bin:$PATH \
     ONKO_DATA_DIR=/app/data \
-    ONKO_WEB_DIST=/app/apps/web/dist
+    ONKO_WEB_DIST=/app/apps/web/dist \
+    FASTEMBED_CACHE_PATH=/app/models \
+    HF_HUB_OFFLINE=1
 EXPOSE 8000
 CMD ["uvicorn", "onko_api.serve:app", "--host", "0.0.0.0", "--port", "8000"]

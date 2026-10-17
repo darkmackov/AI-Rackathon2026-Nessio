@@ -17,3 +17,9 @@ class ChatClient(Protocol):
     def embed(self, slot: ModelSlot, texts: list[str]) -> EmbedResult:
         """Embeddings of `texts` on `slot`, one vector per text, in order."""
         ...
+
+
+class EmbedClient(Protocol):
+    def embed(self, slot: ModelSlot, texts: list[str]) -> EmbedResult:
+        """Embeddings of `texts` on `slot`, one vector per text, in order."""
+        ...

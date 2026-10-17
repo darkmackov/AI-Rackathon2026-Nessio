@@ -14,11 +14,14 @@ from dotenv import dotenv_values
 from pydantic import BaseModel, ValidationError
 
 from .models import CallRecord, ChatResult, ModelSlot
-from .ports import ChatClient
+from .ports import ChatClient, EmbedClient
 
 log = logging.getLogger(__name__)
 
 M = TypeVar("M", bound=BaseModel)
+
+# A slot with this base url embeds in-process (adapters/local_embed.py), not on an endpoint.
+LOCAL_BASE_URL = "local"
 
 
 def load_slots(env: dict[str, str] | None = None) -> dict[str, ModelSlot]:
@@ -65,6 +68,7 @@ class Gateway:
         embed: str | None = None,
         *,
         client: ChatClient | None = None,
+        local: EmbedClient | None = None,
     ):
         if active not in slots:
             raise ValueError(f"active model slot {active!r} is not configured")
@@ -76,6 +80,7 @@ class Gateway:
 
             client = OpenAICompatClient()
         self.client = client
+        self._local = local
         self.calls: list[CallRecord] = []
         self._cache: dict[str, BaseModel | str | list[float]] = {}
         self._lock = threading.Lock()
@@ -182,6 +187,15 @@ class Gateway:
         """An embedding slot is configured (Q-M2, Q-M7)."""
         return self.embed_slot is not None and self.embed_slot in self.slots
 
+    def _embed_client(self, s: ModelSlot) -> EmbedClient:
+        if s.base_url != LOCAL_BASE_URL:
+            return self.client
+        if self._local is None:
+            from .adapters.local_embed import LocalEmbedClient
+
+            self._local = LocalEmbedClient()
+        return self._local
+
     def embed(self, texts: list[str], *, batch: int = 64) -> list[list[float]]:
         """Embeddings on the embedding slot, one vector per text, in order. Texts already embedded
         are served from the cache; the rest go out in batches of `batch`."""
@@ -199,7 +213,7 @@ class Gateway:
         for at in range(0, len(todo), batch):
             part = todo[at : at + batch]
             started = time.perf_counter()
-            result = self.client.embed(s, [texts[i] for i in part])
+            result = self._embed_client(s).embed(s, [texts[i] for i in part])
             if len(result.vectors) != len(part):
                 self._record(s, ChatResult(""), started, cached=False, attempts=1, ok=False)
                 raise ValueError(f"{len(result.vectors)} embeddings for {len(part)} texts")

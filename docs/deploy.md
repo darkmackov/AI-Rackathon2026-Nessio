@@ -50,7 +50,9 @@ The script:
 - builds the `Dockerfile` in Azure (`az acr build` into the group's registry, created if there is none) and creates or updates the Container App (`ONKO_AZ_APP`, default `onko-koordinace`);
 - lets the app pull with the registry's admin login: granting it AcrPull would be a role assignment, which team accounts can't make (that's also why it doesn't use `az containerapp up`);
 - forwards every `ONKO_*` value from `.env`, storing passwords, API keys and connection strings as Container Apps secrets;
-- pins the app to one replica (the demo clock and the job runner live in the process).
+- pins the app to one replica (the demo clock and the job runner live in the process) with 1.5 CPU and 3 GiB, since the local embedding model (fastembed, Q-M2) runs in the process too. The image bakes the model in (Dockerfile stage `embed-model`), so the app never downloads it; to embed with it, set the `local` embedding slot and `ONKO_EMBED_DIM=768` from `.env.example`.
+
+The MKN-10 code list is reference data: load it once into IRIS with `scripts/load_mkn10.py` (same embedding settings as the app).
 
 It prints the public URL; the API answers at `/api/health`. Re-run it to change settings; new versions ship through CD.
 

@@ -11,6 +11,7 @@ Configured via env (see `.env.example`):
     ONKO_MODEL_A_NAME=...
     ONKO_ACTIVE_MODEL=a                # the one the app uses
     ONKO_EMBED_MODEL=e                 # embedding slot
+    ONKO_MODEL_E_BASE_URL=local        # embed in-process with fastembed (NAME = its model)
 `from_env()` also reads `.env`; the real environment wins. Endpoints sit behind Azure API
 Management, which takes the key in the `api-key` header.
 Public API: only what `__all__` lists. Layout: docs/conventions/implementation.md.
@@ -19,13 +20,15 @@ Public API: only what `__all__` lists. Layout: docs/conventions/implementation.m
 from __future__ import annotations
 
 from .models import CallRecord, ChatResult, EmbedResult, ModelSlot
-from .ports import ChatClient
-from .service import Gateway, load_slots, strict_schema
+from .ports import ChatClient, EmbedClient
+from .service import LOCAL_BASE_URL, Gateway, load_slots, strict_schema
 
 __all__ = [
+    "LOCAL_BASE_URL",
     "CallRecord",
     "ChatClient",
     "ChatResult",
+    "EmbedClient",
     "EmbedResult",
     "Gateway",
     "ModelSlot",
