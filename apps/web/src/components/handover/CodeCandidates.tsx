@@ -1,15 +1,15 @@
-import Button from '../../../components/ActionButton'
+import Button from '../ActionButton'
 import { Badge, Group, Paper, Stack, Text } from '@mantine/core'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { actorHeaders } from '../../../api'
-import { getHandoverQueryKey, listCodeCandidatesOptions, pickDiagnosisCodeMutation } from '../../../client/@tanstack/react-query.gen'
-import type { Handover } from '../../../client/types.gen'
-import LoadingState, { EmptyState, QueryError } from '../../../components/DataState'
-import { refreshCaseResults } from '../../../components/documents/use-document-ingest'
-import { normalizeError } from '../../../notifications/normalize-error'
-import { useSession } from '../../../session'
+import { actorHeaders } from '../../api'
+import { getHandoverQueryKey, listCodeCandidatesOptions, pickDiagnosisCodeMutation } from '../../client/@tanstack/react-query.gen'
+import type { Handover } from '../../client/types.gen'
+import LoadingState, { EmptyState, QueryError } from '../DataState'
+import { refreshCaseResults } from '../documents/use-document-ingest'
+import { normalizeError } from '../../notifications/normalize-error'
+import { useSession } from '../../session'
 
 function Candidates({ caseId, actorId, saved }: { caseId: string; actorId: string; saved: () => void }) {
   const { t } = useTranslation(), client = useQueryClient(), busy = useIsMutating() > 0

@@ -28,6 +28,7 @@ import HandoverFieldForm from '../../components/handover/HandoverFieldForm'
 import ReturnedNote from './ReturnedNote'
 import SendReferral from './SendReferral'
 import ExportCaseFhir from '../../components/fhir/ExportCaseFhir'
+import CodeCandidates from '../../components/handover/CodeCandidates'
 
 function BackLink() {
   const { t } = useTranslation()
@@ -103,10 +104,13 @@ function ReferralContent({ caseId }: { caseId: string }) {
           {handover.data && <>
             <Group gap="xs"><Text size="sm" c="dimmed">{t('caseDetail.validated')}:</Text><StampView stamp={handover.data.validated_by_referrer} names={names} /></Group>
             <HandoverTab handover={handover.data} names={names} sources={sources} findings={findings.data?.filter((finding) => !finding.resolved) ?? []} showFinding={showFinding} open={openSections} setOpen={(sections) => { setOpenSections(sections); setFocusPath(null) }} focusPath={focusPath}
-              fieldActions={(path) => !editable || path === 'epicrisis' || path === 'mdt_question' ? null : <WriteControls>{(busy) => <Group gap="xs">
-                <Button size="compact-sm" variant="subtle" pending={busy || processing} onClick={() => setEditing({ path, unavailable: false })}>{t(fields[path]?.status === 'found' ? 'referral.edit' : 'referral.fill')}</Button>
-                <Button size="compact-sm" variant="subtle" color="gray" pending={busy || processing} onClick={() => setEditing({ path, unavailable: true })}>{t('handoverEdit.notAvailable')}</Button>
-              </Group>}</WriteControls>}
+              fieldActions={(path) => !editable || path === 'epicrisis' || path === 'mdt_question' ? null : <>
+                <WriteControls>{(busy) => <Group gap="xs">
+                  <Button size="compact-sm" variant="subtle" pending={busy || processing} onClick={() => setEditing({ path, unavailable: false })}>{t(fields[path]?.status === 'found' ? 'referral.edit' : 'referral.fill')}</Button>
+                  <Button size="compact-sm" variant="subtle" color="gray" pending={busy || processing} onClick={() => setEditing({ path, unavailable: true })}>{t('handoverEdit.notAvailable')}</Button>
+                </Group>}</WriteControls>
+                {path === 'diagnosis_code' && !processing && <CodeCandidates handover={handover.data} onSaved={() => setOpenSections(openSections.includes('diagnosis') ? openSections : [...openSections, 'diagnosis'])} />}
+              </>}
               examinationAction={editable && <WriteControls>{(busy) => <Button variant="outline" size="compact-sm" pending={busy || processing} onClick={() => setAddExam(true)}>{t('referral.addExam')}</Button>}</WriteControls>} />
           </>}
           <FindingsPanel caseId={caseId} names={names} sources={sources} handover={handover.data} showField={showField} />

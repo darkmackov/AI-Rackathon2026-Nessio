@@ -4,9 +4,10 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { actorHeaders } from '../api'
 import { listCasesQueryKey } from '../client/@tanstack/react-query.gen'
-import type { Case } from '../client/types.gen'
+import type { Case, Handover } from '../client/types.gen'
 import { changeLanguage } from '../i18n'
 import { referenceHandover } from '../mocks/reference-data'
+import { s8Handover } from '../mocks/s8-data'
 import { renderApp } from './renderApp'
 import { seedReferral, seedReturnedReferral } from './referral-fixtures'
 import { changeIdentity, field, openReferrerCase, openTab, openUserMenu, signIn, wideScreen, type User } from './shell'
@@ -202,5 +203,33 @@ describe('S3 referring doctor workflow', () => {
     expect(within(field('Souhrn epikrízy')).queryByRole('button', { name: /Upravit|Doplnit/ })).not.toBeInTheDocument()
     await user.click(within(panel).getByRole('button', { name: 'Zavřít zdroj' }))
     expect(citation).toHaveFocus()
+  })
+
+  it('lets the doctor pick an AI-suggested MKN-10 code as a manual entry', async () => {
+    const item = seedReferral('draft-code', {}, { ...s8Handover, case_id: 'draft-code' })
+    const pick = vi.fn()
+    server.use(http.get('*/api/cases/draft-code/handover/code-candidates', () => HttpResponse.json([{ code: 'C20', title_cs: 'Zhoubný novotvar konečníku' }])),
+      http.post('*/api/cases/draft-code/handover/diagnosis-code', async ({ request }) => {
+        pick(await request.json(), request.headers.get('X-Actor-Id'))
+        const handover = demoState.documents.result('draft-code')?.handover as Handover
+        const updated: Handover = { ...handover, diagnosis_code: { value: 'C20', status: 'found', origin: 'manual', entered: { by: 'pl-reznicek', at: '2026-10-21T09:00:00' }, evidence: [], note: null } }
+        demoState.documents.saveHandover(updated)
+        return HttpResponse.json(updated)
+      }))
+    const { user } = await openReferral(item)
+    await review(user)
+    await user.click(within(field('MKN-10')).getByRole('button', { name: 'Navrhnout kód' }))
+    expect(await screen.findByText('AI návrhy. Kód se uloží teprve vaším výběrem.')).toBeVisible()
+    await user.click(await screen.findByRole('button', { name: 'Použít kód C20' }))
+    expect(await screen.findByText('Kód byl uložen jako ruční zadání.')).toBeVisible()
+    expect(pick).toHaveBeenCalledWith({ code: 'C20' }, 'pl-reznicek')
+    await waitFor(() => expect(within(field('MKN-10')).queryByRole('button', { name: 'Navrhnout kód' })).not.toBeInTheDocument())
+  })
+
+  it('does not offer code suggestions once the referral is sent', async () => {
+    const item = seedReferral('sent-code', { state: 'odeslano', queue: 'novy' }, { ...s8Handover, case_id: 'sent-code' })
+    const { user } = await openReferral(item)
+    await review(user)
+    expect(within(field('MKN-10')).queryByRole('button', { name: 'Navrhnout kód' })).not.toBeInTheDocument()
   })
 })

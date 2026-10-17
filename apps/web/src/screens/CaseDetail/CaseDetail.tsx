@@ -25,7 +25,7 @@ import SourcePanel, { SourcePlaceholder } from '../../components/handover/Source
 import TasksTab from './TasksTab'
 import MdtTab from './Mdt/MdtTab'
 import CommunicationTab from './CommunicationTab'
-import CodeCandidates from './S8/CodeCandidates'
+import CodeCandidates from '../../components/handover/CodeCandidates'
 
 const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles, audit: IconHistory, mdt: IconUsersGroup, communication: IconMessages }
 // Tabs without clinical values have no source column.
