@@ -161,7 +161,7 @@ flowchart LR
 - **Endpoints:** `askCase` (a `Job` of kind `ask_case`, the `CaseAnswer` in `job.answer`), `listCodeCandidates`, `pickDiagnosisCode` ([api.md](api.md)); models `DocChunk`, `CaseAnswer`, `CodeCandidate` and the finding kind `unverified_quote` (contract PR).
 - **Modules:**
   - `repository`: the `doc_chunk` table with a `VECTOR` column, filtered by `case_id` with an exact scan, no approximate index ([data-model.md](data-model.md) › Non-FHIR storage); the MKN-10 code table with embeddings (Q-C12).
-  - `ai`: chunk every parsed document along its sections (document id + character offsets) and embed it; a quote not found verbatim is flagged and shown with the nearest chunk (D-2 unchanged); "ask the case" retrieves the top chunks, answers only with quotes and checks each verbatim, else "not found" (no similarity cut-off); MKN-10 candidates.
+  - `ai`: chunk every parsed document along its sections (document id + character offsets) and embed it; a quote not found verbatim is flagged and shown with the nearest chunk (D-2 unchanged); "ask the case" retrieves the top chunks widened to their whole documents (within a character budget), answers only with quotes and checks each verbatim, else "not found" (no similarity cut-off); MKN-10 candidates.
   - `llm_gateway`: `embed` on the EU Data Zone embedding model (Q-M6, Q-M7).
 - **UI:**
   - "Ask the case" in case detail, every answer with click-through quotes.
