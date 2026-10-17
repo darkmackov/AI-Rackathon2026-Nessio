@@ -209,13 +209,6 @@ Package ids, versions, profile names and identifier systems below were **checked
 
 ### How the projection is written (S7, S9)
 
-**Download (Q-W17, user-authorized 17 October 2026):** `case_fhir_bundle` reads the case's existing
-projected `Patient/$everything` through the repository's FHIR client. The API's
-`GET /cases/{case_id}/fhir` returns it as a JSON file for the referring doctor or a coordinator of
-the case's KOC. Same-server pages are combined without changing resources. It exports the currently
-available projection, not pending outbox writes, and never re-runs mapping or changes app state.
-The in-memory repository has no FHIR server and reports unavailability; the web's MSW download is
-an explicitly labelled fictional sample with no clinical data.
 - `IrisRepository` pushes the projection on every save, as one FHIR transaction (`PUT` by id): `save_document` → `DocumentReference` + `Binary` (Q-I10; the parsed text when the original bytes are missing); `save_handover` → `Patient`, `Condition`, `Observation`, `DiagnosticReport`, `Composition`, `Provenance`; `save_task` → `Task`; `save_audit` → `AuditEvent`; `save_mdt_conclusion` with a confirmed conclusion → the MDT conclusion document `Bundle` + its `DocumentReference` (S9, Q-I20). Findings, cases and messages are not projected.
 - **`Task`** (S9): id `task-{task}`; status `planned` → `requested`, `booked` → `accepted`, `done` → `completed`, `cancelled` → `cancelled`; `intent=order`; priority `normal` → `routine`, `high` → `urgent`, `urgent` → `asap`; `requester` = the case's KOC, `owner` = `Task.owner` (both by name from the directory, as `display`); `restriction.period.end` = due; `for` = the case's `Patient` once a handover has been projected; the result document as `output` (`DocumentReference`).
 - **`AuditEvent`** (S9): id `audit-{event}`, type DICOM `110110` *Patient Record*, the app's `action` as `subtype`, `recorded` = `at`, the actor as the requesting `agent`, the case's `Patient` as `entity` (with `detail` as its description).
@@ -227,6 +220,7 @@ an explicitly labelled fictional sample with no clinical data.
 - Lab results: today the projection parses the number itself when it can (`valueQuantity` with the printed unit, no UCUM code), else `valueString`. With Q-C13 the parsing moves into extraction: `valueQuantity` gets the normalized number, the comparator and the UCUM unit (`http://unitsofmeasure.org`); a value that couldn't be normalized stays a `valueString`.
 - **Evidence:** each verbatim quote is a `Provenance.entity` (`role=source`) whose `what` references the source `DocumentReference` and carries the quote as `display` (PER-8). Manual values get an `author` Provenance with `entered.by/at`; `validated_by_referrer` / `confirmed_by_coordinator` get a `verifier` Provenance on the `Composition`.
 - Naive datetimes are sent as Europe/Prague local time (D-13).
+- **Download** (S9, Q-W17): `case_fhir_bundle` only reads the case's existing projected `Patient/$everything` through the repository's FHIR client; the API's `GET /cases/{case_id}/fhir` returns it as a JSON file to the referring doctor or a coordinator of the case's KOC. Same-server pages are combined without changing resources. It exports the projection available now (not pending outbox writes) and never re-runs mapping or changes app state. The in-memory repository has no FHIR server and reports unavailability; the web's MSW download is an explicitly labelled fictional sample with no clinical data.
 
 Two dependency problems with these packages. Decision (Q-I6, Q-I7): try loading them into IRIS; if that fails, declare `meta.profile` without server-side validation, and validate in tests/CI where feasible. Where the packages load, the opt-in IRIS tests validate every projected resource with the server's `$validate` (Q-I25).
 - `hl7.fhir.cz.terminology` 0.3.0 is missing from the registry.

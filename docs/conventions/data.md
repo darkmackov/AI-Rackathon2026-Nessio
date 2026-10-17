@@ -2,7 +2,7 @@
 
 Rules for the three shapes data takes in this repo: **domain models**, **API models**, and **persisted IRIS/FHIR**. Every rule has an ID so reviews (human or AI) can cite it. The [root AGENTS.md](../../AGENTS.md) makes these binding for AI agents.
 
-The API itself (all 67 endpoints, request/response, status codes) is defined in [api.md](../api.md). This page doesn't repeat it; it says how to work with it. Decisions behind this page: Q-K1 to Q-K7 in [open-questions.md](../open-questions.md#k-code-conventions), plus Q-A1 to Q-A8 (API design).
+The API itself (all 68 endpoints, request/response, status codes) is defined in [api.md](../api.md). This page doesn't repeat it; it says how to work with it. Decisions behind this page: Q-K1 to Q-K7 in [open-questions.md](../open-questions.md#k-code-conventions), plus Q-A1 to Q-A8 (API design).
 
 ## Three shapes, three owners
 

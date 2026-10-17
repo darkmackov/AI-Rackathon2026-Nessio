@@ -700,7 +700,6 @@ class IrisRepository:
             raise FhirExportUnavailableError("no FHIR exchange server")
         return self.projector.client.patient_bundle(patient_id(case_id))
 
-
     # --- vector search (S8, Q-I19) -------------------------------------------------------------
 
     def _vector_tables(self, vectors: list[list[float]] | None = None

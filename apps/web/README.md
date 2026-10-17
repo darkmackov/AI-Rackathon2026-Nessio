@@ -81,7 +81,7 @@ server (including the in-memory backend), the API returns 503 and the UI explain
 The MSW download is a clearly labelled **fictional sample without clinical data**, associated
 with the selected case; it does not claim to reproduce an IRIS projection. Outbound projections,
 AuditEvents, Tasks and outbox retries remain backend responsibilities (Q-W17).
-Local S9 tests are in `src/test/fhir-referral.test.tsx`; no browser automation is required.
+Local S9 tests are in `src/test/fhir-referral.test.tsx` and `src/test/fhir-export.test.tsx`; no browser automation is required.
 
 ## Verification and fixtures
 
