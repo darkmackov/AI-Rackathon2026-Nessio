@@ -7,6 +7,8 @@ import { requestFromFindingMutation, resolveFindingMutation } from '../../client
 import type { Finding, Handover } from '../../client/types.gen'
 import { handoverFields, sectionOf } from '../../components/handover/clinical'
 import HandoverFieldForm from '../../components/handover/HandoverFieldForm'
+import { findingActionMeta, type FindingAction } from '../../components/workflow/finding-action-meta'
+import { FindingActionGroup } from '../../components/workflow/FindingActionGroup'
 import WorkflowForm, { type WorkflowField } from '../../components/workflow/WorkflowForm'
 import { priorityValue, useOwnerChoices, usePriorityChoices, useWorkflowRefresh } from '../../components/workflow/use-workflow'
 import { useSession } from '../../session'
@@ -24,7 +26,7 @@ export function FieldEditor({ caseId, handover, paths, onSaved, onClose }: { cas
 
 export default function FindingActions({ caseId, finding, handover }: { caseId: string; finding: Finding; handover?: Handover }) {
   const { t } = useTranslation(), { actorId } = useSession()
-  const [action, setAction] = useState<'request' | 'fill' | 'resolve' | null>(null), [saved, setSaved] = useState(false)
+  const [action, setAction] = useState<FindingAction | null>(null), [saved, setSaved] = useState(false)
   const busy = useIsMutating() > 0, owners = useOwnerChoices(), priorities = usePriorityChoices(), refresh = useWorkflowRefresh(caseId)
   const request = useMutation(requestFromFindingMutation()), resolve = useMutation(resolveFindingMutation())
   const options = { path: { case_id: caseId, finding_id: finding.id }, headers: actorHeaders(actorId ?? '') }
@@ -40,13 +42,9 @@ export default function FindingActions({ caseId, finding, handover }: { caseId: 
   ]
   const success = () => { setAction(null); setSaved(true) }
   return <Stack gap={4}>
-    <Group gap="xs">
-      <Button size="compact-sm" variant={finding.suggested_action === 'request' ? 'filled' : 'light'} disabled={busy} onClick={() => { setSaved(false); setAction('request') }}>{t('caseDetail.request')}</Button>
-      {!!finding.fields?.length && handover && <Button size="compact-sm" variant={finding.suggested_action === 'fill_in' ? 'filled' : 'light'} disabled={busy} onClick={() => { setSaved(false); setAction('fill') }}>{t('caseDetail.fill')}</Button>}
-      <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => { setSaved(false); setAction('resolve') }}>{t('workflow.resolve')}</Button>
-    </Group>
+    <FindingActionGroup actions={finding.fields?.length && handover ? undefined : ['request', 'resolve']} disabled={busy} onAction={(entry) => { setSaved(false); setAction(entry) }} />
     {saved && <Text size="sm" role="status">{t('workflow.saved')}</Text>}
-    <Modal opened={!!action} onClose={() => { if (!busy) setAction(null) }} title={t(action === 'request' ? 'caseDetail.request' : action === 'fill' ? 'caseDetail.fill' : 'workflow.resolve')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+    <Modal opened={!!action} onClose={() => { if (!busy) setAction(null) }} title={action ? t(findingActionMeta[action].title) : undefined} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
       {action === 'fill' && handover && <FieldEditor caseId={caseId} handover={handover} paths={finding.fields ?? []} onSaved={success} onClose={() => setAction(null)} />}
       {action === 'request' && owners.state}
       {(action === 'request' && !owners.state || action === 'resolve') && <WorkflowForm key={action} fields={fields} initial={action === 'request' ? { owner: '', title: finding.message_cs, due: '', priority: 'normal', note: '' } : { kind: 'resolved', note: '' }} onSaved={success} help={action === 'request' ? t('workflow.requestHelp') : undefined} submit={async (values) => {
