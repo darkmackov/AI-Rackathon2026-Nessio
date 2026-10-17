@@ -1,5 +1,5 @@
-// `MDT_zaver`: the conclusion's own fields, with the patient, members and results restated from
-// the MDT record. Input: `title`, `header` (KOC and board lines), `conclusion` (MdtConclusion)
+// `MDT_zaver`: the conclusion's own fields, with the patient, members and comorbidities restated
+// from the MDT record (not the earlier examinations). Input: `title`, `header` (KOC and board lines), `conclusion` (MdtConclusion)
 // and `record` (MdtRecord or none).
 
 #import "common.typ": *
@@ -45,15 +45,11 @@
 
 *Název a kód:* #or-missing(joined(conclusion.diagnosis_code, conclusion.diagnosis_name, sep: " – "))
 
-*Klinické zhodnocení:* #or-missing(conclusion.clinical_assessment)
-
 #if record != none [
-  == Výsledky stávajících vyšetření
-
-  #result-list(record.results)
-
   *Komorbidity:* #or-missing(record.comorbidities.join(", "))
 ]
+
+*Klinické zhodnocení:* #or-missing(conclusion.clinical_assessment)
 
 == Závěr MDT
 

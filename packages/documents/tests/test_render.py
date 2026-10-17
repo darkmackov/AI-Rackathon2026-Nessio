@@ -79,14 +79,15 @@ def test_mdt_conclusion_follows_the_mdt_zaver_layout():
                                        header=["Komplexní onkologické centrum Nemocnice Lipová"]))
 
     assert "Nemocnice Lipová" in text
-    for heading in ("Základní údaje", "Členové MDT", "Diagnóza", "Výsledky stávajících vyšetření",
-                    "Závěr MDT", "Doporučení MDT"):
+    for heading in ("Základní údaje", "Členové MDT", "Diagnóza", "Závěr MDT", "Doporučení MDT"):
         assert heading in text
     assert "C25.0 – Duktální adenokarcinom" in text
     assert "Praha 4, 21. 10. 2026" in text
     assert "předsedající MDT" in text
     assert "Kopie: MUDr. Tomáš Řezníček" in text
-    assert "CT břicha 8. 10. 2026 Tumor hlavy pankreatu" in text
+    assert "Výsledky stávajících vyšetření" not in text
+    assert "Tumor hlavy pankreatu" not in text
+    assert "Komorbidity: Arteriální hypertenze" in text
 
 
 def test_conclusion_without_a_record_still_renders():
