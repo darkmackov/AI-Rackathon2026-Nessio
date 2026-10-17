@@ -56,10 +56,9 @@ export function createCoordinatorState() {
       .sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999') || a.id.localeCompare(b.id))[0]
     const queue = item.on_hold ? 'odlozeny' : ['odeslano', 'v_triage', 'koncept'].includes(item.state ?? '') ? 'novy' : 'aktivni'
     const returned = item.state === 'vraceno_lekari'
-    // After the feedback only the GP's receipt is pending, and a closed case has no next step; tasks never override either (S6).
+    // After the feedback the GP is on the move until the receipt, a closed case nobody; neither has a step and tasks never override them (S6).
     if (item.state === 'zpetna_vazba_odeslana' || item.state === 'uzavreno') {
-      const waiting = item.state === 'zpetna_vazba_odeslana'
-      saveCase({ ...item, queue, on_move: waiting ? item.referring_doctor_id : null, next_step: waiting ? 'Potvrdit převzetí výsledku MDT' : null, next_due: null })
+      saveCase({ ...item, queue, on_move: item.state === 'zpetna_vazba_odeslana' ? item.referring_doctor_id : null, next_step: null, next_due: null })
       return
     }
     saveCase({

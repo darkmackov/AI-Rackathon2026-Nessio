@@ -14,7 +14,8 @@ import WorkflowForm from '../../components/workflow/WorkflowForm'
 import { useSession } from '../../session'
 import { formatDate, formatDateTime } from '../../time'
 
-const noticeStates = ['v_triage', 'ceka_na_podklady', 'kompletni', 'pripraveno_k_mdt', 'zaver_mdt', 'zpetna_vazba_odeslana']
+// Mirrors when the backend records a patient notice: after the take-over, until the case is closed.
+const noticeStates = ['v_triage', 'vraceno_lekari', 'ceka_na_podklady', 'kompletni', 'pripraveno_k_mdt', 'zaver_mdt', 'zpetna_vazba_odeslana']
 
 export default function CommunicationTab({ item }: { item: Case }) {
     const { t, i18n } = useTranslation(), { actorId } = useSession(), client = useQueryClient(), busy = useIsMutating() > 0
@@ -89,9 +90,10 @@ export default function CommunicationTab({ item }: { item: Case }) {
                         {record.data && <List.Item>{t('messages.contentRecord', { date: formatDate(record.data.mdt_date, i18n.language) })}</List.Item>}
                         <List.Item>{t('messages.contentPdf')}</List.Item>
                         {uploaded && <List.Item>{t('messages.contentUpload', { name: uploaded.title ?? uploaded.filename })}</List.Item>}
+                        <List.Item>{t('messages.contentQuoted')}</List.Item>
                     </List>
                 </div>
-                <WorkflowForm fields={[{ name: 'note', label: t('messages.noteLabel'), type: 'textarea' }]} initial={{ note: '' }} submitLabel={t('messages.sendGp')} submitDisabled={!canSend || !record.isSuccess || (!!conclusion.data?.document_id && (!documents.isSuccess || !uploaded))} onSaved={() => done('sent')}
+                <WorkflowForm fields={[{ name: 'note', label: t('messages.noteLabel'), type: 'textarea' }]} initial={{ note: '' }} submitLabel={t('messages.sendGp')} submitDisabled={!canSend} onSaved={() => done('sent')}
                     submit={async (values) => { await send.mutateAsync({ ...options, body: { note: values.note.trim() || null } }); await refreshMessages(client, item.id) }} />
             </Stack>}
         </Modal>

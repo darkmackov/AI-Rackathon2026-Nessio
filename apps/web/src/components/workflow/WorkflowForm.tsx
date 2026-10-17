@@ -16,7 +16,7 @@ export type WorkflowValues = Record<string, string>
 export function WorkflowError({ error }: { error: unknown }) {
   const { t } = useTranslation()
   if (error instanceof ApiError && error.detail && typeof error.detail === 'object' && 'detail' in error.detail) {
-    const messages: Record<string, string> = { 'task set already started for this case': 'duplicateSet', 'transition is not allowed': 'invalidTransition', 'dependency cycle': 'cycle', 'duplicate dependency key': 'duplicateKey', 'dependency not found in this case or task set': 'missingDependency', 'result document must belong to this case': 'wrongDocument', 'case is not editable before MDT': 'locked', 'the feedback has already been sent': 'alreadySent', 'the MDT conclusion is not confirmed': 'notConfirmed' }
+    const messages: Record<string, string> = { 'task set already started for this case': 'duplicateSet', 'transition is not allowed': 'invalidTransition', 'dependency cycle': 'cycle', 'duplicate dependency key': 'duplicateKey', 'dependency not found in this case or task set': 'missingDependency', 'result document must belong to this case': 'wrongDocument', 'case is not editable before MDT': 'locked', 'the feedback is sent from zaver_mdt, not zpetna_vazba_odeslana': 'alreadySent', 'the feedback is sent from zaver_mdt, not uzavreno': 'alreadySent', 'confirm the MDT conclusion before sending it': 'notConfirmed' }
     const key = typeof error.detail.detail === 'string' ? messages[error.detail.detail] : undefined
     if (key) return <Alert color="red" role="alert">{t(`workflow.${key}`)}</Alert>
   }

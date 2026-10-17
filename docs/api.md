@@ -19,7 +19,7 @@ Every endpoint already has its request and response shape in the OpenAPI spec ([
 
 **S5 web (Q-W15):** the MDT tab runs against the real S5 endpoints. Its MSW mock mirrors the backend's S5 rules and its audit action names, so mock and real mode behave the same.
 
-**S6 frontend demo (Q-W16):** the web simulates the six feedback operations (`sendFeedback`, `listInbox`, `confirmReceipt`, `listCaseReceipts`, `listCaseMessages`, `createPatientNotice`) with MSW and the existing models: the coordinator's *Komunikace* tab and the GP's inbox on their home page. The endpoint statuses below still describe the Python backend, which stays 501.
+**S6 web (Q-W16):** the coordinator's *Komunikace* tab and the GP's inbox on their home page run against the real S6 endpoints. Their MSW mock mirrors the backend's S6 rules and audit action names, so mock and real mode behave the same.
 
 Live docs while the API runs: `http://localhost:8000/docs`.
 
