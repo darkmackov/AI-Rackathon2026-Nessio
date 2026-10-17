@@ -1,4 +1,6 @@
-import { Button, NativeSelect, Paper, Stack, Text } from '@mantine/core'
+import Button from '../components/ActionButton'
+import { pendingControlProps } from '../components/pending-control'
+import { NativeSelect, Paper, Stack, Text } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -36,7 +38,7 @@ export default function IdentitySelection() {
     <Paper withBorder p="lg">
       <form onSubmit={(event) => { event.preventDefault(); void submit() }}>
         <Stack>
-          <NativeSelect label={t('role')} value={role} disabled={pending}
+          <NativeSelect label={t('role')} value={role} {...pendingControlProps(pending)}
             data={[{ value: 'referring_doctor', label: t('referring_doctor') }, { value: 'coordinator', label: t('coordinator') }]}
             onChange={(event) => {
               if (isUserRole(event.currentTarget.value)) setRole(event.currentTarget.value)
@@ -44,12 +46,12 @@ export default function IdentitySelection() {
             }} />
           {people.isPending && <LoadingState />}
           {people.isError && <QueryError error={people.error} pending={people.isFetching} retry={() => { void people.refetch() }} />}
-          {people.isSuccess && (people.data.length ? <NativeSelect label={t('person')} value={person} disabled={pending}
+          {people.isSuccess && (people.data.length ? <NativeSelect label={t('person')} value={person} {...pendingControlProps(pending)}
             data={[{ value: '', label: t('choosePerson') }, ...people.data.map((actor) => ({ value: actor.id, label: actor.name }))]}
             onChange={(event) => { setPerson(event.currentTarget.value); setError(null) }} />
             : <EmptyState title={t('emptyDirectory')} retry={() => { void people.refetch() }} />)}
           {error != null && <QueryError error={error} retry={() => { void submit() }} />}
-          <Button type="submit" loading={pending} disabled={!person || !people.isSuccess}>{t('continue')}</Button>
+          <Button type="submit" pending={pending} disabled={!person || !people.isSuccess}>{t('continue')}</Button>
         </Stack>
       </form>
     </Paper>

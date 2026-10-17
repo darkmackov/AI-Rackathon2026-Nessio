@@ -3,9 +3,15 @@ import AppShell from './components/AppShell'
 import { Entry, CoordinatorRoute, CoordinatorDetailRoute, ReferrerRoute, ReferralRoute, NotFound } from './RoutePages'
 import { detailSearch } from './case-route'
 import { entrySearch } from './session'
+import RouteFailure from './components/RouteFailure'
+import { i18n } from './i18n'
+import { notifyError } from './notifications/notify'
 
 export function createAppRouter(history?: RouterHistory) {
-  const root = createRootRoute({ component: AppShell, notFoundComponent: NotFound })
+  const root = createRootRoute({
+    component: AppShell, notFoundComponent: NotFound, errorComponent: RouteFailure,
+    onCatch: () => notifyError('route', i18n.t('notices.pageFailed'))
+  })
   const entry = createRoute({ getParentRoute: () => root, path: '/', validateSearch: entrySearch, component: Entry })
   const coordinator = createRoute({ getParentRoute: () => root, path: '/coordinator', component: CoordinatorRoute })
   const referrer = createRoute({ getParentRoute: () => root, path: '/referrer', component: ReferrerRoute })

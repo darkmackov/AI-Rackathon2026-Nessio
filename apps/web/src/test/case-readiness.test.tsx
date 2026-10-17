@@ -16,13 +16,13 @@ const markComplete = 'Označit podklady za kompletní'
 const wait = 'Čekat na podklady'
 const waitAgain = 'Znovu čekat na podklady'
 
-async function openCase(state: Case['state']) {
+async function openCase(state: Case['state'], options: { notifications?: boolean } = {}) {
   const item = seedReferral(caseId, { patient_name: 'Fiktivní kontrola podkladů', state, coordinator_id: 'koordinator' })
   demoState.documents.saveResult(caseId, {
     handover: { case_id: caseId, as_of: '2026-10-21' },
     findings: [{ id: 'readiness-missing', kind: 'missing', severity: 'blocker', message_cs: 'Fiktivní chybějící údaj.', resolved: false }],
   })
-  const view = renderApp(), user = userEvent.setup()
+  const view = renderApp('/', options), user = userEvent.setup()
   await signIn(user)
   await act(async () => { await view.router.navigate({ to: '/coordinator/cases/$caseId', params: { caseId }, search: { tab: 'overview' } }) })
   await screen.findByRole('heading', { name: item.patient_name, level: 1 })
@@ -99,13 +99,13 @@ describe('Coordinator document readiness actions', () => {
   })
 
   it.each([409, 500])('preserves the note on a %s API error and retries without exposing technical details', async (status) => {
-    const { user } = await openCase('v_triage')
+    const { user } = await openCase('v_triage', { notifications: true })
     server.use(http.post('*/api/cases/:id/transition', () => HttpResponse.json({ detail: 'private technical information' }, { status })))
     await user.click(screen.getByRole('button', { name: markComplete }))
     const form = within(await screen.findByRole('dialog', { name: markComplete }))
     fireEvent.change(form.getByLabelText('Poznámka'), { target: { value: 'Zachovaná poznámka.' } })
     await user.click(form.getByRole('button', { name: markComplete }))
-    expect(await form.findByRole('alert')).toBeVisible()
+    expect(await screen.findByRole('alert')).toBeVisible()
     expect(form.getByLabelText('Poznámka')).toHaveValue('Zachovaná poznámka.')
     expect(screen.queryByText('private technical information')).not.toBeInTheDocument()
     expect(demoState.getCases().find((item) => item.id === caseId)?.state).toBe('v_triage')

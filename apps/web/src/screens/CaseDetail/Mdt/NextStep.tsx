@@ -1,4 +1,5 @@
-import { Alert, Button, Group, Paper, Stack, Stepper, Text, Title, VisuallyHidden } from '@mantine/core'
+import Button from '../../../components/ActionButton'
+import { Alert, Group, Paper, Stack, Stepper, Text, Title, VisuallyHidden } from '@mantine/core'
 import { IconArrowRight, IconChecks, IconSend } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { mdtStages, stageIndex, type MdtStage } from './mdt-progress'
@@ -26,7 +27,7 @@ export default function NextStep({ stage, feedback, disabled, pending, goSnapsho
   const { t } = useTranslation()
   const action = stage === 'snapshot' ? <Button rightSection={<IconArrowRight size={16} aria-hidden />} onClick={goSnapshot}>{t('mdt.goSnapshot')}</Button>
     : stage === 'conclusion' ? <Button rightSection={<IconArrowRight size={16} aria-hidden />} onClick={goConclusion}>{t('mdt.goConclusion')}</Button>
-    : stage === 'confirm' ? <Button leftSection={<IconChecks size={16} aria-hidden />} disabled={disabled || pending} onClick={confirm}>{t('mdt.confirm')}</Button>
+    : stage === 'confirm' ? <Button leftSection={<IconChecks size={16} aria-hidden />} pending={pending} disabled={disabled} onClick={confirm}>{t('mdt.confirm')}</Button>
     : stage === 'send' ? <Button leftSection={<IconSend size={16} aria-hidden />} onClick={goSend}>{t('mdt.goSend')}</Button>
     : null
   return <Paper component="section" aria-labelledby="mdt-next-step" withBorder p="md" style={{ borderLeft: '4px solid var(--mantine-primary-color-filled)' }}><Stack gap="sm">

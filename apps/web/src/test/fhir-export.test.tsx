@@ -69,14 +69,15 @@ describe('S9 FHIR export', () => {
     [0, 'FHIR export se nepodařilo stáhnout. Zkuste to znovu.'],
   ])('shows a safe %s error, creates no file and allows retry', async (status, message) => {
     server.use(http.get('*/api/cases/:id/fhir', () => status === 0 ? HttpResponse.error() : HttpResponse.json({ detail: 'private technical details' }, { status: Number(status) })))
-    renderApp(); const user = userEvent.setup(); await openReferenceCase(user)
+    renderApp('/', { notifications: true }); const user = userEvent.setup(); await openReferenceCase(user)
     await user.click(screen.getByRole('button', { name: 'Exportovat FHIR' }))
-    expect(await screen.findByText(message)).toHaveAttribute('role', 'alert')
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.queryByText('private technical details')).not.toBeInTheDocument()
     expect(URL.createObjectURL).not.toHaveBeenCalled()
     server.resetHandlers()
     await user.click(screen.getByRole('button', { name: 'Exportovat FHIR' }))
-    expect(await screen.findByText('FHIR soubor byl připraven ke stažení.')).toBeVisible()
+    expect((await screen.findAllByText('FHIR soubor byl připraven ke stažení.'))[0]).toBeVisible()
   })
 
   it('follows a new case id and translates labels without reusing the old download', async () => {
@@ -100,9 +101,9 @@ describe('S9 FHIR export', () => {
   })
 
   it('shows pending state and never downloads stale data when a new request fails', async () => {
-    renderApp(); const user = userEvent.setup(); await openReferenceCase(user)
+    renderApp('/', { notifications: true }); const user = userEvent.setup(); await openReferenceCase(user)
     await user.click(screen.getByRole('button', { name: 'Exportovat FHIR' }))
-    await screen.findByText('FHIR soubor byl připraven ke stažení.')
+    await screen.findAllByText('FHIR soubor byl připraven ke stažení.')
     let release: (() => void) | undefined
     server.use(http.get('*/api/cases/:id/fhir', async () => {
       await new Promise<void>((resolve) => { release = resolve })
@@ -113,11 +114,11 @@ describe('S9 FHIR export', () => {
     await waitFor(() => expect(release).toBeDefined())
     try {
       expect(button).toBeDisabled()
-      expect(screen.queryByText('FHIR soubor byl připraven ke stažení.')).not.toBeInTheDocument()
+      await waitFor(() => expect(screen.queryByText('FHIR soubor byl připraven ke stažení.')).not.toBeInTheDocument())
     } finally {
       await act(async () => { release?.() })
     }
-    expect(await screen.findByText('FHIR server nyní export neposkytl. Zkuste to znovu později.')).toBeVisible()
+    expect(await screen.findByRole('alert')).toHaveTextContent('FHIR server nyní export neposkytl. Zkuste to znovu později.')
     expect(URL.createObjectURL).toHaveBeenCalledOnce()
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledOnce()
   })

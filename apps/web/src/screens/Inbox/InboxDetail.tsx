@@ -1,4 +1,6 @@
-import { Alert, Anchor, Button, Group, Modal, Paper, Stack, Text, Title } from '@mantine/core'
+import { pendingControlProps } from '../../components/pending-control'
+import Button from '../../components/ActionButton'
+import { Alert, Anchor, Group, Modal, Paper, Stack, Text, Title } from '@mantine/core'
 import { IconChevronDown, IconChevronUp, IconCircleCheck } from '@tabler/icons-react'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -64,14 +66,14 @@ function MdtResult({ message, item, actorId, receipt, receiptsReady }: { message
                 {confirmed && <Text size="sm">{t('messages.confirmed')}</Text>}
                 <Text size="sm">{t('messages.receiptText', { name: names[receipt.recipient_id] ?? t('unavailable'), date: formatDateTime(receipt.confirmed_at, i18n.language) })}</Text>
             </Alert>
-            : <Group><Button disabled={busy || !receiptsReady || !item || !conclusion.isSuccess} onClick={() => { confirm.reset(); setConfirming(true) }}>{t('messages.confirm')}</Button></Group>}
-        <Modal opened={confirming} onClose={() => { if (!busy) setConfirming(false) }} title={t('messages.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+            : <Group><Button pending={busy} disabled={!receiptsReady || !item || !conclusion.isSuccess} onClick={() => { confirm.reset(); setConfirming(true) }}>{t('messages.confirm')}</Button></Group>}
+        <Modal opened={confirming} onClose={() => { if (!busy) setConfirming(false) }} title={t('messages.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
             <Stack>
                 <Text size="sm">{t('messages.confirmText', { patient: item?.patient_name || t('referral.unnamed') })}</Text>
                 {confirm.isError && <QueryError error={confirm.error} />}
                 <Group justify="flex-end">
-                    <Button variant="default" disabled={busy} onClick={() => setConfirming(false)}>{t('cancel')}</Button>
-                    <Button loading={confirm.isPending} disabled={busy || !receiptsReady || !item || !conclusion.isSuccess} onClick={() => confirm.mutate({ headers: actorHeaders(actorId), path: { message_id: message.id } })}>{t('messages.confirm')}</Button>
+                    <Button variant="default" pending={busy} onClick={() => setConfirming(false)}>{t('cancel')}</Button>
+                    <Button pending={busy || confirm.isPending} disabled={!receiptsReady || !item || !conclusion.isSuccess} onClick={() => confirm.mutate({ headers: actorHeaders(actorId), path: { message_id: message.id } })}>{t('messages.confirm')}</Button>
                 </Group>
             </Stack>
         </Modal>

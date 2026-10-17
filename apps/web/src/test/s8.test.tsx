@@ -10,8 +10,10 @@ import { demoState, server } from './setup'
 
 const quote = 'Tumor hlavy pankreatu 35 mm s venózním postižením VMS se zúžením lumen a s kontaktem s AMS.'
 function done(found = true): Job {
-  return { id: 'test-s8-question', case_id: 'vzp-prochazkova', kind: 'ask_case', status: 'done', created_at: '2026-10-21T09:00:00', params: { question: 'Jaký byl nález na CT?' },
-    answer: { question: 'Jaký byl nález na CT?', found, quotes: found ? [{ document_id: '08', quote }] : [] } }
+  return {
+    id: 'test-s8-question', case_id: 'vzp-prochazkova', kind: 'ask_case', status: 'done', created_at: '2026-10-21T09:00:00', params: { question: 'Jaký byl nález na CT?' },
+    answer: { question: 'Jaký byl nález na CT?', found, quotes: found ? [{ document_id: '08', quote }] : [] }
+  }
 }
 function serveAnswer(value: Job) {
   const post = vi.fn()
@@ -105,11 +107,14 @@ describe('S8 questions in the case header', () => {
   it('shows failed jobs and permits an explicit retry', async () => {
     const value: Job = { ...done(), status: 'failed', answer: null, error: 'Fiktivní chyba zpracování' }
     serveAnswer(value)
-    renderApp()
+    renderApp('/', { notifications: true })
     const user = userEvent.setup()
     await openReferenceCase(user)
     await user.type(screen.getByRole('textbox', { name: 'Vyhledat v případu' }), 'Jaký byl nález na CT?{Enter}')
-    expect(await screen.findByText('Fiktivní chyba zpracování')).toBeVisible()
+    const result = await screen.findByRole('dialog', { name: 'Výsledek dotazu' })
+    expect(await screen.findByText('Dotaz nad podklady se nepodařilo zpracovat. Zkuste jej odeslat znovu.')).toBeVisible()
+    expect(within(result).queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('Fiktivní chyba zpracování')).not.toBeInTheDocument()
     const post = serveAnswer(done())
     await user.click(screen.getByRole('button', { name: 'Zopakovat dotaz' }))
     expect(await screen.findByText(quote)).toBeVisible()
@@ -119,7 +124,7 @@ describe('S8 questions in the case header', () => {
   it('shows a polling error with retry, a malformed result and an unavailable source without inventing content', async () => {
     serveAnswer({ ...done(), status: 'queued', answer: null })
     server.use(http.get('*/api/jobs/:id', () => HttpResponse.json({ detail: 'unavailable' }, { status: 503 })))
-    renderApp()
+    renderApp('/', { notifications: true })
     const user = userEvent.setup()
     await openReferenceCase(user)
     await user.type(screen.getByRole('textbox', { name: 'Vyhledat v případu' }), 'Jaký byl nález na CT?{Enter}')
@@ -127,6 +132,7 @@ describe('S8 questions in the case header', () => {
     server.use(http.get('*/api/jobs/:id', () => HttpResponse.json<Job>({ ...done(), answer: null })))
     await user.click(screen.getByRole('button', { name: 'Zkusit znovu' }))
     expect(await screen.findByText('Výsledek neobsahuje ověřené citace. Zkuste dotaz znovu.')).toBeVisible()
+    expect(within(screen.getByRole('dialog', { name: 'Výsledek dotazu' })).queryByRole('alert')).not.toBeInTheDocument()
     serveAnswer({ ...done(), answer: { question: 'Jaký byl nález na CT?', found: true, quotes: [{ document_id: 'unrelated', quote: 'Nedostupný zdroj' }] } })
     await user.click(screen.getByRole('button', { name: 'Zopakovat dotaz' }))
     await user.click(await screen.findByRole('button', { name: /^Otevřít zdroj:/ }))
@@ -171,7 +177,7 @@ describe('S8 code suggestions and unverified quotes', () => {
 
   it('shows empty candidates and a stale pick without writing a different code', async () => {
     server.use(http.get('*/api/cases/:id/handover/code-candidates', () => HttpResponse.json([])))
-    renderApp()
+    renderApp('/', { notifications: true })
     const user = userEvent.setup()
     await openS8(user)
     await openTab(user, 'Předávka')
@@ -182,6 +188,8 @@ describe('S8 code suggestions and unverified quotes', () => {
     await user.click(within(field('MKN-10')).getByRole('button', { name: 'Navrhnout kód' }))
     await user.click(await screen.findByRole('button', { name: 'Použít kód C20' }))
     expect(await screen.findByText('Návrhy již nemusí být aktuální. Obnovte údaje a zkuste to znovu.')).toBeVisible()
+    expect(within(field('MKN-10')).queryByText('Návrhy již nemusí být aktuální. Obnovte údaje a zkuste to znovu.')).not.toBeInTheDocument()
+    expect(within(field('MKN-10')).getByRole('button', { name: 'Obnovit údaje' })).toBeEnabled()
     expect(demoState.documents.result('demo-s8')?.handover.diagnosis_code?.value).toBeNull()
   })
 

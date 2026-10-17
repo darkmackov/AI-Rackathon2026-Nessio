@@ -1,4 +1,5 @@
-import { ActionIcon, Alert, Badge, Button, CloseButton, Group, Loader, Paper, Popover, Stack, Text, TextInput } from '@mantine/core'
+import ActionIcon from '../../../components/ActionIconButton'
+import { Badge, Button, CloseButton, Group, Loader, Paper, Popover, Stack, Text, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useQuery } from '@tanstack/react-query'
 import { IconArrowRight, IconFileText, IconSearch } from '@tabler/icons-react'
@@ -43,9 +44,13 @@ function Search({ caseId, actorId }: { caseId: string; actorId: string }) {
   }
   return <>
     <Popover opened={opened} onChange={setOpened} position="bottom-end" width={440} shadow="md" withinPortal zIndex={310} returnFocus={false} withRoles={false}
-      preventPositionChangeWhenVisible={false} middlewares={{ size: { padding: 12, apply: ({ availableHeight, elements }) => {
-        elements.floating.style.maxHeight = `${Math.max(0, Math.min(446, availableHeight))}px`
-      } } }}>
+      preventPositionChangeWhenVisible={false} middlewares={{
+        size: {
+          padding: 12, apply: ({ availableHeight, elements }) => {
+            elements.floating.style.maxHeight = `${Math.max(0, Math.min(446, availableHeight))}px`
+          }
+        }
+      }}>
       <Popover.Target>
         <form noValidate onSubmit={form.onSubmit(({ question }) => { if (!busy) send(question.trim()) })}>
           <TextInput ref={input} label={t('s8.ask')} placeholder={t('s8.placeholder')} size="sm" aria-haspopup="dialog" aria-expanded={opened} aria-controls={opened ? resultId : undefined} aria-keyshortcuts="ArrowDown"
@@ -55,7 +60,7 @@ function Search({ caseId, actorId }: { caseId: string; actorId: string }) {
               if (event.key === 'Escape') close()
               if (event.key === 'ArrowDown' && opened) { event.preventDefault(); resultPanel.current?.querySelector<HTMLButtonElement>('button')?.focus() }
             }}
-            rightSection={<ActionIcon type="submit" variant="subtle" aria-label={t('s8.submit')} disabled={busy} size={28}>{busy ? <Loader size={14} /> : <IconArrowRight size={16} aria-hidden />}</ActionIcon>} />
+            rightSection={<ActionIcon type="submit" variant="subtle" aria-label={t('s8.submit')} pending={busy} size={28}><IconArrowRight size={16} aria-hidden /></ActionIcon>} />
         </form>
       </Popover.Target>
       <Popover.Dropdown ref={resultPanel} id={resultId} role="dialog" aria-label={t('s8.answer')} maw="calc(100vw - 24px)" p="sm" style={{ overflowY: 'auto' }} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); close() } }}>
@@ -67,7 +72,7 @@ function Search({ caseId, actorId }: { caseId: string; actorId: string }) {
           {busy && <Group gap="xs" role="status"><Loader size="xs" /><Text size="sm">{t(`documents.jobStatus.${current?.status ?? 'queued'}`)}</Text></Group>}
           {create.isError && <QueryError error={create.error} retry={retry} pending={create.isPending} />}
           {jobId && job.isError && <QueryError error={job.error} retry={() => { void job.refetch() }} pending={job.isFetching} />}
-          {current?.status === 'failed' && <Alert color="red" role="alert"><Stack gap="xs"><Text size="sm">{t('s8.failed')}</Text>{current.error && <Text size="sm">{current.error}</Text>}<Button size="compact-sm" variant="outline" onClick={retry}>{t('s8.retryAsk')}</Button></Stack></Alert>}
+          {current?.status === 'failed' && <Button size="compact-sm" variant="outline" onClick={retry}>{t('s8.retryAsk')}</Button>}
           {current?.status === 'done' && (answer?.found === false ? <EmptyState title={t('s8.notFound')} />
             : answer?.found && !!answer.quotes?.length ? <Stack gap="xs" aria-live="polite">
               <Badge variant="light" color="violet" size="sm">{t('caseDetail.ai')}</Badge>
@@ -79,7 +84,7 @@ function Search({ caseId, actorId }: { caseId: string; actorId: string }) {
                     onClick={() => { setOpened(false); setSourceIndex(index) }} styles={{ label: { whiteSpace: 'normal', overflowWrap: 'anywhere' } }}>{name}</Button>
                 </Stack></Paper>
               })}
-            </Stack> : <Alert color="orange" role="alert"><Stack gap="xs"><Text size="sm">{t('s8.invalidAnswer')}</Text><Button size="compact-sm" variant="outline" onClick={retry}>{t('s8.retryAsk')}</Button></Stack></Alert>)}
+            </Stack> : <Button size="compact-sm" variant="outline" onClick={retry}>{t('s8.retryAsk')}</Button>)}
         </Stack>
       </Popover.Dropdown>
     </Popover>

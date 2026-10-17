@@ -5,6 +5,7 @@ import { setupServer } from 'msw/node'
 import { configureClient } from '../api'
 import { changeLanguage } from '../i18n'
 import { createDemoState, createHandlers } from '../mocks/handlers'
+import { clearNotifications } from '../notifications/notify'
 
 export const demoState = createDemoState()
 export const server = setupServer(...createHandlers(demoState))
@@ -27,11 +28,12 @@ globalThis.ResizeObserver = class {
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 beforeEach(async () => {
+  clearNotifications()
   vi.mocked(window.matchMedia).mockImplementation(narrowScreen)
   configureClient('http://localhost:5173/api')
   demoState.reset('reference_at_mdt')
   sessionStorage.clear()
   await changeLanguage('cs')
 })
-afterEach(() => { cleanup(); server.resetHandlers(); vi.restoreAllMocks() })
+afterEach(() => { cleanup(); clearNotifications(); server.resetHandlers(); vi.restoreAllMocks() })
 afterAll(() => server.close())

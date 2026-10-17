@@ -1,8 +1,10 @@
+import { pendingControlProps } from '../../components/pending-control'
+import Button from '../../components/ActionButton'
 import TaskEditor from './TaskEditor'
 import TaskSetsDialog from './TaskSetsDialog'
 import { useState } from 'react'
 import { useIsMutating } from '@tanstack/react-query'
-import { Anchor, Badge, Button, Group, Modal, Stack, Table, Text } from '@mantine/core'
+import { Anchor, Badge, Group, Modal, Stack, Table, Text } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
@@ -24,7 +26,7 @@ export default function TasksTab({ caseId, openSource, showFinding }: { caseId: 
   const tasks = useQuery(listTasksOptions({ path: { case_id: caseId }, headers: actorHeaders(actorId ?? '') }))
   const sorted = [...tasks.data ?? []].sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999') || a.id.localeCompare(b.id))
   return <Stack>
-    <Group gap="xs"><Button size="xs" leftSection={<IconListCheck size={16} aria-hidden />} disabled={busy} onClick={() => { setSaved(false); setSetsOpen(true) }}>{t('caseDetail.startSet')}</Button><Button size="xs" variant="outline" leftSection={<IconPlus size={16} aria-hidden />} disabled={busy} onClick={() => { setSaved(false); setEditing('new') }}>{t('caseDetail.addTask')}</Button></Group>
+    <Group gap="xs"><Button size="xs" leftSection={<IconListCheck size={16} aria-hidden />} pending={busy} onClick={() => { setSaved(false); setSetsOpen(true) }}>{t('caseDetail.startSet')}</Button><Button size="xs" variant="outline" leftSection={<IconPlus size={16} aria-hidden />} pending={busy} onClick={() => { setSaved(false); setEditing('new') }}>{t('caseDetail.addTask')}</Button></Group>
     {saved && <Text role="status" size="sm">{t('workflow.saved')}</Text>}
     {tasks.isPending && <LoadingState rows={5} />}
     {tasks.isError && <QueryError error={tasks.error} pending={tasks.isFetching} retry={() => { void tasks.refetch() }} />}
@@ -53,13 +55,13 @@ export default function TasksTab({ caseId, openSource, showFinding }: { caseId: 
           })}
         </Stack></Table.Td>
         <Table.Td><Stack gap={4} align="flex-start">
-          <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => { setSaved(false); setEditing(task.id) }}>{t('workflow.editTask')}</Button>
+          <Button size="compact-sm" variant="subtle" pending={busy} onClick={() => { setSaved(false); setEditing(task.id) }}>{t('workflow.editTask')}</Button>
           {task.finding_id && <Button variant="subtle" size="compact-sm" onClick={() => showFinding(task.finding_id!)}>{t('caseDetail.relatedFinding')}</Button>}
           {task.result_document_id && <Button variant="subtle" size="compact-sm" onClick={(event) => openSource({ documentId: task.result_document_id! }, event.currentTarget)}>{t('caseDetail.resultDocument')}</Button>}
         </Stack></Table.Td>
       </Table.Tr>)}</Table.Tbody>
     </Table></Table.ScrollContainer>}
-    <Modal opened={!!editing} onClose={() => { if (!busy) setEditing(null) }} title={t(editing === 'new' ? 'caseDetail.addTask' : 'workflow.editTask')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+    <Modal opened={!!editing} onClose={() => { if (!busy) setEditing(null) }} title={t(editing === 'new' ? 'caseDetail.addTask' : 'workflow.editTask')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {editing && <TaskEditor key={editing} caseId={caseId} task={tasks.data?.find((task) => task.id === editing)} onSaved={() => { setEditing(null); setSaved(true) }} />}
     </Modal>
     {setsOpen && <TaskSetsDialog caseId={caseId} opened onClose={() => setSetsOpen(false)} onSaved={() => { setSetsOpen(false); setSaved(true) }} />}

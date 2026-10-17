@@ -1,6 +1,7 @@
-import { Alert, Button, Paper, SimpleGrid, Stack, Title } from '@mantine/core'
-import { useIsMutating } from '@tanstack/react-query'
+import Button from '../../../components/ActionButton'
+import { Alert, Paper, SimpleGrid, Stack, Title } from '@mantine/core'
 import { useState, type ReactNode } from 'react'
+import { useIsMutating } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import type { DraftKind, Handover } from '../../../client/types.gen'
 import { EmptyState } from '../../../components/DataState'
@@ -34,7 +35,7 @@ export default function PreparationSection({ caseId, actorId, handover, handover
   const field = (path: Path) => editing === path
     ? <FieldEditor caseId={caseId} actorId={actorId} path={path} handover={handover} close={() => done(path, false)} saved={() => done(path, true)} />
     : <ClinicalValue idPrefix="mdt-field" label={t(labels[path])} path={path} value={handover[path]} names={names} sources={sources} findings={[]} showFinding={showFindings} focused={returnTo === path}
-      actions={<Button variant="outline" size="compact-sm" disabled={busy || locked || editing !== null} onClick={() => { setSaved(false); setEditing(path) }}>{t('mdt.edit')}</Button>} />
+      actions={<Button variant="outline" size="compact-sm" pending={busy || locked} disabled={editing !== null} onClick={() => { setSaved(false); setEditing(path) }}>{t('mdt.edit')}</Button>} />
   return <Stack gap="sm">
     {saved && <Alert color="green" role="status">{t('mdt.saved')}</Alert>}
     <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="sm">

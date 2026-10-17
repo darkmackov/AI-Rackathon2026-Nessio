@@ -7,6 +7,7 @@ import { actorHeaders } from '../api'
 import { getHandoverQueryKey, getJobQueryKey } from '../client/@tanstack/react-query.gen'
 import { demoDocumentText } from '../mocks/documents'
 import { createDemoState, createHandlers } from '../mocks/handlers'
+import { notificationStore } from '../notifications/notify'
 import { renderApp } from './renderApp'
 import { field, openTab, signIn } from './shell'
 import { server } from './setup'
@@ -35,7 +36,8 @@ describe('S3 reuses S2 document ingest', () => {
     await user.click(await screen.findByRole('link', { name: 'Fiktivní žádost' }))
     await screen.findByRole('heading', { level: 1, name: 'Fiktivní žádost' })
     await user.upload(screen.getByLabelText('Vybrat soubory'), new File(['invalid'], 'nepodporovany.txt', { type: 'text/plain' }))
-    expect(await screen.findByText('nepodporovany.txt')).toBeVisible()
+    expect(notificationStore.getState().notifications).toMatchObject([{ id: `warning:document-files:${caseId}`, autoClose: false }])
+    expect(screen.queryByText('nepodporovany.txt')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Nahrát vybrané dokumenty' })).toBeDisabled()
     const file = new File(['%PDF-1.4\nfictional local test'], 'fiktivni-zprava.pdf', { type: 'application/pdf' })
     // The same drop interaction as the uploader in S2, exercised inside the actual GP route.
@@ -70,7 +72,7 @@ describe('S3 reuses S2 document ingest', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Validovat a odeslat' })).toBeEnabled())
   })
 
-  it('shows a safe extraction failure and offers the shared re-extraction action', async () => {
+  it('shows the historical extraction failure status and offers the shared re-extraction action', async () => {
     const state = createDemoState()
     state.reset('empty')
     state.saveCase({ id: 'failed-job-case', patient_name: 'Fiktivní chyba', koc_id: 'koc2-lipova', referring_doctor_id: 'pl-reznicek', state: 'koncept', created_at: '2026-10-02T14:00:00' })
@@ -79,12 +81,13 @@ describe('S3 reuses S2 document ingest', () => {
     server.use(...createHandlers(state))
     const failed = { ...uploaded.job, status: 'failed', error: 'sensitive technical details' } as const
     server.use(http.get('*/api/jobs/:id', () => HttpResponse.json(failed)), http.get('*/api/cases/:id/jobs', () => HttpResponse.json([failed])))
-    renderApp()
+    renderApp('/', { notifications: true })
     const user = userEvent.setup()
     await signIn(user, 'referring_doctor')
     await user.click(await screen.findByRole('link', { name: 'Fiktivní chyba' }))
     expect(await screen.findByText('Chyba zpracování')).toBeVisible()
-    expect(screen.getByText('Dokument se nepodařilo zpracovat. Můžete znovu spustit extrakci dokumentů případu.')).toBeVisible()
+    expect(screen.queryByText('Dokument se nepodařilo zpracovat. Můžete znovu spustit extrakci dokumentů případu.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByText('sensitive technical details')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Znovu spustit extrakci' })).toBeEnabled()
     await openTab(user, 'Předávka')

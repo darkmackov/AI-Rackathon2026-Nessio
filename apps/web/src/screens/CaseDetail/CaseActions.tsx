@@ -1,4 +1,6 @@
-import { Button, Group, Modal, Stack, Text } from '@mantine/core'
+import { pendingControlProps } from '../../components/pending-control'
+import Button from '../../components/ActionButton'
+import { Group, Modal, Stack, Text } from '@mantine/core'
 import { IconArrowBackUp, IconPlayerPause, IconUserCheck } from '@tabler/icons-react'
 import { useIsMutating, useMutation, useQuery } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
@@ -63,20 +65,20 @@ export default function CaseActions({ item, findings, settings = false, extra }:
   return <Stack gap={4} align={settings ? undefined : 'flex-end'}>
     <Group gap="xs" align="flex-start" justify={settings ? undefined : 'flex-end'}>
       {settings ? <>
-        <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => open('settings')}>{t('workflow.settings')}</Button>
-        <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => open('milestones')}>{t('workflow.milestones')}</Button>
-        {(reviewing || waiting) && <Button size="compact-sm" variant="outline" disabled={busy} onClick={() => open('complete')}>{t('workflow.markComplete')}</Button>}
-        {(reviewing || complete) && <Button size="compact-sm" variant="subtle" disabled={busy} onClick={() => open('wait')}>{waitLabel}</Button>}
+        <Button size="compact-sm" variant="subtle" pending={busy} onClick={() => open('settings')}>{t('workflow.settings')}</Button>
+        <Button size="compact-sm" variant="subtle" pending={busy} onClick={() => open('milestones')}>{t('workflow.milestones')}</Button>
+        {(reviewing || waiting) && <Button size="compact-sm" variant="outline" pending={busy} onClick={() => open('complete')}>{t('workflow.markComplete')}</Button>}
+        {(reviewing || complete) && <Button size="compact-sm" variant="subtle" pending={busy} onClick={() => open('wait')}>{waitLabel}</Button>}
       </> : <>
-        <Button size="xs" leftSection={<IconUserCheck size={16} aria-hidden />} disabled={busy || item.state !== 'odeslano'} loading={take.isPending} onClick={() => { void direct(() => take.mutateAsync(options)) }}>{t('caseDetail.takeOver')}</Button>
-        <Button size="xs" variant="outline" leftSection={<IconArrowBackUp size={16} aria-hidden />} disabled={busy} onClick={() => open('return')}>{t('caseDetail.returnCase')}</Button>
-        <Button size="xs" variant="outline" leftSection={<IconPlayerPause size={16} aria-hidden />} disabled={busy} loading={resume.isPending} onClick={() => item.on_hold ? void direct(() => resume.mutateAsync(options)) : open('hold')}>{t(item.on_hold ? 'workflow.resume' : 'caseDetail.hold')}</Button>
+        <Button size="xs" leftSection={<IconUserCheck size={16} aria-hidden />} pending={busy || take.isPending} disabled={item.state !== 'odeslano'} onClick={() => { void direct(() => take.mutateAsync(options)) }}>{t('caseDetail.takeOver')}</Button>
+        <Button size="xs" variant="outline" leftSection={<IconArrowBackUp size={16} aria-hidden />} pending={busy} onClick={() => open('return')}>{t('caseDetail.returnCase')}</Button>
+        <Button size="xs" variant="outline" leftSection={<IconPlayerPause size={16} aria-hidden />} pending={busy || resume.isPending} onClick={() => item.on_hold ? void direct(() => resume.mutateAsync(options)) : open('hold')}>{t(item.on_hold ? 'workflow.resume' : 'caseDetail.hold')}</Button>
         {extra}
       </>}
     </Group>
     {saved && <Text size="sm" role="status">{t('workflow.saved')}</Text>}
     {error != null && <WorkflowError error={error} />}
-    <Modal opened={action !== null && readinessAvailable} onClose={() => { if (!busy) setDialog(null) }} title={title} closeOnClickOutside={!busy} closeOnEscape={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+    <Modal opened={action !== null && readinessAvailable} onClose={() => { if (!busy) setDialog(null) }} title={title} closeOnClickOutside={!busy} closeOnEscape={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {!directoryReady && <>
         {(actors.isPending || boards.isPending) && <LoadingState />}
         {actors.isError && <QueryError error={actors.error} retry={() => { void actors.refetch() }} />}

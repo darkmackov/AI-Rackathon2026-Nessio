@@ -7,10 +7,12 @@ import DownloadFile from '../documents/DownloadFile'
 
 function CaseFhirDownload({ caseId, actorId }: { caseId: string; actorId: string }) {
   const { t } = useTranslation()
-  const query = useQuery({ ...getCaseFhirOptions({ path: { case_id: caseId }, headers: actorHeaders(actorId), parseAs: 'blob' }), enabled: false, gcTime: 0 })
-  const status = query.error instanceof ApiError ? query.error.status : undefined
-  const errorKey = status === 403 ? 'forbidden' : status === 404 ? 'missing' : status === 503 ? 'unavailable' : status === 502 ? 'upstream' : 'error'
-  return <DownloadFile label={t('fhirExport.label')} readyMessage={t('fhirExport.ready')} errorMessage={t(`fhirExport.${errorKey}`)} pending={query.isFetching}
+  const query = useQuery({ ...getCaseFhirOptions({ path: { case_id: caseId }, headers: actorHeaders(actorId), parseAs: 'blob' }), enabled: false, gcTime: 0, meta: { notify: false } })
+  const errorMessage = (error: unknown) => {
+    const status = error instanceof ApiError ? error.status : undefined
+    return t(`fhirExport.${status === 403 ? 'forbidden' : status === 404 ? 'missing' : status === 503 ? 'unavailable' : status === 502 ? 'upstream' : 'error'}`)
+  }
+  return <DownloadFile label={t('fhirExport.label')} readyMessage={t('fhirExport.ready')} errorMessage={errorMessage} pending={query.isFetching}
     variant="outline" size="xs" leftSection={<IconFileExport size={16} aria-hidden />} fitButton
     filename={`case-${caseId}.fhir.json`} load={async () => {
       const result = await query.refetch()

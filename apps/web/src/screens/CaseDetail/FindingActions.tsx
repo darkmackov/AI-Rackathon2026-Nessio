@@ -1,4 +1,6 @@
-import { Button, Group, Modal, Stack, Text } from '@mantine/core'
+import { pendingControlProps } from '../../components/pending-control'
+import Button from '../../components/ActionButton'
+import { Group, Modal, Stack, Text } from '@mantine/core'
 import { useIsMutating, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -42,9 +44,9 @@ export default function FindingActions({ caseId, finding, handover }: { caseId: 
   ]
   const success = () => { setAction(null); setSaved(true) }
   return <Stack gap={4}>
-    <FindingActionGroup actions={finding.fields?.length && handover ? undefined : ['request', 'resolve']} disabled={busy} onAction={(entry) => { setSaved(false); setAction(entry) }} />
+    <FindingActionGroup actions={finding.fields?.length && handover ? undefined : ['request', 'resolve']} pending={busy} onAction={(entry) => { setSaved(false); setAction(entry) }} />
     {saved && <Text size="sm" role="status">{t('workflow.saved')}</Text>}
-    <Modal opened={!!action} onClose={() => { if (!busy) setAction(null) }} title={action ? t(findingActionMeta[action].title) : undefined} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
+    <Modal opened={!!action} onClose={() => { if (!busy) setAction(null) }} title={action ? t(findingActionMeta[action].title) : undefined} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {action === 'fill' && handover && <FieldEditor caseId={caseId} handover={handover} paths={finding.fields ?? []} onSaved={success} onClose={() => setAction(null)} />}
       {action === 'request' && owners.state}
       {(action === 'request' && !owners.state || action === 'resolve') && <WorkflowForm key={action} fields={fields} initial={action === 'request' ? { owner: '', title: finding.message_cs, due: '', priority: 'normal', note: '' } : { kind: 'resolved', note: '' }} onSaved={success} help={action === 'request' ? t('workflow.requestHelp') : undefined} submit={async (values) => {

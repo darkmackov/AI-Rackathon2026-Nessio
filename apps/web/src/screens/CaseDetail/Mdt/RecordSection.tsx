@@ -1,4 +1,5 @@
-import { Alert, Button, Group, Paper, Stack, Text, Title } from '@mantine/core'
+import Button from '../../../components/ActionButton'
+import { Alert, Group, Paper, Stack, Text, Title } from '@mantine/core'
 import { useIsMutating } from '@tanstack/react-query'
 import { IconPencil } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -34,7 +35,7 @@ export default function RecordSection({ item, actorId, record, retry, editable, 
       : <>
         {editable && <Text size="sm" c="dimmed">{t('mdt.recordEditHelp')}</Text>}
         <Group gap="xs" align="flex-start">
-          {editable && <Button variant="outline" size="compact-sm" leftSection={<IconPencil size={14} aria-hidden />} disabled={busy} onClick={() => { setSaved(false); setEditing(true) }}>{t('mdt.editRecord')}</Button>}
+          {editable && <Button variant="outline" size="compact-sm" leftSection={<IconPencil size={14} aria-hidden />} pending={busy} onClick={() => { setSaved(false); setEditing(true) }}>{t('mdt.editRecord')}</Button>}
           <PdfDownload caseId={item.id} actorId={actorId} kind="record" />
         </Group>
         <RecordView record={record.data} />

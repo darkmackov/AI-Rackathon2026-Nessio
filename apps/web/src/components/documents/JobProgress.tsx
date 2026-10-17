@@ -1,4 +1,4 @@
-import { Alert, Badge, Group, Loader, Paper, Stack, Text } from '@mantine/core'
+import { Badge, Group, Loader, Paper, Stack, Text } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import type { DocumentMeta, Job } from '../../client/types.gen'
 import { QueryError } from '../DataState'
@@ -16,6 +16,5 @@ export default function JobProgress({ job: initial, actorId, documents }: { job:
       <Badge color={job.status === 'failed' ? 'red' : job.status === 'done' ? 'green' : 'blue'} variant="light">{t(`documents.jobStatus.${job.status ?? 'queued'}`)}</Badge>
     </Group>
     {query.isError && <QueryError error={query.error} retry={() => { void query.refetch() }} pending={query.isFetching} />}
-    {job.status === 'failed' && <Alert color="red" role="alert"><Text size="sm">{t('documents.extractionFailed')}</Text></Alert>}
   </Stack></Paper>
 }

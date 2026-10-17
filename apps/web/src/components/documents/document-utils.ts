@@ -1,4 +1,4 @@
-import type { DocumentType, Job } from '../../client/types.gen'
+import type { DocumentType, DraftResult, Job } from '../../client/types.gen'
 
 // These MIME types are registered in onko_documents.service.PARSERS.
 export const documentFormats = {
@@ -28,6 +28,13 @@ export function supportedFile(file: File) {
 
 export function terminalJob(job: Job) {
   return job.status === 'done' || job.status === 'failed'
+}
+
+export function usableDraft(draft: DraftResult | null | undefined, kind: unknown): draft is DraftResult {
+  if (!draft || draft.kind !== kind) return false
+  if (draft.kind === 'mdt_conclusion') return !!draft.fields
+  if (draft.kind === 'mdt_results') return true
+  return typeof draft.text === 'string' && draft.text.length > 0
 }
 
 export function validDocumentDate(value: string) {
