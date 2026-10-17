@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { actorHeaders } from '../api'
 import { changeLanguage } from '../i18n'
-import { sendFeedbackMutation } from '../client/@tanstack/react-query.gen'
+import { confirmReceiptMutation, sendFeedbackMutation } from '../client/@tanstack/react-query.gen'
 import { concludeReference, referenceId } from './feedback-fixtures'
 import { mutation } from './mdt-fixtures'
 import { renderApp } from './renderApp'
@@ -53,6 +53,45 @@ describe('S6 feedback workflow', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Potvrzuji převzetí' })).toBeEnabled())
   })
 
+  it('lists a pending MDT result under K vyřízení and keeps it there while confirming', async () => {
+    await sentResult()
+    renderApp(); const user = userEvent.setup({ delay: null }); await signIn(user, 'referring_doctor')
+    const todo = screen.getByRole('region', { name: 'K vyřízení' })
+    const row = await within(todo).findByRole('button', { name: /Alena Procházková · Výsledek MDT.*Závěr MDT ze dne 21\. 10\. 2026/ })
+    expect(await within(todo).findByText('Čeká na vaše potvrzení')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^Vyřízené/ })).not.toBeInTheDocument()
+    await user.click(row)
+    const conclusion = await within(todo).findByText('Fiktivní závěr MDT.')
+    const confirm = await within(todo).findByRole('button', { name: 'Potvrzuji převzetí' })
+    expect(conclusion.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(todo).getByRole('heading', { name: 'Podklady' })).toBeVisible()
+    expect(within(todo).getByRole('button', { name: 'Zobrazit podklad MDT' })).toHaveAttribute('aria-expanded', 'false')
+    await waitFor(() => expect(confirm).toBeEnabled())
+    await user.click(confirm)
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Potvrzuji převzetí' }))
+    expect(await within(todo).findByText('Převzetí bylo potvrzeno a případ je uzavřen.')).toBeVisible()
+    await user.click(within(todo).getByRole('button', { name: /Alena Procházková/ }))
+    expect(await screen.findByText('Nic nečeká na vaši akci.')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Vyřízené (1)' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('collapses a confirmed MDT result into the Vyřízené group', async () => {
+    const message = await sentResult()
+    const doctor = demoState.getCases().find((item) => item.id === referenceId)!.referring_doctor_id
+    await mutation(confirmReceiptMutation(), { headers: actorHeaders(doctor), path: { message_id: message.id } })
+    renderApp(); const user = userEvent.setup({ delay: null }); await signIn(user, 'referring_doctor')
+    expect(await screen.findByText('Nic nečeká na vaši akci.')).toBeVisible()
+    const toggle = await screen.findByRole('button', { name: 'Vyřízené (1)' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: /Alena Procházková/ })).not.toBeInTheDocument()
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const done = screen.getByRole('region', { name: 'Vyřízené' })
+    expect(within(done).getByRole('button', { name: /Alena Procházková · Výsledek MDT/ })).toBeVisible()
+    expect(within(done).getByText(/^Převzato /)).toBeVisible()
+    expect(within(done).queryByText('Čeká na vaše potvrzení')).not.toBeInTheDocument()
+  })
+
   it('records a simulated patient notice and keeps its Czech draft when changing UI language', async () => {
     const { user } = await openReferenceCase(); await openTab(user, 'Komunikace')
     await user.click(screen.getByRole('button', { name: 'Informovat pacienta' }))
@@ -81,10 +120,23 @@ describe('S6 feedback workflow', () => {
   it('shows returned referral notes with an edit link and no close-case confirmation', async () => {
     demoState.saveMessage({ id: 'returned', case_id: 'demo-s4', kind: 'case_returned', sender_id: 'koordinator', recipient_ids: ['pl-reznicek'], subject: 'Žádost k doplnění', body: 'Doplňte údaj.', sent_at: '2026-10-21T09:00:00' })
     renderApp(); const user = userEvent.setup({ delay: null }); await signIn(user, 'referring_doctor')
+    // The case is no longer returned to the doctor, so the message waits in the collapsed done group.
+    await user.click(await screen.findByRole('button', { name: 'Vyřízené (1)' }))
     await user.click(await screen.findByRole('button', { name: /Žádost k doplnění/ }))
     await waitFor(() => expect(screen.getByText('Doplňte údaj.')).toBeVisible())
     expect(screen.getByRole('link', { name: 'Zobrazit žádost' })).toHaveAttribute('href', '/referrer/cases/demo-s4')
     expect(screen.queryByRole('button', { name: 'Potvrzuji převzetí' })).not.toBeInTheDocument()
+  })
+
+  it('lists a referral still returned to the doctor under K vyřízení', async () => {
+    const item = demoState.getCases().find((entry) => entry.id === 'demo-s4')!
+    demoState.saveCase({ ...item, state: 'vraceno_lekari' })
+    demoState.saveMessage({ id: 'returned', case_id: 'demo-s4', kind: 'case_returned', sender_id: 'koordinator', recipient_ids: [item.referring_doctor_id], subject: 'Žádost k doplnění', body: 'Doplňte údaj.', sent_at: '2026-10-21T09:00:00' })
+    renderApp(); const user = userEvent.setup({ delay: null }); await signIn(user, 'referring_doctor')
+    const todo = screen.getByRole('region', { name: 'K vyřízení' })
+    await user.click(await within(todo).findByRole('button', { name: /Vrácená žádost.*Žádost k doplnění/ }))
+    expect(await within(todo).findByRole('link', { name: 'Otevřít žádost k doplnění' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^Vyřízené/ })).not.toBeInTheDocument()
   })
 
   it('clears the inbox and receipt queries when the demo is reset', async () => {

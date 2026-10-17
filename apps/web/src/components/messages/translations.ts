@@ -21,6 +21,8 @@ export const messagesCs = {
   notify: 'Informovat pacienta', notifyTitle: 'Informovat pacienta (simulace)', notifySubmit: 'Zaznamenat oznámení',
   simulationNote: 'Zpráva se pouze zaznamená do historie případu. Pacientovi se skutečně nedoručí.',
   notified: 'Oznámení bylo zaznamenáno do historie. Pacientovi nebylo doručeno.', simulated: 'Simulace, externě nedoručeno', recipientPatient: 'Pacient (simulace)',
+  todo: 'K vyřízení', done: 'Vyřízené', showDone: 'Vyřízené ({{count}})', nothingToDo: 'Nic nečeká na vaši akci.',
+  waitingYou: 'Čeká na vaše potvrzení', materials: 'Podklady',
   showClosed: 'Zobrazit uzavřené', onlyClosed: 'Všechny vaše žádosti jsou uzavřené. Zobrazíte je přepínačem Zobrazit uzavřené.',
 }
 
@@ -47,5 +49,7 @@ export const messagesEn = {
   notify: 'Inform patient', notifyTitle: 'Inform patient (simulation)', notifySubmit: 'Record notice',
   simulationNote: 'The message is only recorded in the case history. It is not actually delivered to the patient.',
   notified: 'The notice has been recorded in the history. It was not delivered to the patient.', simulated: 'Simulation, not delivered externally', recipientPatient: 'Patient (simulation)',
+  todo: 'To do', done: 'Done', showDone: 'Done ({{count}})', nothingToDo: 'Nothing is waiting for you.',
+  waitingYou: 'Waiting for your confirmation', materials: 'Materials',
   showClosed: 'Show closed', onlyClosed: 'All your referrals are closed. Turn on Show closed to see them.',
 }

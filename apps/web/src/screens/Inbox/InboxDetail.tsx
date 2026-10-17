@@ -1,16 +1,16 @@
 import { pendingControlProps } from '../../components/pending-control'
 import Button from '../../components/ActionButton'
-import { Alert, Anchor, Group, Modal, Paper, Stack, Text, Title } from '@mantine/core'
-import { IconChevronDown, IconChevronUp, IconCircleCheck } from '@tabler/icons-react'
+import { Alert, Anchor, Group, List, Modal, Paper, Stack, Text, Title } from '@mantine/core'
+import { IconChevronDown, IconChevronUp, IconCircleCheck, IconPaperclip } from '@tabler/icons-react'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../api'
-import { confirmReceiptMutation, getMdtConclusionOptions, getMdtRecordOptions, listDocumentsOptions } from '../../client/@tanstack/react-query.gen'
-import type { Case, Message, Receipt } from '../../client/types.gen'
+import { confirmReceiptMutation, getDocumentFileOptions, getMdtConclusionOptions, getMdtRecordOptions, listDocumentsOptions } from '../../client/@tanstack/react-query.gen'
+import type { Case, DocumentMeta, Message, Receipt } from '../../client/types.gen'
 import LoadingState, { QueryError } from '../../components/DataState'
-import { DownloadOriginal } from '../../components/documents/DocumentsTab'
+import DownloadFile from '../../components/documents/DownloadFile'
 import { refreshMessages } from '../../components/messages/refresh'
 import { usePeople } from '../../components/people'
 import { formatDate, formatDateTime } from '../../time'
@@ -25,6 +25,16 @@ function Note({ message }: { message: Message }) {
         <Text size="sm" c={message.body ? undefined : 'dimmed'} style={text}>{message.body || t('messages.noNote')}</Text></div>
 }
 
+/** An attached document as one compact download named after the document. */
+function Attachment({ document, actorId }: { document: DocumentMeta; actorId: string }) {
+    const download = useQuery({ ...getDocumentFileOptions({ path: { document_id: document.id }, headers: actorHeaders(actorId), parseAs: 'blob' }), enabled: false, gcTime: 0 })
+    return <DownloadFile label={document.title || document.filename} leftSection={<IconPaperclip size={14} aria-hidden />} filename={document.filename} pending={download.isFetching} load={async () => {
+        const result = await download.refetch()
+        if (result.isError) throw result.error
+        return result.data
+    }} />
+}
+
 function MdtResult({ message, item, actorId, receipt, receiptsReady }: { message: Message; item?: Case; actorId: string; receipt?: Receipt; receiptsReady: boolean }) {
     const { t, i18n } = useTranslation(), client = useQueryClient(), busy = useIsMutating() > 0, { names } = usePeople()
     const [confirming, setConfirming] = useState(false), [showRecord, setShowRecord] = useState(false), [confirmed, setConfirmed] = useState(false)
@@ -35,38 +45,45 @@ function MdtResult({ message, item, actorId, receipt, receiptsReady }: { message
     const documents = useQuery({ ...listDocumentsOptions(options), enabled: attachments.length > 0 })
     const confirm = useMutation({ ...confirmReceiptMutation(), onSuccess: async () => { await refreshMessages(client, message.case_id); setConfirming(false); setConfirmed(true) } })
     const value = conclusion.data
-    return <Stack gap="sm">
+    const diagnosis = [value?.diagnosis_name, value?.diagnosis_code].filter(Boolean).join(' · ')
+    return <Stack gap="md">
         {conclusion.isPending && <LoadingState rows={2} />}
         {conclusion.isError && <QueryError error={conclusion.error} retry={() => { void conclusion.refetch() }} />}
-        {value && <Paper withBorder p="sm"><Stack gap="xs">
-            <Title order={3} size="h5">{t('mdt.conclusion')}</Title>
-            {(value.diagnosis_name || value.diagnosis_code) && <Text size="sm"><Text span inherit fw={600}>{t('mdt.diagnosis')}: </Text>{[value.diagnosis_name, value.diagnosis_code].filter(Boolean).join(' · ')}</Text>}
-            {value.date && <Text size="sm"><Text span inherit fw={600}>{t('mdt.date')}: </Text>{formatDate(value.date, i18n.language)}</Text>}
+        {value && <Paper withBorder p="md"><Stack gap="xs">
+            {diagnosis && <Text size="xs" c="dimmed" fw={600}>{t('mdt.conclusion')}</Text>}
+            <Group justify="space-between" align="baseline" gap="xs" wrap="wrap">
+                <Title order={4} size="h4" style={{ overflowWrap: 'anywhere' }}>{diagnosis || t('mdt.conclusion')}</Title>
+                {value.date && <Text size="sm" c="dimmed"><Text span inherit fw={600}>{t('mdt.date')}: </Text>{formatDate(value.date, i18n.language)}</Text>}
+            </Group>
             <Text size="sm" style={text}>{value.conclusion || t('unavailable')}</Text>
-            <Text size="sm" fw={600}>{t('mdt.recommendations')}</Text>
-            <Text size="sm" style={text}>{value.recommendations?.join('\n') || t('unavailable')}</Text>
+            <Text size="sm" fw={600} mt="xs">{t('mdt.recommendations')}</Text>
+            {value.recommendations?.length
+                ? <List size="sm" spacing={4}>{value.recommendations.map((entry, index) => <List.Item key={index} style={text}>{entry}</List.Item>)}</List>
+                : <Text size="sm" c="dimmed">{t('unavailable')}</Text>}
         </Stack></Paper>}
-        <Note message={message} />
-        {attachments.length > 0 && <div><Text size="sm" fw={600}>{t('messages.attachments')}</Text>
-            {documents.isPending && <LoadingState rows={1} />}
-            {documents.isError && <QueryError error={documents.error} retry={() => { void documents.refetch() }} />}
-            {documents.data?.filter((document) => attachments.includes(document.id)).map((document) => <Group key={document.id} gap="xs"><Text size="sm">{document.title ?? document.filename}</Text><DownloadOriginal document={document} /></Group>)}
-        </div>}
-        <Group align="flex-start" gap="md"><PdfDownload caseId={message.case_id} actorId={actorId} kind="conclusion" /><PdfDownload caseId={message.case_id} actorId={actorId} kind="record" /></Group>
-        <div>
-            <Button variant="subtle" size="compact-sm" aria-expanded={showRecord} rightSection={showRecord ? <IconChevronUp size={14} aria-hidden /> : <IconChevronDown size={14} aria-hidden />} onClick={() => setShowRecord(!showRecord)}>{t(showRecord ? 'messages.hideInput' : 'messages.showInput')}</Button>
-            {showRecord && <Stack mt="xs">
-                {record.isPending && <LoadingState rows={2} />}
-                {record.isError && <QueryError error={record.error} retry={() => { void record.refetch() }} />}
-                {record.data && <RecordView record={record.data} />}
-            </Stack>}
-        </div>
         {receipt
             ? <Alert color="green" role="status" icon={<IconCircleCheck aria-hidden />} title={t('messages.receipt')}>
                 {confirmed && <Text size="sm">{t('messages.confirmed')}</Text>}
                 <Text size="sm">{t('messages.receiptText', { name: names[receipt.recipient_id] ?? t('unavailable'), date: formatDateTime(receipt.confirmed_at, i18n.language) })}</Text>
             </Alert>
             : <Group><Button pending={busy} disabled={!receiptsReady || !item || !conclusion.isSuccess} onClick={() => { confirm.reset(); setConfirming(true) }}>{t('messages.confirm')}</Button></Group>}
+        <Note message={message} />
+        <Stack gap={4}>
+            <Title order={5} size="h6">{t('messages.materials')}</Title>
+            <Group align="flex-start" gap="xs" wrap="wrap">
+                <PdfDownload caseId={message.case_id} actorId={actorId} kind="conclusion" />
+                <PdfDownload caseId={message.case_id} actorId={actorId} kind="record" />
+                {documents.data?.filter((document) => attachments.includes(document.id)).map((document) => <Attachment key={document.id} document={document} actorId={actorId} />)}
+                <Button variant="subtle" size="compact-sm" aria-expanded={showRecord} rightSection={showRecord ? <IconChevronUp size={14} aria-hidden /> : <IconChevronDown size={14} aria-hidden />} onClick={() => setShowRecord(!showRecord)}>{t(showRecord ? 'messages.hideInput' : 'messages.showInput')}</Button>
+            </Group>
+            {attachments.length > 0 && documents.isPending && <LoadingState rows={1} />}
+            {attachments.length > 0 && documents.isError && <QueryError error={documents.error} retry={() => { void documents.refetch() }} />}
+            {showRecord && <Stack mt="xs">
+                {record.isPending && <LoadingState rows={2} />}
+                {record.isError && <QueryError error={record.error} retry={() => { void record.refetch() }} />}
+                {record.data && <RecordView record={record.data} />}
+            </Stack>}
+        </Stack>
         <Modal opened={confirming} onClose={() => { if (!busy) setConfirming(false) }} title={t('messages.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
             <Stack>
                 <Text size="sm">{t('messages.confirmText', { patient: item?.patient_name || t('referral.unnamed') })}</Text>
