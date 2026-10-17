@@ -24,7 +24,8 @@ from . import prompts
 from .quotes import evidence
 
 MAX_CHUNK = 1500  # chars; paragraphs are merged up to this, a longer one is split at line breaks
-ASK_CHUNKS = 8  # chunks the model sees for 'ask the case'
+ASK_CHUNKS = 8  # nearest chunks for 'ask the case', each widened to its whole document…
+ASK_CHARS = 12_000  # …while the excerpts stay under this many chars (a few thousand tokens)
 CODE_CANDIDATES = 5
 
 _BLANK = re.compile(r"\n[ \t\r\f\v]*\n\s*")
@@ -127,9 +128,10 @@ def ask_case(
     *,
     limit: int = ASK_CHUNKS,
 ) -> CaseAnswer:
-    """'Ask the case' (Q-I19) over `documents` (the caller's snapshot): the nearest chunks go to
-    the model, which may answer only with quotes; every quote is checked verbatim in its document
-    like extracted evidence. No quote passes: not found. No similarity cut-off."""
+    """'Ask the case' (Q-I19) over `documents` (the caller's snapshot): the nearest chunks, each
+    widened to its whole document while the excerpts fit ASK_CHARS, go to the model, which may answer
+    only with quotes; every quote is checked verbatim in its document like extracted evidence. No
+    quote passes: not found. No similarity cut-off."""
     index_missing(documents, repo, gateway)
     by_id = {d.meta.id: d for d in documents}
     # Every chunk ranked (tens per case, an exact scan anyway), so documents outside the snapshot
@@ -137,11 +139,14 @@ def ask_case(
     total = len(repo.list_chunks(case_id))
     [vector] = gateway.embed([question])
     ranked = repo.nearest_chunks(case_id, vector, total) if total else []
-    chunks = [c for c in ranked if c.document_id in by_id][:limit]
-    if not chunks:
+    ranked = [c for c in ranked if c.document_id in by_id]
+    if not ranked:
         return CaseAnswer(question=question, found=False)
 
-    excerpts = "\n\n".join(f"[document {c.document_id}]\n{c.text}" for c in chunks)
+    excerpts = "\n\n".join(
+        f"[document {doc_id}]\n" + "\n\n".join(c.text for c in chunks)
+        for doc_id, chunks in _widen(ranked, limit).items()
+    )
     draft = gateway.complete(
         [
             {"role": "system", "content": prompts.ASK},
@@ -158,6 +163,25 @@ def ask_case(
         }:
             quotes.append(found)
     return CaseAnswer(question=question, found=bool(quotes), quotes=quotes)
+
+
+def _widen(ranked: list[DocChunk], limit: int) -> dict[str, list[DocChunk]]:
+    """The `limit` best chunks grouped by document, best document first, each document widened to
+    all its chunks while the total stays under ASK_CHARS. A broad question often matches a
+    report's header best (its title names the examination) while the answer sits in a later
+    section, so the whole report goes along; a report too long to fit keeps only its best chunks."""
+    picked: dict[str, list[DocChunk]] = {}
+    for c in ranked[:limit]:
+        picked.setdefault(c.document_id, []).append(c)
+    used = sum(len(c.text) for chunks in picked.values() for c in chunks)
+    for doc_id, chunks in picked.items():
+        rest = [c for c in ranked if c.document_id == doc_id and c not in chunks]
+        extra = sum(len(c.text) for c in rest)
+        if used + extra <= ASK_CHARS:
+            chunks.extend(rest)
+            used += extra
+        chunks.sort(key=lambda c: c.ord)
+    return picked
 
 
 def load_codes(codes: list[CodeCandidate], repo: CaseRepository, gateway: Gateway) -> int:

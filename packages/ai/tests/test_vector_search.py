@@ -18,6 +18,7 @@ from onko_ai import (
     load_codes,
 )
 from onko_ai.models import AnswerDraft, ClinicalReview, FieldPath, QuoteRef
+from onko_ai.service import search
 from onko_ai.service.search import MAX_CHUNK
 from onko_contracts import (
     Case,
@@ -132,6 +133,21 @@ def test_ask_the_case_only_sees_the_documents_it_is_given():
 
     assert not result.found
     assert "d2" not in seen[0]
+
+
+def test_ask_the_case_widens_the_nearest_chunks_to_their_documents_within_the_budget(monkeypatch):
+    sections = "\n\n".join(f"ODDÍL {i}:\nPoložka slovo{i}." for i in range(30))
+    short, long = _doc("d1", REPORT), _doc("d2", sections)
+    repo = _repo(short, long)
+    seen: list[str] = []
+    gw = FakeGateway({AnswerDraft: lambda m: seen.append(m[1]["content"]) or AnswerDraft(quotes=[])})
+    monkeypatch.setattr(search, "ASK_CHARS", len(REPORT) + 40)
+
+    ask_case("c1", "Úbytek hmotnosti a slovo7?", [short, long], repo, gw, limit=2)
+
+    excerpts = seen[0].split("Excerpts:", 1)[1]
+    assert "Výkonnostní stav ECOG 1." in excerpts  # the whole short report goes along
+    assert "slovo7." in excerpts and "slovo8." not in excerpts  # the long one: its best chunk only
 
 
 def test_code_candidates_rank_the_code_list_by_the_diagnosis():
