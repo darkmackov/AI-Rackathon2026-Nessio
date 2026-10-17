@@ -3,9 +3,13 @@ whitespace, Unicode composition, line-break hyphens, typographic quotes and dash
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 
 from onko_contracts import Evidence, MatchText, ParsedDocument, match_text
+
+_WS = re.compile(r"\s+")
+_TOKENS = re.compile(r"\s+|\S+")
 
 
 @lru_cache(maxsize=64)
@@ -15,11 +19,16 @@ def _normalized(text: str) -> MatchText:
 
 
 def locate(quote: str, text: str, start: int = 0) -> tuple[int, int] | None:
-    """Char span of `quote` in `text` at or after `start`, both compared as `match_text`."""
-    needle = match_text(quote).text
+    """Char span of `quote` in `text` at or after `start`, both compared as `match_text`. A quote
+    that keeps a line-break hyphen the normalizer joins (`pan- creatu`) still matches the way it
+    did before, on whitespace alone."""
+    return _find(match_text(quote).text, _normalized(text), start) or _find(
+        _WS.sub(" ", quote).strip(), _whitespace_only(text), start)
+
+
+def _find(needle: str, hay: MatchText, start: int) -> tuple[int, int] | None:
     if not needle:
         return None
-    hay = _normalized(text)
     pos = 0
     while (found := hay.text.find(needle, pos)) != -1:
         begin, end = hay.span(found, found + len(needle))
@@ -27,6 +36,24 @@ def locate(quote: str, text: str, start: int = 0) -> tuple[int, int] | None:
             return begin, end
         pos = found + 1
     return None
+
+
+@lru_cache(maxsize=64)
+def _whitespace_only(text: str) -> MatchText:
+    """Every whitespace run as one space, nothing else changed (the matching before Q-C13)."""
+    out: list[str] = []
+    offsets: list[int] = []
+    ends: list[int] = []
+    for m in _TOKENS.finditer(text):
+        if m.group().isspace():
+            out.append(" ")
+            offsets.append(m.start())
+            ends.append(m.end())
+        else:
+            out.append(m.group())
+            offsets.extend(range(m.start(), m.end()))
+            ends.extend(range(m.start() + 1, m.end() + 1))
+    return MatchText("".join(out), tuple(offsets) + (len(text),), tuple(ends))
 
 
 def evidence(quote: str, doc: ParsedDocument) -> Evidence | None:

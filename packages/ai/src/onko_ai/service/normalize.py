@@ -13,6 +13,7 @@ import unicodedata
 from collections.abc import Iterable
 
 from onko_contracts import (
+    HANDOVER_SCHEMA_VERSION,
     Comparator,
     FieldStatus,
     Handover,
@@ -91,7 +92,9 @@ def _unit(value: str, quotes: Iterable[str], units: dict[str, float]) -> str | N
     number = re.search(_NUMBER, value)
     if number is None:
         return None
-    pattern = re.escape(number.group(1)) + r"\s*(" + "|".join(sorted(units, key=len, reverse=True)) + r")\b"
+    # the same number, not part of a longer one, and a unit that isn't the start of a ratio (g/l)
+    pattern = (r"(?<![\d.,])" + re.escape(number.group(1)) + r"\s*("
+               + "|".join(sorted(units, key=len, reverse=True)) + r")\b(?!\s*/)")
     for text in (value, *quotes):
         if m := re.search(pattern, text, re.IGNORECASE):
             return m.group(1).lower()
@@ -211,4 +214,6 @@ def normalize_handover(handover: Handover) -> Handover:
     score = performance(ps.value) if ps.status is FieldStatus.FOUND and ps.value else None
     labs = [panel.model_copy(update={"values": [lab_value(v) for v in panel.values]})
             for panel in handover.labs]
-    return handover.model_copy(update={"performance_score": score, "labs": labs})
+    # A handover saved before Q-C13 carries the normalized values from here on: it is version 2
+    return handover.model_copy(update={"performance_score": score, "labs": labs,
+                                       "schema_version": HANDOVER_SCHEMA_VERSION})

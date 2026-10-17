@@ -127,6 +127,7 @@ def test_normalize_handover_fills_the_score_and_lab_numbers():
     assert n.performance_score == PerformanceScore(scale=PerformanceScale.ECOG, score=1)
     assert n.labs[0].values[0].number == 12 and n.labs[0].values[0].ucum == "mg/L"
     assert n.labs[0].values[0].value == "12" and n.labs[0].values[0].unit == "mg/l"  # as printed
+    assert normalize_handover(h.model_copy(update={"schema_version": "1"})).schema_version == "2"
     missing = normalize_handover(h.model_copy(update={"performance_status": Sourced[str]()}))
     assert missing.performance_score is None
 
@@ -169,3 +170,16 @@ def test_quotes_match_across_typography_and_line_break_hyphens():
     span = locate('"suspektní" tumor pancreatu - nutná', text)
     assert span is not None
     assert text[span[0]:span[1]] == "„suspektní“ tumor pan-\ncreatu – nutná"
+
+
+def test_a_unit_in_a_ratio_or_another_number_is_not_the_weight_unit():
+    assert normalize.weight_kg("65", ["Hb 65 g/l, hmotnost 65 kg"]) == 65.0
+    assert normalize.weight_kg("65", ["Hb 65 g/l"]) == 65.0  # g/l is a lab unit, not grams
+    assert normalize.height_cm("165", ["1165 m n. m., výška 165 cm"]) == 165.0
+
+
+def test_quotes_that_matched_before_still_match():
+    text = "Závěr: tumor pan-\ncreatu."
+    span = locate("tumor pan- creatu", text)  # the hyphen kept, as copied from the line break
+    assert span is not None and text[span[0]:span[1]] == "tumor pan-\ncreatu"
+    assert locate("tumor pancreatu", text) is not None
