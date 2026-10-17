@@ -8,10 +8,12 @@ import { referralCs, referralEn } from './screens/Referral/translations'
 import { mdtCs, mdtEn } from './screens/CaseDetail/Mdt/translations'
 import { messagesCs, messagesEn } from './components/messages/translations'
 import { s8Cs, s8En } from './screens/CaseDetail/S8/translations'
+import { fhirExportCs, fhirExportEn } from './components/fhir/translations'
 
 export const resources = {
   cs: { translation: {
     s8: s8Cs,
+    fhirExport: fhirExportCs,
     messages: messagesCs,
     mdt: mdtCs,
     workflow: workflowCs,
@@ -57,6 +59,7 @@ export const resources = {
   } },
   en: { translation: {
     s8: s8En,
+    fhirExport: fhirExportEn,
     messages: messagesEn,
     mdt: mdtEn,
     workflow: workflowEn,

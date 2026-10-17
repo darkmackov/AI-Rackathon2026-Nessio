@@ -4043,6 +4043,44 @@ export type GetMdtConclusionPdfResponses = {
 
 export type GetMdtConclusionPdfResponse = GetMdtConclusionPdfResponses[keyof GetMdtConclusionPdfResponses];
 
+export type GetCaseFhirData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Actor-Id
+         *
+         * Current user (demo role switcher)
+         */
+        'X-Actor-Id': string;
+    };
+    path: {
+        /**
+         * Case Id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/cases/{case_id}/fhir';
+};
+
+export type GetCaseFhirErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCaseFhirError = GetCaseFhirErrors[keyof GetCaseFhirErrors];
+
+export type GetCaseFhirResponses = {
+    /**
+     * FHIR Bundle JSON file
+     */
+    200: Blob | File;
+};
+
+export type GetCaseFhirResponse = GetCaseFhirResponses[keyof GetCaseFhirResponses];
+
 export type SendFeedbackData = {
     body: FeedbackSend;
     headers: {
