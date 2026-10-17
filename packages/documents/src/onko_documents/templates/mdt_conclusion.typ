@@ -11,7 +11,11 @@
 
 #show: doc.with(data.title)
 
-#for line in data.header { par(strong(line)) }
+#if data.header.len() > 0 [#block(width: 100%, fill: paper, inset: 3mm, radius: 2mm, below: 6mm)[
+  #for (i, line) in data.header.enumerate() {
+    if i == 0 { strong(line) } else { linebreak() + line }
+  }
+]]
 
 = #data.title
 
