@@ -13,6 +13,7 @@ import { severityMeta } from '../../components/severity-meta'
 import { fieldStatusCounts } from '../../components/handover/clinical'
 import { statusMeta } from '../../components/handover/status-meta'
 import CaseActions from './CaseActions'
+import AskCaseSearch from './S8/AskCaseSearch'
 import ExportCaseFhir from '../../components/fhir/ExportCaseFhir'
 import { useSession } from '../../session'
 
@@ -78,9 +79,10 @@ export default function CaseHeader({ item, findings, handover }: { item: Case; f
           <PageHeading size="h2" id={heading}>{item.patient_name}</PageHeading>
           <Text size="sm" c="dimmed">{item.diagnosis_label ?? t('unavailable')}</Text>
         </Stack>
-        <Stack gap="xs" align="flex-end">
-          <CaseActions item={item} findings={findings} />
-          {actorId && <ExportCaseFhir caseId={item.id} actorId={actorId} />}
+        <Stack gap="xs" w={{ base: '100%', sm: 'max-content' }}>
+          <AskCaseSearch caseId={item.id} />
+          <Group justify="flex-end"><CaseActions item={item} findings={findings} /></Group>
+          {actorId && <Group justify="flex-end"><ExportCaseFhir caseId={item.id} actorId={actorId} /></Group>}
         </Stack>
       </Group>
       <Group gap="md" wrap="wrap" style={{ rowGap: 'var(--mantine-spacing-xs)' }}>

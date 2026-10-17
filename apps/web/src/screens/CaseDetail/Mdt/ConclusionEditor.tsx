@@ -9,7 +9,7 @@ import { lines } from '../../../components/workflow/use-workflow'
 
 // A prefill from the record (Q-F37) fills only what restates the record. The conclusion and
 // recommendations are always the coordinator's own entry from the meeting.
-export default function ConclusionEditor({ caseId, actorId, conclusion, prefill, meetingDate, saved }: { caseId: string; actorId: string; conclusion?: MdtConclusion; prefill?: ConclusionPrefill; meetingDate: string; saved: () => void }) {
+export default function ConclusionEditor({ caseId, actorId, conclusion, prefill, meetingDate, close, saved }: { caseId: string; actorId: string; conclusion?: MdtConclusion; prefill?: ConclusionPrefill; meetingDate: string; close?: () => void; saved: () => void }) {
   const { t } = useTranslation(), client = useQueryClient()
   const mutation = useMutation({ ...upsertMdtConclusionMutation(), onSuccess: () => refreshCaseResults(client, caseId) })
   const fields: WorkflowField[] = [
@@ -23,7 +23,7 @@ export default function ConclusionEditor({ caseId, actorId, conclusion, prefill,
     diagnosis_name: prefill?.diagnosis_name ?? conclusion?.diagnosis_name ?? '', diagnosis_code: prefill?.diagnosis_code ?? conclusion?.diagnosis_code ?? '', clinical_assessment: conclusion?.clinical_assessment ?? '',
     conclusion: conclusion?.conclusion ?? '', recommendations: conclusion?.recommendations?.join('\n') ?? '', place: prefill?.place ?? conclusion?.place ?? '', date: prefill?.date ?? conclusion?.date ?? meetingDate,
     chair: conclusion?.chair ?? '', copy_to: copyTo?.join('\n') ?? '' }}
-    onSaved={saved} submit={async (values) => {
+    onSaved={saved} onCancel={close} submit={async (values) => {
       const body: MdtConclusionUpsert = { presented_by: values.presented_by || null, diagnosis_name: values.diagnosis_name || null, diagnosis_code: values.diagnosis_code || null, clinical_assessment: values.clinical_assessment || null,
         conclusion: values.conclusion || null, recommendations: lines(values.recommendations), place: values.place || null, date: values.date || null, chair: values.chair || null, copy_to: lines(values.copy_to), ai_draft_used: conclusion?.ai_draft_used === true }
       await mutation.mutateAsync({ body, headers: actorHeaders(actorId), path: { case_id: caseId } })

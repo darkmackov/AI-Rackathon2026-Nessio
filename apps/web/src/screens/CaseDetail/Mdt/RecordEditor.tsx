@@ -1,6 +1,7 @@
-import { Button, Paper, Stack, Textarea, TextInput, Title } from '@mantine/core'
+import { ActionIcon, Button, Group, Paper, Stack, Textarea, TextInput, Title } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
+import { IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../../api'
@@ -13,7 +14,7 @@ import { refreshCaseResults } from '../../../components/documents/use-document-i
 import { lines } from '../../../components/workflow/use-workflow'
 import MembersInput from './MembersInput'
 
-export default function RecordEditor({ record, actorId, rows, saved }: { record: MdtRecord; actorId: string; rows?: MdtResultRow[]; saved: () => void }) {
+export default function RecordEditor({ record, actorId, rows, close, saved }: { record: MdtRecord; actorId: string; rows?: MdtResultRow[]; close: () => void; saved: () => void }) {
   const { t } = useTranslation(), client = useQueryClient(), busy = useIsMutating() > 0
   const [submitted, setSubmitted] = useState(false)
   // Rows from an `mdt_results` draft replace the results; nothing is saved until the coordinator saves.
@@ -29,19 +30,21 @@ export default function RecordEditor({ record, actorId, rows, saved }: { record:
     })(event)
   }}><Stack gap="sm">
     {submitted && Object.keys(form.errors).length > 0 && <FormErrorSummary errors={[t('mdt.required')]} />}
-    <Title order={3} size="h5">{t('mdt.members')}</Title><MembersInput value={form.values.members} onChange={(value) => form.setFieldValue('members', value)} />
-    <TextInput label={t('mdt.diagnosis')} {...form.getInputProps('diagnosis')} disabled={busy} /><TextInput label={t('mdt.code')} {...form.getInputProps('code')} disabled={busy} />
-    <Textarea label={t('mdt.comorbidities')} description={t('mdt.lines')} rows={3} {...form.getInputProps('comorbidities')} disabled={busy} />
-    <Textarea label={t('mdt.question')} rows={3} {...form.getInputProps('question')} disabled={busy} />
-    <Title order={3} size="h5">{t('mdt.results')}</Title>
+    <Title order={4} size="h6">{t('mdt.members')}</Title><MembersInput value={form.values.members} onChange={(value) => form.setFieldValue('members', value)} />
+    <Group gap="xs" align="flex-start" grow><TextInput label={t('mdt.diagnosis')} {...form.getInputProps('diagnosis')} disabled={busy} /><TextInput label={t('mdt.code')} {...form.getInputProps('code')} disabled={busy} /></Group>
+    <Textarea label={t('mdt.comorbidities')} description={t('mdt.lines')} autosize minRows={2} {...form.getInputProps('comorbidities')} disabled={busy} />
+    <Textarea label={t('mdt.question')} autosize minRows={2} {...form.getInputProps('question')} disabled={busy} />
+    <Title order={4} size="h6">{t('mdt.results')}</Title>
     {form.values.results.map((_, index) => <Paper withBorder p="sm" key={index}><Stack gap="xs">
-      <TextInput type="date" label={`${t('mdt.resultDate')} (${index + 1})`} {...form.getInputProps(`results.${index}.date`)} disabled={busy} />
-      <TextInput label={`${t('mdt.examination')} (${index + 1})`} {...form.getInputProps(`results.${index}.examination`)} disabled={busy} />
-      <Textarea label={`${t('mdt.result')} (${index + 1})`} rows={3} {...form.getInputProps(`results.${index}.result`)} disabled={busy} />
-      <Button variant="subtle" color="gray" size="compact-sm" disabled={busy} onClick={() => form.removeListItem('results', index)}>{t('mdt.removeResult', { number: index + 1 })}</Button>
+      <Group gap="xs" align="flex-end" wrap="nowrap">
+        <TextInput type="date" w={170} label={`${t('mdt.resultDate')} (${index + 1})`} {...form.getInputProps(`results.${index}.date`)} disabled={busy} />
+        <TextInput flex={1} label={`${t('mdt.examination')} (${index + 1})`} {...form.getInputProps(`results.${index}.examination`)} disabled={busy} />
+        <ActionIcon variant="subtle" color="gray" size={36} disabled={busy} aria-label={t('mdt.removeResult', { number: index + 1 })} onClick={() => form.removeListItem('results', index)}><IconTrash size={18} aria-hidden /></ActionIcon>
+      </Group>
+      <Textarea label={`${t('mdt.result')} (${index + 1})`} autosize minRows={2} {...form.getInputProps(`results.${index}.result`)} disabled={busy} />
     </Stack></Paper>)}
-    <Button variant="outline" size="compact-sm" disabled={busy} onClick={() => form.insertListItem('results', { date: '', examination: '', result: '' })}>{t('mdt.addResult')}</Button>
+    <Group><Button variant="outline" size="compact-sm" disabled={busy} onClick={() => form.insertListItem('results', { date: '', examination: '', result: '' })}>{t('mdt.addResult')}</Button></Group>
     {mutation.isError && <QueryError error={mutation.error} />}
-    <Button type="submit" disabled={busy} loading={mutation.isPending}>{t('mdt.save')}</Button>
+    <Group><Button type="submit" disabled={busy} loading={mutation.isPending}>{t('mdt.save')}</Button><Button variant="default" disabled={busy} onClick={close}>{t('cancel')}</Button></Group>
   </Stack></form>
 }

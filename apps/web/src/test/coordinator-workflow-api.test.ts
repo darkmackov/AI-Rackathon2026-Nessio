@@ -154,7 +154,7 @@ describe('S4 HTTP workflow', () => {
     demoState.reset('empty')
     expect(demoState.coordinator.cases()).toEqual([]); expect(demoState.coordinator.audit(s4CaseId)).toEqual([])
     expect(demoState.coordinator.tasks(s4CaseId)).toEqual([])
-    demoState.reset('reference_at_mdt'); expect(demoState.coordinator.cases()).toHaveLength(2)
+    demoState.reset('reference_at_mdt'); expect(demoState.coordinator.cases()).toHaveLength(3)
     expect(demoState.documents.result(s4CaseId)?.handover.performance_status?.status).toBe('missing')
   })
 })

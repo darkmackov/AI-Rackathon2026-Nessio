@@ -22,11 +22,12 @@ function FindingItem({ finding, names, fieldLink, sources, actions }: { finding:
     <Stack gap={6}>
       <Text size="sm" fw={500} id={message}>{finding.message_cs}</Text>
       <Group gap="sm" wrap="wrap">
-        <Text size="xs" c="dimmed">{t(`caseDetail.findingKinds.${finding.kind}`)}</Text>
+        <Text size="xs" c="dimmed">{t(finding.kind === 'unverified_quote' ? 's8.unverified' : `caseDetail.findingKinds.${finding.kind}`)}</Text>
         {finding.advisory && <Text size="xs" c="dimmed">{t('caseDetail.advisory')}</Text>}
         {finding.severity === 'blocker' && finding.overridable && <Text size="xs" c="dimmed">{t('caseDetail.overridable')}</Text>}
       </Group>
       {links.length > 0 && <Group gap="xs" wrap="wrap"><Text size="xs" c="dimmed">{t('caseDetail.concerns')}</Text>{links}</Group>}
+      {finding.kind === 'unverified_quote' && <Text size="sm" c="dimmed">{t('s8.nearest')}</Text>}
       <EvidenceLinks evidence={finding.evidence} select={(index) => ({ kind: 'finding', id: finding.id, index })} sources={sources} />
       {finding.resolution && <Stack gap={2}>
         <Text size="sm">{t('caseDetail.resolution')}: {t(`caseDetail.resolutions.${finding.resolution.kind}`)}</Text>

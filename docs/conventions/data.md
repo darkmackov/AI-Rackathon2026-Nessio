@@ -10,7 +10,7 @@ The API itself (all 68 endpoints, request/response, status codes) is defined in 
 |---|---|---|---|
 | **Domain model** (`Case`, `Handover`, `Finding`, …) | `onko_contracts` | every Python module; also the API's **responses** | n/a |
 | **Request body** (`CaseUpdate`, `HoldSet`, `TaskCreate`, …) | `apps/api/src/onko_api/schemas.py` | API routes; the web app through the generated client | other Python modules |
-| **App state in IRIS / FHIR projection** | `onko_repository` adapters | `onko_repository` only | everything else; the API only passes through an opaque FHIR download via the repository (Q-W17, api.md) |
+| **App state in IRIS / FHIR projection** | `onko_repository` adapters | `onko_repository` only | everything else; the API only passes through an opaque FHIR download via the repository (Q-W18, api.md) |
 
 ```mermaid
 flowchart LR
@@ -53,7 +53,7 @@ flowchart LR
 | APIM-7 | After any route, request-body or contract change, regenerate and commit `apps/web/openapi.json` and `apps/web/src/client` (`uv run python scripts/export_openapi.py`, then `npm --prefix apps/web run gen:api`). `test_committed_openapi_spec_is_current` fails otherwise. |
 
 Binary downloads use `Response` with an OpenAPI media type, as for original documents and PDFs.
-The S9 FHIR download (Q-W17) declares `application/fhir+json` as a binary file; no FHIR resource
+The S9 FHIR download (Q-W18) declares `application/fhir+json` as a binary file; no FHIR resource
 model or ad-hoc JSON response model is introduced in the app contracts.
 
 ## Persistence (`packages/repository`)

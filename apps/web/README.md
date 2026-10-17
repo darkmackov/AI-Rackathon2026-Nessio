@@ -22,6 +22,12 @@ MSW is pinned to 2.15.0. The final built-browser check found that 3.0.3 stopped 
 
 For hosted demos, serve over HTTPS (localhost HTTP also works for Service Workers), retain `mockServiceWorker.js` at the site root, and configure SPA fallback to `index.html` for `/referrer` and `/coordinator`. No actual authentication is implemented by selecting a role.
 
+## S8 in the dummy demo
+
+Open a patient's detail. **Vyhledat v případu** sits in the header above the coordinator actions. Submit a Czech question about CT, histology or laboratory results, for example `Jaký byl nález na CT?`. The result appears below the input after a simulated queued/running job. It contains only prepared, verbatim quotes; clicking a source opens it with the quote highlighted. Unknown topics return “not found”. This is a labelled fixture, not live AI or vector search. There is no conversation history.
+
+The separate **Miroslav Havlíček (demo S8)** case belongs to the Lipová coordinator. Its source texts are snapshots from `data/reference-2`; the demo variant intentionally leaves the code missing. In **Předávka → Diagnóza → MKN-10**, click **Navrhnout kód**, then explicitly choose **Použít kód C20**. This records a manual value and an audit event; it does not resolve findings. **K řešení** also shows an unverified-quote example with its nearest source clearly distinguished from verification. Existing cases and canonical data are unchanged. Reset clears S8 jobs and selections alongside the other demo state (Q-W17).
+
 ## Connect the real API
 
 ```bash
@@ -80,7 +86,7 @@ Pending outbox writes are not part of the download until delivered. Without a co
 server (including the in-memory backend), the API returns 503 and the UI explains this.
 The MSW download is a clearly labelled **fictional sample without clinical data**, associated
 with the selected case; it does not claim to reproduce an IRIS projection. Outbound projections,
-AuditEvents, Tasks and outbox retries remain backend responsibilities (Q-W17).
+AuditEvents, Tasks and outbox retries remain backend responsibilities (Q-W18).
 Local S9 tests are in `src/test/fhir-referral.test.tsx` and `src/test/fhir-export.test.tsx`; no browser automation is required.
 
 ## Verification and fixtures

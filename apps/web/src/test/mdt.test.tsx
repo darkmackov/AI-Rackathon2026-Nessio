@@ -4,10 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { actorHeaders } from '../api'
-import { createMdtSnapshotMutation, getJobQueryKey } from '../client/@tanstack/react-query.gen'
+import { confirmMdtConclusionMutation, createMdtSnapshotMutation, getJobQueryKey, upsertMdtConclusionMutation } from '../client/@tanstack/react-query.gen'
 import { demoDraftText, demoResultLine } from '../mocks/mdt'
 import { createDemoState, createHandlers } from '../mocks/handlers'
 import { s4CaseId } from '../mocks/coordinator-state'
+import { refreshCaseResults } from '../components/documents/use-document-ingest'
 import { completeCase, mutation, resolveBlockers } from './mdt-fixtures'
 import { renderApp } from './renderApp'
 import { changeIdentity, openTab, setLanguage, signIn, type User } from './shell'
@@ -29,7 +30,7 @@ describe('S5 coordinator MDT workflow', () => {
   it('requires explicit snapshot confirmation and explains unresolved blockers without hiding the S4 resolution workflow', async () => {
     completeCase()
     renderApp(); const user = userEvent.setup(); await openMdt(user)
-    await user.click(screen.getByRole('button', { name: 'Připravit podklad pro MDT' }))
+    await user.click(await screen.findByRole('button', { name: 'Připravit podklad pro MDT' }))
     let dialog = await screen.findByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })
     expect(within(dialog).getByText(/Později přijaté zprávy/)).toBeVisible()
     await user.click(within(dialog).getByRole('button', { name: 'Zrušit' }))
@@ -46,7 +47,7 @@ describe('S5 coordinator MDT workflow', () => {
   it('prepares the record from the chosen board/date while keeping missing values explicit', async () => {
     completeCase(); resolveBlockers()
     renderApp(); const user = userEvent.setup(); await openMdt(user)
-    expect(screen.getByLabelText('MDT tým')).toHaveValue('mdt-git-lipova')
+    expect(await screen.findByLabelText('MDT tým')).toHaveValue('mdt-git-lipova')
     expect(screen.getByLabelText('Datum MDT')).toHaveValue('2026-10-21')
     await user.click(screen.getByRole('button', { name: 'Připravit podklad pro MDT' }))
     const dialog = await screen.findByRole('dialog', { name: 'Potvrdit podklad pro MDT?' })
@@ -61,11 +62,11 @@ describe('S5 coordinator MDT workflow', () => {
   it('edits the board roster before snapshot creation without changing the canonical directory', async () => {
     completeCase()
     renderApp(); const user = userEvent.setup(); await openMdt(user)
-    await user.click(screen.getByRole('button', { name: 'Upravit členy týmu' }))
+    await user.click(await screen.findByRole('button', { name: 'Upravit členy týmu' }))
     const dialog = await screen.findByRole('dialog', { name: 'Členové MDT' })
     fireEvent.change(within(dialog).getByLabelText('Jméno a příjmení (1)'), { target: { value: 'Fiktivní změněný člen' } })
     await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
-    expect(await screen.findByText('Změny MDT byly uloženy.')).toBeVisible()
+    expect(await screen.findByText('Členové MDT týmu byli uloženi.')).toBeVisible()
     expect(demoState.mdt.boards().find((board) => board.id === 'mdt-git-lipova')?.members?.[0].name).toBe('Fiktivní změněný člen')
   })
 
@@ -74,7 +75,8 @@ describe('S5 coordinator MDT workflow', () => {
     const original = demoState.mdt.snapshot(s4CaseId)
     renderApp(); const user = userEvent.setup(); await openMdt(user)
     await user.click(await screen.findByRole('button', { name: 'Upravit zápis' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Upravit zápis' })
+    const dialog = await screen.findByRole('region', { name: 'Upravit zápis' })
+    expect(within(dialog).getByRole('heading', { name: 'Upravit zápis' })).toHaveFocus()
     fireEvent.change(within(dialog).getByLabelText('Otázka na MDT'), { target: { value: 'Fiktivní otázka ke kontrole.' } })
     await user.click(within(dialog).getByRole('button', { name: 'Přidat výsledek' }))
     fireEvent.change(within(dialog).getByLabelText('Datum vyšetření (1)'), { target: { value: '2026-10-20' } })
@@ -82,6 +84,7 @@ describe('S5 coordinator MDT workflow', () => {
     fireEvent.change(within(dialog).getByLabelText('Výsledek (1)'), { target: { value: 'Úplný fiktivní text výsledku.' } })
     await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
     expect(await screen.findByText('Změny MDT byly uloženy.')).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Upravit zápis' })).not.toBeInTheDocument()
     expect(screen.getByText('Úplný fiktivní text výsledku.')).toBeVisible()
     expect(demoState.mdt.snapshot(s4CaseId)).toEqual(original)
   })
@@ -89,12 +92,13 @@ describe('S5 coordinator MDT workflow', () => {
   it('separates saving a conclusion from human confirmation and preserves Czech data when switching languages', async () => {
     await prepare()
     renderApp(); const user = userEvent.setup(); await openMdt(user)
-    await user.click(await screen.findByRole('button', { name: 'Zapsat / upravit závěr' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Zapsat / upravit závěr' })
+    expect(await screen.findByRole('radio', { name: 'Zapsat v aplikaci' })).toBeChecked()
+    const dialog = await screen.findByRole('region', { name: 'Zapsat závěr' })
     fireEvent.change(within(dialog).getByLabelText('Závěr MDT'), { target: { value: 'Fiktivní závěr bez klinického doporučení.' } })
     fireEvent.change(within(dialog).getByLabelText('Definitivní kód (MKN-10)'), { target: { value: 'Z00.0' } })
     await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
     expect(await screen.findByText('Fiktivní závěr bez klinického doporučení.')).toBeVisible()
+    expect(screen.getByRole('heading', { level: 2, name: /Závěr MDT\s*Čeká na potvrzení/ })).toBeVisible()
     expect(demoState.mdt.conclusion(s4CaseId)?.confirmed).toBeNull()
     expect(demoState.getCases().find((item) => item.id === s4CaseId)?.state).toBe('pripraveno_k_mdt')
     await setLanguage(user, 'English')
@@ -107,8 +111,9 @@ describe('S5 coordinator MDT workflow', () => {
     expect(demoState.getCases().find((item) => item.id === s4CaseId)?.state).toBe('zaver_mdt')
     // Corrections stay possible until the feedback is sent, and need a new confirmation (Q-F34).
     expect(screen.getByText('Editing or uploading the conclusion again removes its confirmation. Confirm it again afterwards.')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Write / edit conclusion' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Edit conclusion' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: 'Confirm MDT conclusion' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: /MDT conclusion\s*Confirmed/ })).toBeVisible()
   })
 
   it('applies the conclusion prefill to the record-restating fields only, never as an AI draft or the decision', async () => {
@@ -116,7 +121,8 @@ describe('S5 coordinator MDT workflow', () => {
     const state = createDemoState(() => now); server.use(...createHandlers(state)); completeCase(state); resolveBlockers(state)
     await mutation(createMdtSnapshotMutation(), { headers: actorHeaders('koordinator'), path: { case_id: s4CaseId }, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })
     const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
-    const panel = await screen.findByRole('region', { name: 'Předvyplnění ze zápisu: Závěr MDT' })
+    const editor = await screen.findByRole('region', { name: 'Zapsat závěr' })
+    const panel = within(editor).getByRole('region', { name: 'Předvyplnění ze zápisu: Závěr MDT' })
     await user.click(within(panel).getByRole('button', { name: 'Předvyplnit ze zápisu' }))
     const job = state.mdt.jobs(s4CaseId)[0]
     now = 3500
@@ -124,8 +130,8 @@ describe('S5 coordinator MDT workflow', () => {
     expect(await within(panel).findByText('Převzato ze zápisu MDT – nejde o návrh AI')).toBeVisible()
     expect(within(panel).queryByText('AI návrh – vyžaduje kontrolu')).not.toBeInTheDocument()
     await user.click(within(panel).getByRole('button', { name: 'Použít jako rozepsaný text' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Zapsat / upravit závěr' })
-    expect(within(dialog).getByLabelText('Místo')).toHaveValue('Praha 4')
+    const dialog = screen.getByRole('region', { name: 'Zapsat závěr' })
+    expect(await within(dialog).findByDisplayValue('Praha 4')).toBe(within(dialog).getByLabelText('Místo'))
     expect(within(dialog).getByLabelText('Závěr MDT')).toHaveValue('')
     expect(within(dialog).getByLabelText('Doporučení MDT')).toHaveValue('')
     fireEvent.change(within(dialog).getByLabelText('Závěr MDT'), { target: { value: 'Fiktivní závěr z jednání.' } })
@@ -140,15 +146,17 @@ describe('S5 coordinator MDT workflow', () => {
     state.mdt.saveRecord({ ...state.mdt.record(s4CaseId)!, results: [{ date: '2026-10-08', examination: 'Fiktivní CT', result: 'Dlouhý fiktivní text.' }] })
     state.mdt.saveSnapshot({ ...state.mdt.snapshot(s4CaseId)!, examinations: [{ date: '2026-10-08', place: 'Fiktivní KOC', type: 'Fiktivní CT', result_full_text: 'Dlouhý fiktivní text.', origin: 'manual', entered: { by: 'koordinator', at: '2026-10-20T09:00:00' } }] })
     const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
-    const panel = await screen.findByRole('region', { name: 'Návrh AI: Výsledky stávajících vyšetření' })
+    await user.click(await screen.findByRole('button', { name: 'Upravit zápis' }))
+    const dialog = await screen.findByRole('region', { name: 'Upravit zápis' })
+    const panel = within(dialog).getByRole('region', { name: 'Návrh AI: Výsledky stávajících vyšetření' })
     await user.click(within(panel).getByRole('button', { name: 'Připravit návrh AI' }))
     const job = state.mdt.jobs(s4CaseId)[0]
     now = 3500
     await act(async () => { await queryClient.refetchQueries({ queryKey: getJobQueryKey({ headers: actorHeaders('koordinator'), path: { job_id: job.id } }) }) })
     expect(await within(panel).findByText(demoResultLine)).toBeVisible()
+    expect(within(dialog).getByLabelText('Výsledek (1)')).toHaveValue('Dlouhý fiktivní text.')
     await user.click(within(panel).getByRole('button', { name: 'Použít jako výsledky zápisu' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Upravit zápis' })
-    expect(within(dialog).getByLabelText('Výsledek (1)')).toHaveValue(demoResultLine)
+    expect(await within(dialog).findByDisplayValue(demoResultLine)).toBe(within(dialog).getByLabelText('Výsledek (1)'))
     expect(state.mdt.record(s4CaseId)?.results?.[0].result).toBe('Dlouhý fiktivní text.')
     await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
     await waitFor(() => expect(state.mdt.record(s4CaseId)?.results?.[0].result).toBe(demoResultLine))
@@ -162,7 +170,9 @@ describe('S5 coordinator MDT workflow', () => {
     state.saveCase({ ...item, state: 'kompletni', coordinator_id: 'koordinator', mdt_board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' })
     server.use(...createHandlers(state))
     const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
-    const panel = screen.getByRole('region', { name: 'Návrh AI: Souhrn epikrízy' })
+    await user.click(within(await screen.findByRole('group', { name: 'Souhrn epikrízy' })).getByRole('button', { name: 'Upravit' }))
+    const dialog = screen.getByRole('region', { name: 'Souhrn epikrízy' })
+    const panel = within(dialog).getByRole('region', { name: 'Návrh AI: Souhrn epikrízy' })
     await user.click(within(panel).getByRole('button', { name: 'Připravit návrh AI' }))
     expect(await within(panel).findByText('Čeká na zpracování')).toBeVisible()
     const job = state.mdt.jobs(s4CaseId)[0]
@@ -172,12 +182,53 @@ describe('S5 coordinator MDT workflow', () => {
     expect(within(panel).getByText('AI návrh – vyžaduje kontrolu')).toBeVisible()
     expect(state.documents.result(s4CaseId)?.handover.epicrisis?.value).toBeNull()
     await user.click(within(panel).getByRole('button', { name: 'Použít jako rozepsaný text' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Souhrn epikrízy' })
-    expect(within(dialog).getByLabelText('Hodnota')).toHaveValue(demoDraftText)
+    expect(await within(dialog).findByDisplayValue(demoDraftText)).toBe(within(dialog).getByLabelText('Hodnota'))
     expect(state.documents.result(s4CaseId)?.handover.epicrisis?.value).toBeNull()
     await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Souhrn epikrízy' })).not.toBeInTheDocument())
+    expect(screen.getByRole('group', { name: 'Souhrn epikrízy' })).toHaveFocus()
     expect(state.documents.result(s4CaseId)?.handover.epicrisis).toMatchObject({ value: demoDraftText, origin: 'manual', entered: { by: 'koordinator' } })
+  })
+
+  it('guides each stage with one next step and keeps finished sections collapsed', async () => {
+    completeCase(); resolveBlockers()
+    renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const next = await screen.findByRole('region', { name: 'Další krok' })
+    expect(screen.getByText('Postup MDT: krok 2 z 5, Podklad pro MDT.')).toBeInTheDocument()
+    await user.click(within(next).getByRole('button', { name: 'Přejít k přípravě podkladu' }))
+    expect(screen.getByRole('button', { name: /Zápis k jednání MDT/ })).toHaveFocus()
+    expect(screen.getByRole('button', { name: /Příprava předávky pro MDT/ })).toHaveAttribute('aria-expanded', 'true')
+    // Collapsing a section is kept while the stage stays the same.
+    await user.click(screen.getByRole('button', { name: /Příprava předávky pro MDT/ }))
+    expect(screen.getByRole('button', { name: /Příprava předávky pro MDT/ })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('points a confirmed conclusion to sending, with the frozen record collapsed', async () => {
+    await prepare()
+    const options = { headers: actorHeaders('koordinator'), path: { case_id: s4CaseId } }
+    await mutation(upsertMdtConclusionMutation(), { ...options, body: { conclusion: 'Fiktivní závěr.' } })
+    await mutation(confirmMdtConclusionMutation(), options)
+    renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const next = await screen.findByRole('region', { name: 'Další krok' })
+    expect(screen.getByRole('button', { name: /Zápis k jednání MDT/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: /Závěr MDT\s*Potvrzeno/ })).toHaveAttribute('aria-expanded', 'true')
+    await user.click(within(next).getByRole('button', { name: 'Přejít k odeslání PL' }))
+    expect(await screen.findByRole('tab', { name: 'Komunikace' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('keeps an open conclusion form when the case data refreshes before any conclusion exists', async () => {
+    await prepare()
+    const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const editor = await screen.findByRole('region', { name: 'Zapsat závěr' })
+    fireEvent.change(within(editor).getByLabelText('Závěr MDT'), { target: { value: 'Rozepsaný fiktivní závěr.' } })
+    // A refresh refetches the missing (404) conclusion; while it runs the form must not be swapped for a loader.
+    server.use(http.get('*/api/cases/:id/mdt/conclusion', async () => { await new Promise((resolve) => setTimeout(resolve, 100)); return HttpResponse.json({ detail: 'not found' }, { status: 404 }) }))
+    let refresh: Promise<void> = Promise.resolve()
+    await act(async () => { refresh = refreshCaseResults(queryClient, s4CaseId); await new Promise((resolve) => setTimeout(resolve, 30)) })
+    expect(screen.getByRole('region', { name: 'Zapsat závěr' })).toBe(editor)
+    await act(async () => { await refresh })
+    expect(screen.getByRole('region', { name: 'Zapsat závěr' })).toBe(editor)
+    expect(within(editor).getByLabelText('Závěr MDT')).toHaveValue('Rozepsaný fiktivní závěr.')
   })
 
   it('shows retryable backend errors without technical details or a fake successful record', async () => {
@@ -189,7 +240,7 @@ describe('S5 coordinator MDT workflow', () => {
     expect(screen.queryByRole('button', { name: 'Upravit zápis' })).not.toBeInTheDocument()
     server.resetHandlers()
     await user.click(within(panel).getByRole('button', { name: 'Zkusit znovu' }))
-    expect(await within(panel).findByText('Podklad pro MDT zatím není připraven.')).toBeVisible()
+    expect(await within(panel).findByRole('button', { name: 'Připravit podklad pro MDT' })).toBeVisible()
   })
 
   it('downloads the record PDF through the generated endpoint and revokes its temporary URL', async () => {

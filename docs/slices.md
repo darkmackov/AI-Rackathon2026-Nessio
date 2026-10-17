@@ -157,6 +157,7 @@ flowchart LR
 - **Done when:** the API runs with `IrisRepository` and passes the same tests as the in-memory fake; demo step 16; the demo runs from Azure.
 
 ## S8: Vector search + MKN-10 code suggestions
+- **Frontend delivery (Q-W17):** implemented against MSW using the existing generated contract. Ask from the case header, read the latest answer in a popover, open cited documents in a drawer; request and explicitly pick MKN-10 candidates beside the missing code in Předávka. A separate `demo-s8` case demonstrates code selection and unverified evidence. This dummy frontend does not implement real vector search or establish completion of the backend slice.
 - **Goal:** InterSystems criterion GenAI + vector search, used inside the evidence model (Q-I19), not as a side feature.
 - **Endpoints:** `askCase` (a `Job` of kind `ask_case`, the `CaseAnswer` in `job.answer`), `listCodeCandidates`, `pickDiagnosisCode` ([api.md](api.md)); models `DocChunk`, `CaseAnswer`, `CodeCandidate` and the finding kind `unverified_quote` (contract PR).
 - **Modules:**
@@ -175,7 +176,7 @@ flowchart LR
   - **MDT conclusion out:** when the conclusion is sent (S6), a FHIR document `Bundle` (`Composition` first, then only the resources it references; unique identifier and timestamp; never changed, a correction is a new Bundle) plus a `DocumentReference` indexing it, with the Bundle and the PDF as attachments (Q-I20).
   - **Audit out:** `app_audit` rows projected as FHIR `AuditEvent` (Q-I26).
   - **`$validate` (Q-I25):** the opt-in IRIS tests validate every projected resource on the server against its declared profile.
-  - **`Patient/$everything` (Q-I25, Q-W17):** the projected case as one Bundle. The web's **Exportovat FHIR** in the case header downloads it through `GET /cases/{case_id}/fhir`; only the repository reads IRIS, following all same-server pages. This read-only download neither rebuilds the projection nor changes clinical/workflow data.
+  - **`Patient/$everything` (Q-I25, Q-W18):** the projected case as one Bundle. The web's **Exportovat FHIR** in the case header downloads it through `GET /cases/{case_id}/fhir`; only the repository reads IRIS, following all same-server pages. This read-only download neither rebuilds the projection nor changes clinical/workflow data.
   - **Outbox (D-14):** every FHIR write is stored in the same IRIS SQL transaction as the app-state save and retried until it succeeds; pending writes are visible.
   - **Tasks out:** every `Task`, including request tasks, projected as FHIR `Task` (requester = KOC, owner = whoever holds the report).
   - **Referral in:** a referral accepted as a FHIR `Bundle` next to file upload; attached documents go through extraction (S2). How structured values enter the handover is open (Q-I21, a contract change).

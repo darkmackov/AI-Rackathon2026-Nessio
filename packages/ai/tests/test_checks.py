@@ -54,6 +54,21 @@ def test_missing_performance_status_is_an_overridable_blocker_and_present_fields
     assert found["required:contacts.patient_email"].severity is Severity.WARNING
 
 
+def test_missing_identity_insurer_and_phone_are_blockers_that_cannot_be_overridden():
+    doc = make_doc("a", "ECOG 1.", dt.date(2026, 10, 1))
+    found = by_id(run([(doc, out(claim(FieldPath.PERFORMANCE_STATUS, "ECOG 1", "ECOG 1")))]))
+    for path in (
+        "patient.first_name",
+        "patient.last_name",
+        "patient.birth_number",
+        "patient.insurance_code",
+        "contacts.patient_phone",
+    ):
+        f = found[f"required:{path}"]
+        assert f.severity is Severity.BLOCKER and not f.overridable, path
+    assert found["required:patient.birth_date"].severity is Severity.WARNING
+
+
 def test_conflict_status_raises_a_conflict_finding():
     a = make_doc("a", "AA: jod", dt.date(2026, 9, 1))
     b = make_doc("b", "AA: neguje", dt.date(2026, 10, 1))

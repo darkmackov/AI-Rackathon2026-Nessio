@@ -339,7 +339,9 @@ describe('S2 document upload and processing in the case documents tab', () => {
     expect(within(panel).getAllByText('Předal odesílající lékař')).toHaveLength(1)
     await user.click(within(panel).getAllByRole('button', { name: 'Zobrazit text' })[0])
     const source = await screen.findByRole('dialog', { name: 'Zdrojový dokument' })
-    expect(await within(source).findByTestId('document-text')).toHaveTextContent('Kardiologie')
+    const text = await within(source).findByTestId('document-text')
+    expect(text).toHaveTextContent('Kardiologická ambulance')
+    expect(text).not.toHaveTextContent('<!-- source')
   })
 
   it('retries an original download and revokes its URL when leaving the case', async () => {

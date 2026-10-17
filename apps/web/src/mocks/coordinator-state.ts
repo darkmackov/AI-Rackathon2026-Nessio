@@ -1,6 +1,7 @@
 import type { AuditEvent, Case, CaseState, Message, Receipt, Task, TaskSet } from '../client/types.gen'
 import { referenceCases } from './reference'
 import { referenceTasks } from './reference-tasks'
+import { s8Case } from './s8-data'
 
 export const s4CaseId = 'demo-s4'
 export const s4Case: Case = {
@@ -42,7 +43,7 @@ export function createCoordinatorState() {
     cases.clear(); tasks.clear(); sets.clear(); audit.length = 0; messages.length = 0; receipts.length = 0; runs.clear(); sequence = 0
     sets.set(seedSet.id, clone(seedSet))
     if (!reference) return
-    for (const item of [...referenceCases, s4Case]) cases.set(item.id, clone(item))
+    for (const item of [...referenceCases, s4Case, s8Case]) cases.set(item.id, clone(item))
     for (const task of referenceTasks) tasks.set(task.id, clone(task))
     runs.add('vzp-prochazkova:ca-pankreas')
   }
