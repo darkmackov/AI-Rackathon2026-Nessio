@@ -129,10 +129,12 @@ RECIPIENT_INDEX = f"idx_{RECIPIENT_TABLE}_recipient_id"
 _FK_VIOLATION = "SQLCODE: <-121>"
 
 # Pending FHIR writes (S9, D-14): the transaction Bundle as JSON, deleted once sent. Sent in %ID
-# order. case_id has no foreign key: a document can be saved before its case.
+# order. case_id has no foreign key: a document can be saved before its case. `rejected` = 1 parks
+# a write the FHIR server refused for good (NULL while pending); it stays with its `last_error`.
 OUTBOX_TABLE = "fhir_outbox"
 OUTBOX_COLUMNS = {"id": ID, "case_id": ID, "bundle": STREAM, "attempts": "INTEGER NOT NULL",
-                  "last_error": TEXT}
+                  "last_error": TEXT, "rejected": "INTEGER"}
+_PENDING = '"rejected" IS NULL'
 
 
 def _text(value: Any) -> str | None:
@@ -269,6 +271,11 @@ class IrisRepository:
                 columns = ", ".join(f"{quote(n)} {t}" for n, t in OUTBOX_COLUMNS.items())
                 cur.execute(f"CREATE TABLE {self._t(OUTBOX_TABLE)} ({columns}, "
                             f"PRIMARY KEY ({quote('id')}))")
+            else:
+                for name, sql_type in OUTBOX_COLUMNS.items():
+                    if name not in existing[OUTBOX_TABLE]:
+                        cur.execute(f"ALTER TABLE {self._t(OUTBOX_TABLE)} "
+                                    f"ADD COLUMN {quote(name)} {sql_type}")
 
             if RECIPIENT_TABLE not in existing:
                 columns = ", ".join(f"{quote(n)} {t}" for n, t in RECIPIENT_COLUMNS.items())
@@ -333,9 +340,9 @@ class IrisRepository:
         return [self._vectors[1].name] if self._vectors else []
 
     def clear(self) -> None:
-        """Delete every row of the app-state tables and the pending FHIR writes, keeping the schema
-        (demo reset). The FHIR projection is left as is: resources are upserted by id on the next
-        save."""
+        """Delete every row of the app-state tables and the FHIR outbox (parked writes too),
+        keeping the schema (demo reset). The FHIR projection is left as is: resources are upserted
+        by id on the next save."""
         with self._cursor() as cur:
             for name in self._table_names():
                 cur.execute(f"DELETE FROM {self._t(name)}")
@@ -373,7 +380,7 @@ class IrisRepository:
                 cur.execute(*self._upsert_sql(OUTBOX_TABLE, {
                     "id": uuid.uuid4().hex, "case_id": case_id,
                     "bundle": json.dumps(transaction(fhir), ensure_ascii=False),
-                    "attempts": 0, "last_error": None,
+                    "attempts": 0, "last_error": None, "rejected": None,
                 }, verb="INSERT"))
         if fhir and self.outbox is not None:
             self.outbox.flush()
@@ -391,7 +398,12 @@ class IrisRepository:
 
     def pending_fhir_writes(self) -> int:
         with self._cursor() as cur:
-            cur.execute(f"SELECT COUNT(*) FROM {self._t(OUTBOX_TABLE)}")
+            cur.execute(f"SELECT COUNT(*) FROM {self._t(OUTBOX_TABLE)} WHERE {_PENDING}")
+            return int(cur.fetchone()[0])
+
+    def rejected_fhir_writes(self) -> int:
+        with self._cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM {self._t(OUTBOX_TABLE)} WHERE NOT ({_PENDING})")
             return int(cur.fetchone()[0])
 
     def _select(self, table: ModelTable[M], where: str = "", params: list[Any] | None = None,
@@ -785,7 +797,8 @@ class _OutboxTable:
 
     def oldest_pending(self) -> OutboxEntry | None:
         with self.repo._cursor() as cur:
-            cur.execute(f'SELECT TOP 1 "id", "bundle", "attempts" FROM {self.table} ORDER BY %ID')
+            cur.execute(f'SELECT TOP 1 "id", "bundle", "attempts" FROM {self.table} '
+                        f"WHERE {_PENDING} ORDER BY %ID")
             row = cur.fetchone()
             if row is None:
                 return None
@@ -800,6 +813,11 @@ class _OutboxTable:
         with self.repo._cursor() as cur:
             cur.execute(f'UPDATE {self.table} SET "attempts" = "attempts" + 1, "last_error" = ? '
                         'WHERE "id" = ?', [error, entry_id])
+
+    def mark_rejected(self, entry_id: str, error: str) -> None:
+        with self.repo._cursor() as cur:
+            cur.execute(f'UPDATE {self.table} SET "attempts" = "attempts" + 1, "last_error" = ?, '
+                        '"rejected" = 1 WHERE "id" = ?', [error, entry_id])
 
     def count_pending(self) -> int:
         return self.repo.pending_fhir_writes()

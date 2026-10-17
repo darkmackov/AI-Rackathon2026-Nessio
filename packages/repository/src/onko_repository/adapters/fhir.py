@@ -136,8 +136,24 @@ def _put(resource: Resource) -> dict[str, Any]:
     }
 
 
+def _pruned(value: Any) -> Any:
+    """`value` without blank strings and the objects and lists they leave empty: FHIR rejects an
+    element without a value (`EmptyValue`), so a missing value is omitted, never sent empty."""
+    if isinstance(value, dict):
+        kept = {k: _pruned(v) for k, v in value.items()}
+        return {k: v for k, v in kept.items() if not _blank(v)}
+    if isinstance(value, list):
+        return [v for v in (_pruned(v) for v in value) if not _blank(v)]
+    return value
+
+
+def _blank(value: Any) -> bool:
+    return (isinstance(value, str) and not value.strip()) or value == {} or value == []
+
+
 def transaction(resources: Iterable[Resource]) -> Resource:
-    return {"resourceType": "Bundle", "type": "transaction", "entry": [_put(r) for r in resources]}
+    return {"resourceType": "Bundle", "type": "transaction",
+            "entry": [_put(_pruned(r)) for r in resources]}
 
 
 def document_reference_id(document_id: str) -> str:
@@ -291,7 +307,7 @@ class _HandoverMapper:
             name["family"] = p.last_name.value
         if _found(p.first_name):
             name["given"] = [p.first_name.value]
-        if not name and self.case is not None:
+        if not name and self.case is not None and self.case.patient_name.strip():
             name["text"] = self.case.patient_name
         if name:
             resource["name"] = [name]
@@ -762,7 +778,7 @@ def mdt_conclusion_resources(
     else:
         patient = {"resourceType": "Patient", "id": patient_id(conclusion.case_id),
                    "meta": {"profile": [PROFILE_PATIENT]}}
-        if case is not None:
+        if case is not None and case.patient_name.strip():
             patient["name"] = [{"text": case.patient_name}]
     patient_urn = _urn(bundle_id, patient)
     entries: list[Resource] = [patient]

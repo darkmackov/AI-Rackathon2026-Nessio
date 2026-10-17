@@ -10,7 +10,7 @@ How the app runs against IRIS, locally and in Azure (slice S7, Q-I8). Storage de
 | `ONKO_IRIS_CONNECTION_STRING` set | `IrisRepository`: app state in IRIS SQL (schema `ONKO_IRIS_SCHEMA`, default `onko`) | reference case only when IRIS holds no case yet, so restarts keep the demo state |
 | + `ONKO_FHIR_BASE_URL` set | the same, plus the FHIR projection pushed on every save | |
 
-`GET /health` reports `iris_configured` and `fhir_pending` (FHIR writes still in the outbox, D-14). API tests always use the in-memory fake (`apps/api/tests/conftest.py`), even when your `.env` points at IRIS.
+`GET /health` reports `iris_configured`, `fhir_pending` (FHIR writes still in the outbox, D-14) and `fhir_rejected` (writes the FHIR server refused for good, parked in `fhir_outbox` with the server's answer in `last_error`; see data-model.md › How the projection is written). API tests always use the in-memory fake (`apps/api/tests/conftest.py`), even when your `.env` points at IRIS.
 
 ## Testing against IRIS
 
