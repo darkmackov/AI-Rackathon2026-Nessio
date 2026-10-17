@@ -260,7 +260,33 @@ describe('S2 document upload and processing in the case documents tab', () => {
     const retry = screen.getAllByRole('button', { name: 'Znovu spustit extrakci' })
     expect(retry).toHaveLength(1)
     await userEvent.click(retry[0])
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Znovu spustit extrakci?' })).getByRole('button', { name: 'Znovu spustit extrakci' }))
     await waitFor(() => expect(retried).toBe(actorId))
+  })
+
+  it('warns that closed findings may reopen and re-extracts only after confirmation', async () => {
+    let requests = 0
+    server.use(
+      http.get('*/api/cases/:caseId/documents', () => HttpResponse.json([{ id: 'doc-a', case_id: caseId, filename: 'a.pdf' }])),
+      http.get('*/api/cases/:caseId/jobs', () => HttpResponse.json([])),
+      http.post('*/api/cases/:caseId/extract', () => { requests++; return HttpResponse.json({ id: 'job-new', kind: 'ingest_document', case_id: caseId, status: 'queued', created_at: '2026-10-16T09:00:00' }, { status: 202 }) }),
+      http.get('*/api/jobs/:jobId', () => HttpResponse.json({ id: 'job-new', kind: 'ingest_document', case_id: caseId, status: 'queued', created_at: '2026-10-16T09:00:00' })),
+    )
+    renderDocuments(undefined, caseId, actorId, true)
+    await userEvent.click(screen.getByRole('button', { name: 'Select coordinator' }))
+    const button = await screen.findByRole('button', { name: 'Znovu spustit extrakci' })
+    await waitFor(() => expect(button).toBeEnabled())
+    await userEvent.click(button)
+    const dialog = screen.getByRole('dialog', { name: 'Znovu spustit extrakci?' })
+    expect(dialog).toHaveTextContent('Ručně zadané hodnoty zůstanou.')
+    expect(dialog).toHaveTextContent('se mohou znovu otevřít')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Zrušit' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(requests).toBe(0)
+    await userEvent.click(button)
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Znovu spustit extrakci?' })).getByRole('button', { name: 'Znovu spustit extrakci' }))
+    await waitFor(() => expect(requests).toBe(1))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('keeps extraction controls in place after a request failure and retries using the same action', async () => {
@@ -279,11 +305,16 @@ describe('S2 document upload and processing in the case documents tab', () => {
     await waitFor(() => expect(button).toBeEnabled())
     const section = button.closest('section')!
     const children = Array.from(section.children)
-    await userEvent.click(button)
+    const confirm = async () => {
+      await userEvent.click(button)
+      await userEvent.click(within(screen.getByRole('dialog', { name: 'Znovu spustit extrakci?' })).getByRole('button', { name: 'Znovu spustit extrakci' }))
+    }
+    await confirm()
     await screen.findByText('Při zpracování požadavku nastala chyba. Zkuste to znovu.')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(Array.from(section.children)).toEqual(children)
     expect(within(section).queryByRole('button', { name: 'Zkusit znovu' })).not.toBeInTheDocument()
-    await userEvent.click(button)
+    await confirm()
     await waitFor(() => expect(requests).toBe(2))
     await waitFor(() => expect(button).toBeEnabled())
     expect(Array.from(section.children)).toEqual(children)
