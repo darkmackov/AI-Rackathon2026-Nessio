@@ -76,6 +76,7 @@ describe('stable action feedback', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Editor' })
     const status = await within(dialog).findByRole('status')
     expect(status).toHaveTextContent(i18n.t('notices.working'))
+    expect(status.querySelector('.mantine-Loader-root')).toBeInTheDocument()
     expect(screen.getAllByRole('status')).toHaveLength(1)
     expect(dialog.querySelector('.mantine-Modal-body')).not.toContainElement(status)
     const input = screen.getByLabelText('Draft')

@@ -98,7 +98,7 @@ function DetailContent({ caseId }: { caseId: string }) {
       <Grid mt="md">
         <Grid.Col span={split ? 7 : 12} miw={0}>
           <Tabs.Panel value="overview">
-            {seen('overview') && <OverviewTab item={current} names={names} referrer={referrer} handover={handover.data} handoverState={handover.isPending ? <LoadingState rows={2} /> : handoverError} directoryState={directoryState} />}
+            {seen('overview') && <OverviewTab item={current} names={names} referrer={referrer} handover={handover.data} handoverState={handover.isPending ? <LoadingState rows={2} /> : handoverError} directoryState={directoryState} showMdt={() => { void navigate({ search: { tab: 'mdt' } }) }} />}
           </Tabs.Panel>
           <Tabs.Panel value="handover">{seen('handover') && <Stack gap="sm">
             {handover.isPending && <LoadingState rows={6} />}

@@ -60,4 +60,6 @@
     bottom: max(12px, env(safe-area-inset-bottom));
     max-width: calc(100vw - 24px);
     pointer-events: none;
+    border: 1px solid var(--mantine-primary-color-filled);
+    border-inline-start-width: 4px;
 }

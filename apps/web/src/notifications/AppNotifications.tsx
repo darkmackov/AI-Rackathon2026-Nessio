@@ -1,4 +1,4 @@
-import { Box, Button, Group, Notification, Paper, Portal, Stack, Text } from '@mantine/core'
+import { Box, Button, Group, Loader, Notification, Paper, Portal, Stack, Text } from '@mantine/core'
 import { Notifications, notifications, useNotifications, type NotificationData } from '@mantine/notifications'
 import { useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -53,8 +53,8 @@ function subscribePending(callback: () => void) {
 function ProgressStatus() {
     const { t } = useTranslation()
     const pending = useSyncExternalStore(subscribePending, actionPending, () => false)
-    return pending && <Paper className={classes.progress} withBorder shadow="sm" p="sm" role="status">
-        <Text size="sm">{t('notices.working')}</Text>
+    return pending && <Paper className={classes.progress} shadow="md" py="sm" px="md" radius="md" role="status">
+        <Group gap="sm" wrap="nowrap"><Loader size="sm" aria-hidden /><Text size="sm" fw={600}>{t('notices.working')}</Text></Group>
     </Paper>
 }
 

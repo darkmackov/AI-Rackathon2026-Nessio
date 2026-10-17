@@ -119,7 +119,7 @@ S0 supplies the shared shell and identity selection before these screens (Q-W9).
    - In-app notifications for upcoming and overdue tasks (Q-F17).
    - Done when: every patient shows their state, due date and who is on the move.
 3. **Case detail.**
-   - Tabs: *Přehled (overview) · Předávka (handover) · K řešení (findings) · Úkoly (tasks/journey) · Dokumenty (documents) · Komunikace (communication) · Audit*. The case opens on *Přehled*. A sticky case header shows state, owner, next step and due date on every tab, with counts of what needs resolving; *Přehled* adds time to treatment.
+   - Tabs: *Přehled (overview) · Předávka (handover) · K řešení (findings) · Úkoly (tasks/journey) · Dokumenty (documents) · Komunikace (communication) · Historie případu (case history, the audit log)*. The case opens on *Přehled*. A sticky case header shows state, owner, next step and due date on every tab, with counts of what needs resolving; *Přehled* adds time to treatment.
    - Every handover value links to its source document with the quote highlighted.
    - **Dokumenty** lists every document of the case in one place. Each one opens as the **original file** and as its parsed text ("strukturovaná zpráva + originál", slide 9). The documents the GP handed over are marked as such (`uploaded_by`).
    - Gaps and conflicts have their own *K řešení* tab (the tab shows how many are unresolved; in the handover, sections with a gap or conflict open first), each with **Vyžádat** (creates a request task addressed to whoever holds the information, linked to the finding; the reply comes outside the app in the MVP) or **Doplnit** (fill in manually, or upload, and AI re-extracts).

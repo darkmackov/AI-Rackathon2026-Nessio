@@ -1,6 +1,6 @@
 export const caseDetailCs = {
   back: 'Zpět na pracovní frontu', unavailableCase: 'Případ není pro vaše KOC k dispozici.', findings: 'Chybějící údaje a rozpory',
-  tabs: { mdt: 'MDT', overview: 'Přehled', handover: 'Předávka', findings: 'K řešení', tasks: 'Úkoly', communication: 'Komunikace', documents: 'Dokumenty', audit: 'Audit' },
+  tabs: { mdt: 'MDT', overview: 'Přehled', handover: 'Předávka', findings: 'K řešení', tasks: 'Úkoly', communication: 'Komunikace', documents: 'Dokumenty', audit: 'Historie případu' },
   handoverStatus: 'Stav předávky', expandAll: 'Rozbalit vše', collapseAll: 'Sbalit vše', showMore: 'Zobrazit celé', showLess: 'Zkrátit',
   problems_one: '{{count}} k řešení', problems_few: '{{count}} k řešení', problems_many: '{{count}} k řešení', problems_other: '{{count}} k řešení',
   records_one: '{{count}} záznam', records_few: '{{count}} záznamy', records_many: '{{count}} záznamu', records_other: '{{count}} záznamů',
@@ -17,7 +17,7 @@ export const caseDetailCs = {
   downloadError: 'Originální soubor se nepodařilo stáhnout.', fromGp: 'Předal odesílající lékař',
   copy: 'Kopírovat sekci', copied: 'Sekce byla zkopírována.', copyError: 'Text se nepodařilo zkopírovat.', found: 'Nalezeno', missing: 'Chybí',
   conflict: 'Rozpor', ai: 'AI návrh', manual: 'Ruční zadání', enteredBy: 'Zadal', asOf: 'Stav podkladů k', validated: 'Validace odesílajícím lékařem',
-  confirmed: 'Potvrzení koordinátorem', notConfirmed: 'Zatím nepotvrzeno', patient: 'Nacionále pacienta', contacts: 'Kontakty', diagnosis: 'Diagnóza',
+  confirmed: 'Potvrzení koordinátorem', notConfirmed: 'Zatím nepotvrzeno', confirmHint: 'Koordinátor předávku potvrdí přípravou podkladu pro MDT v záložce MDT.', goMdt: 'Přejít na MDT', patient: 'Nacionále pacienta', contacts: 'Kontakty', diagnosis: 'Diagnóza',
   diagnosisCode: 'MKN-10', epicrisisSource: 'Epikríza odesílajícího lékaře', epicrisis: 'Souhrn epikrízy', mdtQuestion: 'Otázka na MDT',
   history: 'Anamnézy a stav', examinations: 'Provedená vyšetření', labs: 'Laboratorní výsledky', histology: 'Histologie', other: 'Další sdělení',
   firstName: 'Jméno', lastName: 'Příjmení', birthNumber: 'Rodné číslo', birthDate: 'Datum narození', age: 'Věk', sex: 'Pohlaví',
@@ -46,7 +46,7 @@ export const caseDetailCs = {
 
 export const caseDetailEn = {
   back: 'Back to work queue', unavailableCase: 'This case is not available at your KOC.', findings: 'Gaps and conflicts',
-  tabs: { mdt: 'MDT', overview: 'Overview', handover: 'Handover', findings: 'To resolve', tasks: 'Tasks', communication: 'Communication', documents: 'Documents', audit: 'Audit' },
+  tabs: { mdt: 'MDT', overview: 'Overview', handover: 'Handover', findings: 'To resolve', tasks: 'Tasks', communication: 'Communication', documents: 'Documents', audit: 'Case history' },
   handoverStatus: 'Handover status', expandAll: 'Expand all', collapseAll: 'Collapse all', showMore: 'Show all', showLess: 'Show less',
   problems_one: '{{count}} to resolve', problems_few: '{{count}} to resolve', problems_many: '{{count}} to resolve', problems_other: '{{count}} to resolve',
   records_one: '{{count}} record', records_few: '{{count}} records', records_many: '{{count}} records', records_other: '{{count}} records',
@@ -63,7 +63,7 @@ export const caseDetailEn = {
   showText: 'Show text', downloadError: 'The original file could not be downloaded.',
   fromGp: 'Provided by the referring doctor', copy: 'Copy section', copied: 'The section has been copied.', copyError: 'The text could not be copied.',
   found: 'Found', missing: 'Missing', conflict: 'Conflict', ai: 'AI proposal', manual: 'Manual entry', enteredBy: 'Entered by', asOf: 'Documents as of',
-  validated: 'Referring doctor validation', confirmed: 'Coordinator confirmation', notConfirmed: 'Not confirmed yet', patient: 'Patient details',
+  validated: 'Referring doctor validation', confirmed: 'Coordinator confirmation', notConfirmed: 'Not confirmed yet', confirmHint: 'The coordinator confirms the handover by preparing the MDT input in the MDT tab.', goMdt: 'Go to MDT', patient: 'Patient details',
   contacts: 'Contacts', diagnosis: 'Diagnosis', diagnosisCode: 'ICD-10', epicrisisSource: 'Referring doctor’s epicrisis', epicrisis: 'Epicrisis summary',
   mdtQuestion: 'Question for MDT', history: 'History and condition', examinations: 'Examinations', labs: 'Laboratory results', histology: 'Histology',
   other: 'Other information', firstName: 'First name', lastName: 'Last name', birthNumber: 'Birth number', birthDate: 'Date of birth', age: 'Age', sex: 'Sex',

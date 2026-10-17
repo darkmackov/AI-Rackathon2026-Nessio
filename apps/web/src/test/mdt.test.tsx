@@ -38,6 +38,26 @@ describe('S5 coordinator MDT workflow', () => {
     expect(screen.getAllByText('Není uvedeno').length).toBeGreaterThan(1)
   })
 
+  it('points the overview coordinator confirmation to the MDT input while it is not prepared', async () => {
+    completeCase(); resolveBlockers()
+    const { user } = await openCoordinatorCase(s4CaseId, 'Fiktivní pacient S4')
+    const status = await screen.findByRole('region', { name: 'Stav předávky' })
+    expect(await within(status).findByText('Koordinátor předávku potvrdí přípravou podkladu pro MDT v záložce MDT.')).toBeVisible()
+    await user.click(within(status).getByRole('button', { name: 'Přejít na MDT' }))
+    expect(screen.getByRole('tab', { name: 'MDT' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('button', { name: 'Připravit podklad pro MDT' })).toBeVisible()
+  })
+
+  it('shows the coordinator confirmation on the overview once the MDT input is prepared', async () => {
+    await prepare()
+    const created = demoState.mdt.record(s4CaseId)?.created
+    await openCoordinatorCase(s4CaseId, 'Fiktivní pacient S4')
+    const status = await screen.findByRole('region', { name: 'Stav předávky' })
+    await waitFor(() => expect(status.querySelector(`time[datetime="${created?.at}"]`)).toBeInTheDocument())
+    expect(within(status).queryByText('Koordinátor předávku potvrdí přípravou podkladu pro MDT v záložce MDT.')).not.toBeInTheDocument()
+    expect(within(status).queryByRole('button', { name: 'Přejít na MDT' })).not.toBeInTheDocument()
+  })
+
   it('edits the board roster before snapshot creation without changing the canonical directory', async () => {
     completeCase()
     const { user } = await openMdt()
