@@ -118,6 +118,9 @@ describe('case detail', () => {
     expect(rows.filter((row) => within(within(row).getAllByRole('cell')[1]).queryByText('Dokončeno')).every((row) => !within(row).queryByText(/Po termínu/))).toBe(true)
     expect(rows.filter((row) => within(row).queryByText(/Po termínu/))).toHaveLength(3)
     expect(within(panel).getAllByRole('link', { name: /CT břicha a hrudníku/ }).length).toBeGreaterThan(0)
+    const stateCell = within(rows[0]).getAllByRole('cell')[1]
+    expect(within(stateCell).getByText(/^Priorita:/, { exact: false })).toBeInTheDocument()
+    expect(stateCell.querySelectorAll('svg[aria-hidden="true"]').length).toBeGreaterThan(0)
   })
 
   it('translates the detail while keeping Czech clinical data', async () => {

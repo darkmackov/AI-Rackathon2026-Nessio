@@ -16,8 +16,8 @@ import CaseActions from './CaseActions'
 import AskCaseSearch from './S8/AskCaseSearch'
 import ExportCaseFhir from '../../components/fhir/ExportCaseFhir'
 import { useSession } from '../../session'
+import { PriorityBadge } from '../../components/Priority'
 
-const priorityColor = { normal: 'gray', high: 'orange', urgent: 'red' } as const
 
 export function BackLink() {
   const { t } = useTranslation()
@@ -87,7 +87,7 @@ export default function CaseHeader({ item, findings, handover }: { item: Case; f
       <Group gap="md" wrap="wrap" style={{ rowGap: 'var(--mantine-spacing-xs)' }}>
         <Group gap={6}>
           <Badge variant="light"><VisuallyHidden>{t('state')}: </VisuallyHidden>{item.state ? t(`states.${item.state}`) : t('unavailable')}</Badge>
-          <Badge variant="outline" color={item.priority ? priorityColor[item.priority] : 'gray'} c="dark.9"><VisuallyHidden>{t('priority')}: </VisuallyHidden>{item.priority ? t(`priorities.${item.priority}`) : t('unavailable')}</Badge>
+          <PriorityBadge priority={item.priority} />
           {item.on_hold && <Badge variant="light" color="gray" c="dark.9" leftSection={<IconPlayerPause size={12} aria-hidden />}>{t('caseDetail.onHold')}</Badge>}
         </Group>
         <Fact label={t('owner')}><PersonChip id={item.on_move} size="xs" /></Fact>

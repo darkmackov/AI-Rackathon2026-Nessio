@@ -13,9 +13,9 @@ import PageHeading from '../components/PageHeading'
 import { useSession } from '../session'
 import CaseTime, { DueDate } from '../components/CaseTime'
 import PersonChip from '../components/PersonChip'
+import { PriorityBadge } from '../components/Priority'
 
 const columns: { value: QueueColumn; icon: Icon }[] = [{ value: 'novy', icon: IconInbox }, { value: 'aktivni', icon: IconProgress }, { value: 'odlozeny', icon: IconPlayerPause }]
-const priorityColor = { normal: 'gray', high: 'orange', urgent: 'red' } as const
 
 function CaseCard({ item }: { item: Case }) {
   const { t } = useTranslation()
@@ -24,7 +24,7 @@ function CaseCard({ item }: { item: Case }) {
       <div><Anchor renderRoot={(props) => <Link {...props} to="/coordinator/cases/$caseId" params={{ caseId: item.id }} search={{ tab: 'overview' }} />} fw={650}>{item.patient_name}</Anchor><Text size="sm" c="dimmed">{item.diagnosis_label ?? t('unavailable')}</Text></div>
       <Group gap={6}>
         <Badge variant="light"><VisuallyHidden>{t('state')}: </VisuallyHidden>{item.state ? t(`states.${item.state}`) : t('unavailable')}</Badge>
-        <Badge variant="outline" color={item.priority ? priorityColor[item.priority] : 'gray'} c="dark.9"><VisuallyHidden>{t('priority')}: </VisuallyHidden>{item.priority ? t(`priorities.${item.priority}`) : t('unavailable')}</Badge>
+        <PriorityBadge priority={item.priority} />
       </Group>
       <div><Text size="xs" c="dimmed">{t('nextStep')}</Text><Text size="sm">{item.next_step ?? t('unavailable')}</Text></div>
       <Group gap="md" align="flex-start">
