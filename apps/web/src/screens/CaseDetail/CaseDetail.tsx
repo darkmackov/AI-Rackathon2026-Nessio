@@ -25,6 +25,7 @@ import SourcePanel, { SourcePlaceholder } from '../../components/handover/Source
 import TasksTab from './TasksTab'
 import MdtTab from './Mdt/MdtTab'
 import CommunicationTab from './CommunicationTab'
+import CodeCandidates from './S8/CodeCandidates'
 
 const tabIcons: Record<DetailTab, Icon> = { overview: IconLayoutDashboard, handover: IconClipboardText, findings: IconListSearch, tasks: IconChecklist, documents: IconFiles, audit: IconHistory, mdt: IconUsersGroup, communication: IconMessages }
 // Tabs without clinical values have no source column.
@@ -102,7 +103,10 @@ function DetailContent({ caseId }: { caseId: string }) {
             {handoverError}
             {documents.isError && <QueryError error={documents.error} pending={documents.isFetching} retry={() => { void documents.refetch() }} />}
             {handover.data && <HandoverActions caseId={caseId} handover={handover.data}><HandoverTab handover={handover.data} names={names} sources={sources} findings={openFindings} showFinding={showFinding} open={openSections} setOpen={setChosenSections}
-              fieldActions={(path, label) => fields[path]?.status !== 'found' && <FieldActions path={path} label={label} findings={openFindings.filter((finding) => finding.fields?.includes(path))} showFinding={showFinding} />} /></HandoverActions>}
+              fieldActions={(path, label) => <>
+                {fields[path]?.status !== 'found' && <FieldActions path={path} label={label} findings={openFindings.filter((finding) => finding.fields?.includes(path))} showFinding={showFinding} />}
+                {path === 'diagnosis_code' && <CodeCandidates handover={handover.data} onSaved={() => setChosenSections(openSections.includes('diagnosis') ? openSections : [...openSections, 'diagnosis'])} />}
+              </>} /></HandoverActions>}
           </Stack>}</Tabs.Panel>
           <Tabs.Panel value="findings">
             {seen('findings') && <FindingsPanel caseId={caseId} handover={handover.data} names={names} sources={sources} showField={showField}

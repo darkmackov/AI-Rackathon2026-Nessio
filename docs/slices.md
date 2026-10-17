@@ -157,6 +157,7 @@ flowchart LR
 - **Done when:** the API runs with `IrisRepository` and passes the same tests as the in-memory fake; demo step 16; the demo runs from Azure.
 
 ## S8: Vector search + MKN-10 code suggestions
+- **Frontend delivery (Q-W17):** implemented against MSW using the existing generated contract. Ask from the case header, read the latest answer in a popover, open cited documents in a drawer; request and explicitly pick MKN-10 candidates beside the missing code in Předávka. A separate `demo-s8` case demonstrates code selection and unverified evidence. This dummy frontend does not implement real vector search or establish completion of the backend slice.
 - **Goal:** InterSystems criterion GenAI + vector search, used inside the evidence model (Q-I19), not as a side feature.
 - **Endpoints:** `askCase` (a `Job` of kind `ask_case`, the `CaseAnswer` in `job.answer`), `listCodeCandidates`, `pickDiagnosisCode` ([api.md](api.md)); models `DocChunk`, `CaseAnswer`, `CodeCandidate` and the finding kind `unverified_quote` (contract PR).
 - **Modules:**

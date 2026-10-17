@@ -1,0 +1,31 @@
+export const s8Cs = {
+  ask: 'Vyhledat v případu', placeholder: 'Např. Jaký byl nález na CT?', submit: 'Odeslat otázku',
+  answer: 'Výsledek dotazu', closeAnswer: 'Zavřít výsledek', required: 'Zadejte otázku.',
+  help: 'Odpověď tvoří pouze citace z dokumentace tohoto pacienta.',
+  demo: 'Demo: předem připravené citace pro dotazy na CT, histologii a laboratorní výsledky. Nejde o skutečné AI vyhledávání.',
+  notFound: 'V dostupných podkladech nebyla odpověď nalezena.',
+  invalidAnswer: 'Výsledek neobsahuje ověřené citace. Zkuste dotaz znovu.',
+  failed: 'Dotaz se nepodařilo zpracovat.', retryAsk: 'Zopakovat dotaz',
+  showSource: 'Otevřít zdroj: {{document}}', suggest: 'Navrhnout kód', candidates: 'Návrhy MKN-10',
+  useCode: 'Použít kód {{code}}', noCandidates: 'Pro tuto diagnózu nebyly nalezeny návrhy kódu.',
+  candidateHelp: 'AI návrhy. Kód se uloží teprve vaším výběrem.', saved: 'Kód byl uložen jako ruční zadání.',
+  stale: 'Návrhy již nemusí být aktuální. Obnovte údaje a zkuste to znovu.',
+  refresh: 'Obnovit údaje', unverified: 'Neověřená citace',
+  nearest: 'Původní AI citace nebyla ověřena. Připojený zdroj je pouze nejbližší nalezený úryvek, nikoliv potvrzení původního tvrzení.',
+}
+
+export const s8En = {
+  ask: 'Search within the case', placeholder: 'E.g. Jaký byl nález na CT?', submit: 'Submit question',
+  answer: 'Question result', closeAnswer: 'Close result', required: 'Enter a question.',
+  help: 'Answers contain only quotes from this patient’s documents.',
+  demo: 'Demo: prepared quotes for questions about CT, histology and lab results. This is not live AI search.',
+  notFound: 'No answer was found in the available documents.',
+  invalidAnswer: 'The result contains no verified quotes. Try the question again.',
+  failed: 'The question could not be processed.', retryAsk: 'Retry question',
+  showSource: 'Open source: {{document}}', suggest: 'Suggest code', candidates: 'ICD-10 suggestions',
+  useCode: 'Use code {{code}}', noCandidates: 'No code suggestions were found for this diagnosis.',
+  candidateHelp: 'AI proposals. A code is saved only when you choose it.', saved: 'The code was saved as a manual entry.',
+  stale: 'The suggestions may no longer be current. Refresh the data and try again.',
+  refresh: 'Refresh data', unverified: 'Unverified quote',
+  nearest: 'The original AI quote was not verified. The attached source is only the nearest matching excerpt, not confirmation of the original statement.',
+}

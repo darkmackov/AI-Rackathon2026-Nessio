@@ -5,6 +5,7 @@ import { actors } from './directory'
 import { changed, documentLabels } from './audit-text'
 import { s4CaseId, type createCoordinatorState } from './coordinator-state'
 import { referenceDocuments, referenceFindings, referenceHandover, referenceTexts } from './reference-data'
+import { s8Documents, s8Findings, s8Handover, s8Texts } from './s8-data'
 import { extraFields, isApiDateTime, objectBody, queryValue, validationResponse } from './validation'
 
 // Explicitly synthetic content. Uploaded bytes are retained only for original-file downloads;
@@ -92,6 +93,13 @@ export function createDocumentDemoState(readNow: () => number = Date.now) {
       }
       results.set(referenceHandover.case_id, { handover: structuredClone(referenceHandover), findings: structuredClone(referenceFindings) })
       extracted.add(referenceHandover.case_id)
+      for (const document of s8Documents) {
+        documents.set(document.id, structuredClone(document))
+        texts.set(document.id, s8Texts[document.id])
+        originals.set(document.id, new File([s8Texts[document.id]], document.filename, { type: document.mime_type }))
+      }
+      results.set(s8Handover.case_id, { handover: structuredClone(s8Handover), findings: structuredClone(s8Findings) })
+      extracted.add(s8Handover.case_id)
     },
     upload: (caseId: string, file: File, actorId: string, receivedAt: string, now: string): UploadResult => {
       const document: DocumentMeta = { id: `demo-document-${++sequence}`, case_id: caseId, filename: file.name, mime_type: file.type, received_at: receivedAt, uploaded_by: actorId }
