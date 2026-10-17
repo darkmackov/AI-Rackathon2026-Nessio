@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../../api'
 import { createDraftMutation, listCaseJobsOptions } from '../../../client/@tanstack/react-query.gen'
 import type { DraftKind, DraftResult as Draft, Job } from '../../../client/types.gen'
-import LoadingState, { EmptyState, QueryError } from '../../../components/DataState'
+import LoadingState, { QueryError } from '../../../components/DataState'
 import { terminalJob } from '../../../components/documents/document-utils'
 import { rememberJob, useIngestJob } from '../../../components/documents/use-document-ingest'
 import { CopySection } from '../../../components/handover/ClinicalValue'
@@ -40,12 +40,12 @@ function usable(draft: Draft | null | undefined, kind: DraftKind): draft is Draf
   return typeof draft.text === 'string' && draft.text.length > 0
 }
 
-function DraftResult({ job, actorId, kind, onUse }: { job: Job; actorId: string; kind: DraftKind; onUse?: (draft: Draft) => void }) {
+function DraftResult({ job, actorId, kind, onUse }: { job: Job; actorId: string; kind: DraftKind; onUse: (draft: Draft) => void }) {
   const { t } = useTranslation(), busy = useIsMutating() > 0
   const query = useIngestJob(job, actorId), current = query.data ?? job
   const draft = current.draft
   return <Stack gap="xs">
-    <Group role="status">{!terminalJob(current) && !query.isError && <LoadingState />}<Badge color={current.status === 'failed' ? 'red' : 'blue'} variant="light">{t(`documents.jobStatus.${current.status ?? 'queued'}`)}</Badge></Group>
+    <Group role="status">{!terminalJob(current) && !query.isError && <LoadingState />}<Badge color={current.status === 'failed' ? 'red' : 'blue'} variant="light">{t(current.status === 'running' ? (prefill(kind) ? 'mdt.prefillRunning' : 'mdt.draftRunning') : `documents.jobStatus.${current.status ?? 'queued'}`)}</Badge></Group>
     {query.isError && <QueryError error={query.error} retry={() => { void query.refetch() }} />}
     {current.status === 'failed' && <Alert color="red" role="alert">{t('errorOther')}</Alert>}
     {current.status === 'done' && (usable(draft, kind) ? <>
@@ -53,12 +53,13 @@ function DraftResult({ job, actorId, kind, onUse }: { job: Job; actorId: string;
         ? <Badge variant="light" color="gray" leftSection={<IconFileText size={14} aria-hidden />}>{t('mdt.prefillBadge')}</Badge>
         : <Badge variant="light" color="violet" leftSection={<IconSparkles size={14} aria-hidden />}>{t('mdt.ai')}</Badge>}
       <DraftBody draft={draft} />
-      <Group align="flex-start">{!prefill(kind) && <CopySection text={() => draftText(draft)} />}{onUse && <Button variant="outline" size="compact-sm" disabled={busy} onClick={() => onUse(draft)}>{t(kind === 'mdt_results' ? 'mdt.useRows' : 'mdt.useDraft')}</Button>}</Group>
+      <Group align="flex-start"><Button size="compact-sm" disabled={busy} onClick={() => onUse(draft)}>{t(kind === 'mdt_results' ? 'mdt.useRows' : 'mdt.useDraft')}</Button>{!prefill(kind) && <CopySection text={() => draftText(draft)} />}</Group>
     </> : <Alert color="orange" role="status">{t('mdt.draftMissing')}</Alert>)}
   </Stack>
 }
 
-export default function DraftPanel({ caseId, actorId, kind, onUse }: { caseId: string; actorId: string; kind: DraftKind; onUse?: (draft: Draft) => void }) {
+/** Drafts and the prefill live inside the open editor: using one fills the form, nothing is saved until the coordinator saves. */
+export default function DraftAssist({ caseId, actorId, kind, help, onUse }: { caseId: string; actorId: string; kind: DraftKind; help?: string; onUse: (draft: Draft) => void }) {
   const { t } = useTranslation(), client = useQueryClient(), busy = useIsMutating() > 0
   const options = { path: { case_id: caseId }, headers: actorHeaders(actorId) }
   const jobs = useQuery(listCaseJobsOptions(options))
@@ -66,14 +67,15 @@ export default function DraftPanel({ caseId, actorId, kind, onUse }: { caseId: s
   const create = useMutation({ ...createDraftMutation(), onSuccess: (value) => { rememberJob(client, actorId, value) } })
   const label = { epicrisis_summary: 'finalEpicrisis', mdt_question: 'question', mdt_results: 'results', mdt_conclusion: 'conclusion' } satisfies Record<DraftKind, string>
   const Icon = prefill(kind) ? IconFileText : IconSparkles
-  return <Paper component="section" aria-label={t(prefill(kind) ? 'mdt.prefillFor' : 'mdt.draftFor', { field: t(`mdt.${label[kind]}`) })} withBorder p="sm"><Stack gap="xs">
-    <Text size="xs" c="dimmed">{t(prefill(kind) ? 'mdt.prefillHelp' : 'mdt.draftHelp')}</Text>
+  return <Paper component="section" aria-label={t(prefill(kind) ? 'mdt.prefillFor' : 'mdt.draftFor', { field: t(`mdt.${label[kind]}`) })} withBorder p="sm" bg="gray.0"><Stack gap="xs">
+    <Group justify="space-between" align="flex-start" wrap="wrap" gap="xs">
+      <Text size="xs" c="dimmed" maw={520}>{help ?? t(prefill(kind) ? 'mdt.prefillHelp' : 'mdt.draftHelp')}</Text>
+      <Button size="compact-sm" variant="light" color={prefill(kind) ? 'gray' : 'violet'} leftSection={<Icon size={14} aria-hidden />} disabled={busy || !!job && !terminalJob(job)} loading={create.isPending}
+        onClick={() => create.mutate({ ...options, body: { kind } })}>{t(prefill(kind) ? 'mdt.prefill' : 'mdt.draft')}</Button>
+    </Group>
     {jobs.isPending && <LoadingState />}
     {jobs.isError && <QueryError error={jobs.error} retry={() => { void jobs.refetch() }} />}
-    {jobs.isSuccess && !job && <EmptyState title={t(prefill(kind) ? 'mdt.noPrefill' : 'mdt.noDraft')} />}
     {job && <DraftResult key={job.id} job={job} actorId={actorId} kind={kind} onUse={onUse} />}
-    <Button size="compact-sm" variant="outline" leftSection={<Icon size={14} aria-hidden />} disabled={busy || !!job && !terminalJob(job)} loading={create.isPending}
-      onClick={() => create.mutate({ ...options, body: { kind } })}>{t(prefill(kind) ? 'mdt.prefill' : 'mdt.draft')}</Button>
     {create.isError && <QueryError error={create.error} />}
   </Stack></Paper>
 }
