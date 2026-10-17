@@ -87,6 +87,6 @@ describe('S3 HTTP demo contracts', () => {
     expect(inbox.find((message) => message.case_id === s4CaseId)).toMatchObject({ kind: 'case_returned', body: 'Fiktivní: doplňte kontakt.' })
     expectApiResponse('update_handover_field', 200, await patch.execute({ ...doctor, body: { path: 'contacts.patient_phone', value: '+420 777 000 000' } }))
     const audit = await query.fetchQuery(listAuditOptions(coordinator))
-    expect(audit.filter((event) => event.action === 'handover_field').map((event) => event.actor_id)).toEqual(['koordinator', 'pl-reznicek'])
+    expect(audit.filter((event) => event.action === 'handover_field_updated').map((event) => event.actor_id)).toEqual(['koordinator', 'pl-reznicek'])
   })
 })

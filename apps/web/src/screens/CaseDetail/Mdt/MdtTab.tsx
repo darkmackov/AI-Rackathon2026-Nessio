@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, actorHeaders } from '../../../api'
 import { confirmMdtConclusionMutation, getMdtConclusionOptions, getMdtRecordOptions, listCaseJobsOptions } from '../../../client/@tanstack/react-query.gen'
-import type { Case, DocumentMeta, Handover } from '../../../client/types.gen'
+import type { Case, ConclusionPrefill, DocumentMeta, Handover, MdtResultRow } from '../../../client/types.gen'
 import LoadingState, { EmptyState, QueryError } from '../../../components/DataState'
 import JobProgress from '../../../components/documents/JobProgress'
 import { terminalJob } from '../../../components/documents/document-utils'
@@ -21,8 +21,9 @@ import RecordEditor from './RecordEditor'
 import RecordView from './RecordView'
 import SnapshotForm from './SnapshotForm'
 
-type Editor = { kind: 'field'; path: 'epicrisis' | 'mdt_question'; draft?: string } | { kind: 'record' } | { kind: 'conclusion'; draft?: string } | null
+type Editor = { kind: 'field'; path: 'epicrisis' | 'mdt_question'; draft?: string } | { kind: 'record'; rows?: MdtResultRow[] } | { kind: 'conclusion'; prefill?: ConclusionPrefill } | null
 const missing = (error: unknown) => error instanceof ApiError && error.status === 404
+const conflict = (error: unknown) => error instanceof ApiError && error.status === 409
 
 export default function MdtTab({ item, handover, documents, names, sources, showFindings, handoverState }: { item: Case; handover?: Handover; documents: DocumentMeta[]; names: Record<string, string>; sources: Sources; showFindings: () => void; handoverState?: ReactNode }) {
   const { t } = useTranslation(), { actorId } = useSession(), client = useQueryClient(), busy = useIsMutating() > 0
@@ -32,6 +33,8 @@ export default function MdtTab({ item, handover, documents, names, sources, show
   const conclusion = useQuery({ ...getMdtConclusionOptions(options), enabled: !!record.data })
   const jobs = useQuery(listCaseJobsOptions(options))
   const pre = ['v_triage', 'ceka_na_podklady', 'kompletni'].includes(item.state ?? ''), ready = item.state === 'pripraveno_k_mdt'
+  // The conclusion can be corrected until the feedback is sent; a change needs a new confirmation (Q-F34).
+  const conclusionOpen = ready || item.state === 'zaver_mdt'
   const ingest = jobs.data?.filter((job) => job.kind === 'ingest_document' && (!terminalJob(job) || job.status === 'failed')) ?? []
   const pending = ingest.some((job) => !terminalJob(job))
   const confirmMutation = useMutation({ ...confirmMdtConclusionMutation(), onSuccess: async () => { await refreshCaseResults(client, item.id); setConfirm(false); setFeedback('mdt.confirmed') } })
@@ -45,11 +48,11 @@ export default function MdtTab({ item, handover, documents, names, sources, show
         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="sm">
           <ClinicalValue idPrefix="mdt-field" label={t('mdt.sourceEpicrisis')} path="epicrisis_source" value={handover.epicrisis_source} names={names} sources={sources} findings={[]} showFinding={showFindings} />
           <Stack><ClinicalValue idPrefix="mdt-field" label={t('mdt.finalEpicrisis')} path="epicrisis" value={handover.epicrisis} names={names} sources={sources} findings={[]} showFinding={showFindings} actions={fieldActions('epicrisis')} />
-            <DraftPanel caseId={item.id} actorId={actor} kind="epicrisis_summary" onUse={(draft) => setEditor({ kind: 'field', path: 'epicrisis', draft })} />
+            <DraftPanel caseId={item.id} actorId={actor} kind="epicrisis_summary" onUse={(draft) => setEditor({ kind: 'field', path: 'epicrisis', draft: draft.text ?? '' })} />
           </Stack>
         </SimpleGrid>
         <ClinicalValue idPrefix="mdt-field" label={t('mdt.question')} path="mdt_question" value={handover.mdt_question} names={names} sources={sources} findings={[]} showFinding={showFindings} actions={fieldActions('mdt_question')} />
-        <DraftPanel caseId={item.id} actorId={actor} kind="mdt_question" onUse={(draft) => setEditor({ kind: 'field', path: 'mdt_question', draft })} />
+        <DraftPanel caseId={item.id} actorId={actor} kind="mdt_question" onUse={(draft) => setEditor({ kind: 'field', path: 'mdt_question', draft: draft.text ?? '' })} />
       </>}
     </Stack>}
     <Stack gap="sm"><Title order={2} size="h4">{t('mdt.record')}</Title>
@@ -59,7 +62,7 @@ export default function MdtTab({ item, handover, documents, names, sources, show
       {record.data && <>
         <RecordView record={record.data} />
         <Group align="flex-start"><PdfDownload caseId={item.id} actorId={actor} kind="record" />{ready && <Button variant="outline" size="compact-sm" disabled={busy} onClick={() => setEditor({ kind: 'record' })}>{t('mdt.editRecord')}</Button>}</Group>
-        {ready && <><Text size="sm" c="dimmed">{t('mdt.resultsDraftHelp')}</Text><DraftPanel caseId={item.id} actorId={actor} kind="mdt_results" /></>}
+        {ready && <><Text size="sm" c="dimmed">{t('mdt.resultsDraftHelp')}</Text><DraftPanel caseId={item.id} actorId={actor} kind="mdt_results" onUse={(draft) => setEditor({ kind: 'record', rows: draft.rows ?? [] })} /></>}
       </>}
     </Stack>
     {record.data && <Stack gap="sm"><Title order={2} size="h4">{t('mdt.conclusion')}</Title>
@@ -69,23 +72,24 @@ export default function MdtTab({ item, handover, documents, names, sources, show
         {conclusion.data.document_id && <Button variant="outline" size="compact-sm" disabled={!documents.some((document) => document.id === conclusion.data.document_id)} onClick={(event) => { if (conclusion.data.document_id) sources.openSource({ documentId: conclusion.data.document_id }, event.currentTarget) }}>{t('mdt.source')}</Button>}
         {conclusion.data.document_id && !documents.some((document) => document.id === conclusion.data.document_id) && <Alert color="orange" role="status">{t('mdt.noSource')}</Alert>}
       </>}
-      {ready && <>
+      {conclusionOpen && <>
+        {item.state === 'zaver_mdt' && <Text size="sm" c="dimmed">{t('mdt.correctionHelp')}</Text>}
         <Button variant="outline" disabled={busy || pending} onClick={() => setEditor({ kind: 'conclusion' })}>{t('mdt.editConclusion')}</Button>
-        <DraftPanel caseId={item.id} actorId={actor} kind="mdt_conclusion" onUse={(draft) => setEditor({ kind: 'conclusion', draft })} />
+        <DraftPanel caseId={item.id} actorId={actor} kind="mdt_conclusion" onUse={(draft) => setEditor({ kind: 'conclusion', prefill: draft.fields ?? undefined })} />
         <ConclusionUpload caseId={item.id} actorId={actor} disabled={pending} />
         {ingest.map((job) => <JobProgress key={job.id} job={job} actorId={actor} documents={documents} />)}
         {pending && <Alert color="blue" role="status">{t('mdt.pendingUpload')}</Alert>}
         {jobs.isError && <QueryError error={jobs.error} retry={() => { void jobs.refetch() }} />}
-        {conclusion.data && <Button disabled={busy || pending || !jobs.isSuccess || !conclusion.isSuccess} onClick={() => { confirmMutation.reset(); setConfirm(true) }}>{t('mdt.confirm')}</Button>}
+        {conclusion.data && !conclusion.data.confirmed && <Button disabled={busy || pending || !jobs.isSuccess || !conclusion.isSuccess} onClick={() => { confirmMutation.reset(); setConfirm(true) }}>{t('mdt.confirm')}</Button>}
       </>}
     </Stack>}
     <Modal opened={!!editor} onClose={() => { if (!busy) setEditor(null) }} size="lg" title={t(editor?.kind === 'record' ? 'mdt.editRecord' : editor?.kind === 'conclusion' ? 'mdt.editConclusion' : editor?.kind === 'field' && editor.path === 'mdt_question' ? 'mdt.question' : 'mdt.finalEpicrisis')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
       {editor?.kind === 'field' && pre && <HandoverFieldForm key={editor.path} caseId={item.id} actorId={actor} path={editor.path} value={handover?.[editor.path]} initialText={editor.draft} close={() => setEditor(null)} saved={saved} />}
-      {editor?.kind === 'record' && ready && record.data && <RecordEditor record={record.data} actorId={actor} saved={saved} />}
-      {editor?.kind === 'conclusion' && ready && record.data && <ConclusionEditor caseId={item.id} actorId={actor} conclusion={conclusion.data} draft={editor.draft} meetingDate={record.data.mdt_date} saved={saved} />}
+      {editor?.kind === 'record' && ready && record.data && <RecordEditor record={record.data} rows={editor.rows} actorId={actor} saved={saved} />}
+      {editor?.kind === 'conclusion' && conclusionOpen && record.data && <ConclusionEditor caseId={item.id} actorId={actor} conclusion={conclusion.data} prefill={editor.prefill} meetingDate={record.data.mdt_date} saved={saved} />}
     </Modal>
     <Modal opened={confirm} onClose={() => { if (!busy) setConfirm(false) }} title={t('mdt.confirmTitle')} closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), disabled: busy }}>
-      <Stack><Text>{t('mdt.confirmHelp')}</Text>{confirmMutation.isError && <QueryError error={confirmMutation.error} />}
+      <Stack><Text>{t('mdt.confirmHelp')}</Text>{confirmMutation.isError && (conflict(confirmMutation.error) ? <Alert color="orange" role="alert">{t('mdt.confirmIncomplete')}</Alert> : <QueryError error={confirmMutation.error} />)}
         <Group><Button loading={confirmMutation.isPending} disabled={busy || pending} onClick={() => confirmMutation.mutate(options)}>{t('mdt.confirm')}</Button><Button variant="default" disabled={busy} onClick={() => setConfirm(false)}>{t('cancel')}</Button></Group>
       </Stack>
     </Modal>

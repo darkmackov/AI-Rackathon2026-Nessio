@@ -14,7 +14,7 @@ describe('coordinator work queue', () => {
     const active = await screen.findByRole('region', { name: 'Aktivní pacient' })
     const card = await within(active).findByRole('article')
     expect(within(card).getByText('C25.0 Duktální adenokarcinom hlavy pankreatu')).toBeVisible()
-    expect(within(card).getByText('Připraveno k MDT')).toBeVisible()
+    expect(within(card).getByText('Kompletní')).toBeVisible()
     expect(within(card).getByText('Vysoká')).toBeVisible()
     expect(within(card).getByText('MDT pro nádory GIT')).toBeVisible()
     expect(within(card).getByText(/^21\. 10\. 2026/)).toBeVisible()
