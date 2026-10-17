@@ -69,6 +69,11 @@ def _evidence_documents(node: Any) -> set[str]:
     return found
 
 
+def quoted_documents(handover: Handover) -> list[str]:
+    """Ids of the documents the handover's values, examinations or labs quote, sorted."""
+    return sorted(_evidence_documents(handover.model_dump()))
+
+
 def late_documents(handover: Handover, documents: Iterable[DocumentMeta], as_of: dt.date) -> list[str]:
     """Documents received after `as_of` that the handover's values, examinations or labs quote."""
     late = {d.id for d in documents if d.received_at is not None and d.received_at.date() > as_of}

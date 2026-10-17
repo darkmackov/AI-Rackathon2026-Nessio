@@ -1138,7 +1138,13 @@ export const getMdtConclusionPdfOptions = (options: Options<GetMdtConclusionPdfD
 /**
  * Send Feedback
  *
- * Send the confirmed conclusion to the GP's inbox; zaver_mdt → zpetna_vazba_odeslana.
+ * 'Odeslat PL', a coordinator of the case's KOC: the confirmed conclusion goes to the referring
+ * doctor's in-app inbox as an `mdt_result` message; zaver_mdt → zpetna_vazba_odeslana, and the
+ * referring doctor is on the move until they confirm receipt. Attached: the uploaded MDT report
+ * (if any), then every document the frozen MDT snapshot quotes (the original context). Subject
+ * 'Závěr MDT ze dne …'; body = `note`, then the conclusion text. The conclusion can't be changed
+ * afterwards. 404 without a conclusion; 409 in another state or while the conclusion isn't
+ * (re-)confirmed.
  */
 export const sendFeedbackMutation = (options?: Partial<Options<SendFeedbackData>>): UseMutationOptions<SendFeedbackResponse, SendFeedbackError, Options<SendFeedbackData>> => {
     const mutationOptions: UseMutationOptions<SendFeedbackResponse, SendFeedbackError, Options<SendFeedbackData>> = {
@@ -1157,7 +1163,9 @@ export const sendFeedbackMutation = (options?: Partial<Options<SendFeedbackData>
 /**
  * Create Patient Notice
  *
- * 'Informovat pacienta': recorded, simulated=True, never delivered (Q-F16).
+ * 'Informovat pacienta', a coordinator of the case's KOC: recorded as sent with
+ * `simulated=True` and no recipients, never delivered (Q-F16), so it is in no inbox. 409 before
+ * the take-over or once the case is closed.
  */
 export const createPatientNoticeMutation = (options?: Partial<Options<CreatePatientNoticeData>>): UseMutationOptions<CreatePatientNoticeResponse, CreatePatientNoticeError, Options<CreatePatientNoticeData>> => {
     const mutationOptions: UseMutationOptions<CreatePatientNoticeResponse, CreatePatientNoticeError, Options<CreatePatientNoticeData>> = {
@@ -1177,6 +1185,8 @@ export const listCaseMessagesQueryKey = (options: Options<ListCaseMessagesData>)
 
 /**
  * List Case Messages
+ *
+ * Every message of the case (MDT result, returned referral, patient notices), oldest first.
  */
 export const listCaseMessagesOptions = (options: Options<ListCaseMessagesData>) => queryOptions<ListCaseMessagesResponse, ListCaseMessagesError, ListCaseMessagesResponse, ReturnType<typeof listCaseMessagesQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1196,7 +1206,7 @@ export const listCaseReceiptsQueryKey = (options: Options<ListCaseReceiptsData>)
 /**
  * List Case Receipts
  *
- * Proof of delivery ('doložit doručení').
+ * Proof of delivery ('doložit doručení'): the confirmed receipts, oldest first.
  */
 export const listCaseReceiptsOptions = (options: Options<ListCaseReceiptsData>) => queryOptions<ListCaseReceiptsResponse, ListCaseReceiptsError, ListCaseReceiptsResponse, ReturnType<typeof listCaseReceiptsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1216,7 +1226,8 @@ export const listInboxQueryKey = (options: Options<ListInboxData>) => createQuer
 /**
  * List Inbox
  *
- * The current user's in-app inbox (MVP: the GP's MDT results and returned referrals).
+ * The current user's in-app inbox (MVP: the GP's MDT results and returned referrals), across
+ * cases, newest first.
  */
 export const listInboxOptions = (options: Options<ListInboxData>) => queryOptions<ListInboxResponse, ListInboxError, ListInboxResponse, ReturnType<typeof listInboxQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1234,7 +1245,10 @@ export const listInboxOptions = (options: Options<ListInboxData>) => queryOption
 /**
  * Confirm Receipt
  *
- * 'Potvrzuji převzetí'; zpetna_vazba_odeslana → uzavreno.
+ * 'Potvrzuji převzetí', a recipient of an `mdt_result` message: zpetna_vazba_odeslana →
+ * uzavreno. Closing ends a hold; open tasks stay. 404 for an unknown message; 403 for anyone
+ * but a recipient; 409 for another kind of message, a receipt already confirmed, or a case not
+ * awaiting it.
  */
 export const confirmReceiptMutation = (options?: Partial<Options<ConfirmReceiptData>>): UseMutationOptions<ConfirmReceiptResponse, ConfirmReceiptError, Options<ConfirmReceiptData>> => {
     const mutationOptions: UseMutationOptions<ConfirmReceiptResponse, ConfirmReceiptError, Options<ConfirmReceiptData>> = {

@@ -49,3 +49,7 @@ class MdtBoardError(ValueError):
 
 class ConclusionIncompleteError(ValueError):
     """An MDT conclusion confirmed without its text (written) or its report (uploaded)."""
+
+
+class ConclusionNotConfirmedError(ValueError):
+    """The feedback is sent before the MDT conclusion is (re-)confirmed."""

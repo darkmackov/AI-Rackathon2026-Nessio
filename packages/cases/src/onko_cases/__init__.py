@@ -1,7 +1,8 @@
 """Cases module: state machine, dashboard queue, tasks and task sets, and the GP's referral
 (draft, manual handover edits, validation, sending; S3), the coordinator's workflow
 (take-over, returns, holds, findings, tasks, task sets, notices, audit; S4), and the MDT
-(snapshot, MDT record, conclusion edit windows and confirmation; S5).
+(snapshot, MDT record, conclusion edit windows and confirmation; S5), and the feedback loop
+(sending the result to the GP, closing on receipt, patient notices; S6).
 
 Owner: stream C. Task sets are user data (created in the UI), never config files.
 Public API: only what `__all__` lists. Layout: docs/conventions/implementation.md.
@@ -29,6 +30,13 @@ from .coordination import (
     take_over,
     task_set_started,
 )
+from .feedback import (
+    NOTICE_LOCKED_STATES,
+    close_after_receipt,
+    feedback_attachments,
+    require_patient_notice_allowed,
+    send_feedback,
+)
 from .mdt import (
     CONCLUSION_EDIT_STATES,
     RECORD_EDIT_STATES,
@@ -40,6 +48,7 @@ from .mdt import (
     open_blockers,
     pending_ingest,
     prepare_snapshot,
+    quoted_documents,
     result_rows,
     save_conclusion,
     town,
@@ -49,6 +58,7 @@ from .models import (
     CaseStateError,
     CodeNotNeededError,
     ConclusionIncompleteError,
+    ConclusionNotConfirmedError,
     HandoverEditError,
     HandoverLockedError,
     MdtBoardError,
@@ -90,11 +100,13 @@ __all__ = [
     "EDITABLE_STATES",
     "HOLD_STATES",
     "MANUAL_TRANSITIONS",
+    "NOTICE_LOCKED_STATES",
     "RECORD_EDIT_STATES",
     "TASK_LOCKED_STATES",
     "CaseStateError",
     "CodeNotNeededError",
     "ConclusionIncompleteError",
+    "ConclusionNotConfirmedError",
     "HandoverEditError",
     "HandoverLockedError",
     "MdtBoardError",
@@ -109,10 +121,12 @@ __all__ = [
     "build_mdt_record",
     "check_dependencies",
     "check_task_set",
+    "close_after_receipt",
     "conclusion_prefill",
     "confirm_conclusion",
     "diagnosis_for_code",
     "due_notices",
+    "feedback_attachments",
     "is_external",
     "late_documents",
     "manual_transition",
@@ -127,10 +141,12 @@ __all__ = [
     "prepare_snapshot",
     "put_on_hold",
     "queue_column",
+    "quoted_documents",
     "ready_tasks",
     "receive_referral",
     "refresh_progress",
     "require_editable",
+    "require_patient_notice_allowed",
     "require_tasks_writable",
     "resolve_finding",
     "resolve_owners",
@@ -138,6 +154,7 @@ __all__ = [
     "resume",
     "return_to_referrer",
     "save_conclusion",
+    "send_feedback",
     "send_referral",
     "set_handover_field",
     "start_task_set",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 from onko_contracts import (
     Actor,
@@ -23,6 +24,11 @@ from onko_contracts import (
     Task,
     TaskSet,
 )
+
+
+def _sent(message: Message) -> tuple[bool, Any]:
+    """Sort key: unsent messages first, then by `sent_at`."""
+    return message.sent_at is not None, message.sent_at
 
 
 class InMemoryRepository:
@@ -143,11 +149,23 @@ class InMemoryRepository:
         self._require_case(message.case_id)
         self.messages[message.id] = message
 
+    def get_message(self, message_id: str) -> Message | None:
+        return self.messages.get(message_id)
+
     def list_messages(self, case_id: str) -> list[Message]:
-        return [m for m in self.messages.values() if m.case_id == case_id]
+        return sorted((m for m in self.messages.values() if m.case_id == case_id), key=_sent)
+
+    def list_inbox(self, recipient_id: str) -> list[Message]:
+        return sorted((m for m in self.messages.values() if recipient_id in m.recipient_ids),
+                      key=_sent, reverse=True)
 
     def save_receipt(self, receipt: Receipt) -> None:
         self.receipts.append(receipt)
+
+    def list_receipts(self, case_id: str) -> list[Receipt]:
+        ids = {m.id for m in self.messages.values() if m.case_id == case_id}
+        return sorted((r for r in self.receipts if r.message_id in ids),
+                      key=lambda r: r.confirmed_at)
 
     def save_job(self, job: Job) -> None:
         self.jobs[job.id] = job

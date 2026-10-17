@@ -12,7 +12,20 @@ Public API: only what `__all__` lists. Layout: docs/conventions/implementation.m
 from __future__ import annotations
 
 from .adapters.in_app import InAppInbox
+from .models import AlreadyConfirmedError, NotConfirmableError, NotRecipientError
 from .ports import ChannelAdapter, MessageStore
-from .service import confirm, send
+from .service import ATTACHED_REPORT, confirm, mdt_result_message, patient_notice, send
 
-__all__ = ["ChannelAdapter", "InAppInbox", "MessageStore", "confirm", "send"]
+__all__ = [
+    "ATTACHED_REPORT",
+    "AlreadyConfirmedError",
+    "ChannelAdapter",
+    "InAppInbox",
+    "MessageStore",
+    "NotConfirmableError",
+    "NotRecipientError",
+    "confirm",
+    "mdt_result_message",
+    "patient_notice",
+    "send",
+]

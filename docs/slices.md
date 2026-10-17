@@ -136,6 +136,7 @@ flowchart LR
 
 ## S6: Feedback loop
 - **Goal:** pillar 04. Close the loop with confirmed delivery.
+- **Status:** backend done (all endpoints below work; rules in [api.md](api.md) › Conventions › Feedback). The UI is still to do.
 - **Endpoints:** `sendFeedback`, `listInbox`, `confirmReceipt`, `listCaseReceipts` (proof of delivery), `listCaseMessages`, `createPatientNotice`.
 - **Modules:** `repository`: `app_message_recipient` so `listInbox` is an indexed lookup by recipient (Q-I26).
 - **UI:**

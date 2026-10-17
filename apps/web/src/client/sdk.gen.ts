@@ -633,7 +633,13 @@ export const getMdtConclusionPdf = <ThrowOnError extends boolean = false>(option
 /**
  * Send Feedback
  *
- * Send the confirmed conclusion to the GP's inbox; zaver_mdt → zpetna_vazba_odeslana.
+ * 'Odeslat PL', a coordinator of the case's KOC: the confirmed conclusion goes to the referring
+ * doctor's in-app inbox as an `mdt_result` message; zaver_mdt → zpetna_vazba_odeslana, and the
+ * referring doctor is on the move until they confirm receipt. Attached: the uploaded MDT report
+ * (if any), then every document the frozen MDT snapshot quotes (the original context). Subject
+ * 'Závěr MDT ze dne …'; body = `note`, then the conclusion text. The conclusion can't be changed
+ * afterwards. 404 without a conclusion; 409 in another state or while the conclusion isn't
+ * (re-)confirmed.
  */
 export const sendFeedback = <ThrowOnError extends boolean = false>(options: Options<SendFeedbackData, ThrowOnError>): RequestResult<SendFeedbackResponses, SendFeedbackErrors, ThrowOnError> => (options.client ?? client).post<SendFeedbackResponses, SendFeedbackErrors, ThrowOnError>({
     url: '/cases/{case_id}/feedback',
@@ -647,7 +653,9 @@ export const sendFeedback = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Create Patient Notice
  *
- * 'Informovat pacienta': recorded, simulated=True, never delivered (Q-F16).
+ * 'Informovat pacienta', a coordinator of the case's KOC: recorded as sent with
+ * `simulated=True` and no recipients, never delivered (Q-F16), so it is in no inbox. 409 before
+ * the take-over or once the case is closed.
  */
 export const createPatientNotice = <ThrowOnError extends boolean = false>(options: Options<CreatePatientNoticeData, ThrowOnError>): RequestResult<CreatePatientNoticeResponses, CreatePatientNoticeErrors, ThrowOnError> => (options.client ?? client).post<CreatePatientNoticeResponses, CreatePatientNoticeErrors, ThrowOnError>({
     url: '/cases/{case_id}/patient-notices',
@@ -660,27 +668,33 @@ export const createPatientNotice = <ThrowOnError extends boolean = false>(option
 
 /**
  * List Case Messages
+ *
+ * Every message of the case (MDT result, returned referral, patient notices), oldest first.
  */
 export const listCaseMessages = <ThrowOnError extends boolean = false>(options: Options<ListCaseMessagesData, ThrowOnError>): RequestResult<ListCaseMessagesResponses, ListCaseMessagesErrors, ThrowOnError> => (options.client ?? client).get<ListCaseMessagesResponses, ListCaseMessagesErrors, ThrowOnError>({ url: '/cases/{case_id}/messages', ...options });
 
 /**
  * List Case Receipts
  *
- * Proof of delivery ('doložit doručení').
+ * Proof of delivery ('doložit doručení'): the confirmed receipts, oldest first.
  */
 export const listCaseReceipts = <ThrowOnError extends boolean = false>(options: Options<ListCaseReceiptsData, ThrowOnError>): RequestResult<ListCaseReceiptsResponses, ListCaseReceiptsErrors, ThrowOnError> => (options.client ?? client).get<ListCaseReceiptsResponses, ListCaseReceiptsErrors, ThrowOnError>({ url: '/cases/{case_id}/receipts', ...options });
 
 /**
  * List Inbox
  *
- * The current user's in-app inbox (MVP: the GP's MDT results and returned referrals).
+ * The current user's in-app inbox (MVP: the GP's MDT results and returned referrals), across
+ * cases, newest first.
  */
 export const listInbox = <ThrowOnError extends boolean = false>(options: Options<ListInboxData, ThrowOnError>): RequestResult<ListInboxResponses, ListInboxErrors, ThrowOnError> => (options.client ?? client).get<ListInboxResponses, ListInboxErrors, ThrowOnError>({ url: '/inbox', ...options });
 
 /**
  * Confirm Receipt
  *
- * 'Potvrzuji převzetí'; zpetna_vazba_odeslana → uzavreno.
+ * 'Potvrzuji převzetí', a recipient of an `mdt_result` message: zpetna_vazba_odeslana →
+ * uzavreno. Closing ends a hold; open tasks stay. 404 for an unknown message; 403 for anyone
+ * but a recipient; 409 for another kind of message, a receipt already confirmed, or a case not
+ * awaiting it.
  */
 export const confirmReceipt = <ThrowOnError extends boolean = false>(options: Options<ConfirmReceiptData, ThrowOnError>): RequestResult<ConfirmReceiptResponses, ConfirmReceiptErrors, ThrowOnError> => (options.client ?? client).post<ConfirmReceiptResponses, ConfirmReceiptErrors, ThrowOnError>({ url: '/messages/{message_id}/confirm', ...options });
 

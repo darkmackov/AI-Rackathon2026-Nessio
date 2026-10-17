@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from onko_ai import ResultLine, ResultLines
 from onko_api.jobs import ImmediateExecutor
 from onko_api.main import app
-from onko_contracts import CaseState, Job, JobKind, JobStatus, MdtRecord, Stamp
+from onko_contracts import Job, JobKind, JobStatus, MdtRecord, Stamp
 from onko_documents import parse, render_mdt_record
 
 CASE = "vzp-prochazkova"
@@ -313,8 +313,8 @@ def test_conclusion_is_locked_before_the_input_and_after_the_feedback(client):
     client.put(f"/cases/{CASE}/mdt/conclusion", headers=COORDINATOR, json=CONCLUSION)
     client.post(f"/cases/{CASE}/mdt/conclusion/confirm", headers=COORDINATOR)
 
-    repo = _repo(client)  # sending the feedback is S6; set the state it leaves behind
-    repo.save_case(repo.get_case(CASE).model_copy(update={"state": CaseState.FEEDBACK_SENT}))
+    assert client.post(f"/cases/{CASE}/feedback", headers=COORDINATOR, json={}).status_code == 201
+    assert _state(client) == "zpetna_vazba_odeslana"
     assert client.put(f"/cases/{CASE}/mdt/conclusion", headers=COORDINATOR, json=CONCLUSION).status_code == 409
     assert client.post(f"/cases/{CASE}/mdt/conclusion/confirm", headers=COORDINATOR).status_code == 409
     files = {"file": ("zaver.pdf", b"%PDF", "application/pdf")}
