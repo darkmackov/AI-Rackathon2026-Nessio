@@ -17,6 +17,8 @@ Every endpoint already has its request and response shape in the OpenAPI spec ([
 
 **S4 frontend demo (Q-W14):** the web now simulates the coordinator case mutations, manual handover edits, finding resolutions/requests, tasks and task sets, personal deadline notifications and case audit against the existing contracts. Return-to-GP stores a `case_returned` message that the S3 referral screen shows; the full inbox stays S6. The S3 referral operations (create, handover edits, examinations, validate, send, inbox) are simulated the same way. These are frontend MSW operations only: the endpoint statuses below continue to describe the Python backend.
 
+**S5 web (Q-W15):** the MDT tab runs against the real S5 endpoints. Its MSW mock mirrors the backend's S5 rules and its audit action names, so mock and real mode behave the same.
+
 Live docs while the API runs: `http://localhost:8000/docs`.
 
 ## Conventions

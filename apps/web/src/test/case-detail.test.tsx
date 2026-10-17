@@ -17,7 +17,7 @@ describe('case detail', () => {
     const user = userEvent.setup()
     await openReferenceCase(user)
     const header = screen.getByRole('region', { name: 'Alena Procházková' })
-    expect(within(header).getByText('Připraveno k MDT')).toBeVisible()
+    expect(within(header).getByText('Kompletní')).toBeVisible()
     expect(within(header).getByText('Vysoká')).toBeVisible()
     expect(within(header).getByRole('button', { name: 'Kontakty: Bc. Lucie Dvořáková' })).toBeVisible()
     expect(within(header).getByText('MDT pro nádory GIT')).toBeVisible()

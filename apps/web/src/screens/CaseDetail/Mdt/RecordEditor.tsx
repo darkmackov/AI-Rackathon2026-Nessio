@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { actorHeaders } from '../../../api'
 import { updateMdtRecordMutation } from '../../../client/@tanstack/react-query.gen'
-import type { MdtRecord, MdtRecordUpdate } from '../../../client/types.gen'
+import type { MdtRecord, MdtRecordUpdate, MdtResultRow } from '../../../client/types.gen'
 import { QueryError } from '../../../components/DataState'
 import FormErrorSummary from '../../../components/FormErrorSummary'
 import { validDocumentDate } from '../../../components/documents/document-utils'
@@ -13,10 +13,11 @@ import { refreshCaseResults } from '../../../components/documents/use-document-i
 import { lines } from '../../../components/workflow/use-workflow'
 import MembersInput from './MembersInput'
 
-export default function RecordEditor({ record, actorId, saved }: { record: MdtRecord; actorId: string; saved: () => void }) {
+export default function RecordEditor({ record, actorId, rows, saved }: { record: MdtRecord; actorId: string; rows?: MdtResultRow[]; saved: () => void }) {
   const { t } = useTranslation(), client = useQueryClient(), busy = useIsMutating() > 0
   const [submitted, setSubmitted] = useState(false)
-  const form = useForm({ initialValues: { members: structuredClone(record.members), results: structuredClone(record.results ?? []), question: record.mdt_question ?? '', diagnosis: record.diagnosis_name ?? '', code: record.diagnosis_code ?? '', comorbidities: (record.comorbidities ?? []).join('\n') },
+  // Rows from an `mdt_results` draft replace the results; nothing is saved until the coordinator saves.
+  const form = useForm({ initialValues: { members: structuredClone(record.members), results: structuredClone(rows ?? record.results ?? []), question: record.mdt_question ?? '', diagnosis: record.diagnosis_name ?? '', code: record.diagnosis_code ?? '', comorbidities: (record.comorbidities ?? []).join('\n') },
     validate: { members: (value) => value.some((member) => !member.name.trim() || !member.specialty.trim()) ? 'mdt.required' : null,
       results: (value) => value.some((row) => !validDocumentDate(row.date) || !row.examination.trim() || !row.result.trim()) ? 'mdt.required' : null } })
   const mutation = useMutation({ ...updateMdtRecordMutation(), onSuccess: async () => { await refreshCaseResults(client, record.case_id); saved() } })

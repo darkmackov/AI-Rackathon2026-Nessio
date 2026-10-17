@@ -122,7 +122,7 @@ flowchart LR
 
 ## S5: MDT
 - **Goal:** the MDT record (deliverable) and the structured conclusion.
-- **Status:** backend done (all endpoints below work). Rules decided for it: Q-F34–Q-F40, PDF library Q-K13. The `reference_at_mdt` scenario now starts the reference case in *Kompletní*, so step 11 runs from the reset (Q-F40). The MDT tab UI exists against contract-shaped MSW mocks; that mock still starts the reference case in *Připraveno k MDT*.
+- **Status:** backend done (all endpoints below work). Rules decided for it: Q-F34–Q-F40, PDF library Q-K13. The `reference_at_mdt` scenario now starts the reference case in *Kompletní*, so step 11 runs from the reset (Q-F40). The MDT tab UI is done, and its MSW mock follows the same rules as the backend (Q-W15).
 - **Endpoints:**
   - drafts: `createDraft` (AI: `epicrisis_summary`, `mdt_question`, `mdt_results`; non-AI prefill: `mdt_conclusion`, Q-F37)
   - record: `createMdtSnapshot`, `getMdtRecord`, `updateMdtRecord`, `getMdtRecordPdf`, `updateMdtBoardMembers`
@@ -220,5 +220,5 @@ Bonus AI task suggestions (`suggestTasks`), then the Phase 2 list in [delivery.m
 - **Done when:** on the reference case, a wrong examination date and a wrong lab value are corrected, a duplicate upload is removed and a manual value is reverted to the AI one; re-extraction afterwards keeps every correction; each change shows its origin and appears in the audit log.
 
 ## Notes for slice owners
-- The seed puts the reference case at *Připraveno k MDT*. S3–S6 start from `resetDemo {scenario: empty}`. Frontend S0 simulates this operation; its actual backend implementation remains a follow-up (Q-W6).
+- The seed puts the reference case at *Kompletní* on the MDT morning, before the MDT snapshot (Q-F40). S3–S6 start from `resetDemo {scenario: empty}`.
 - Every slice turns its stubs into real endpoints and keeps the response models unchanged. If a response model must change, change the contract first, then run `uv run python scripts/export_openapi.py` and `npm --prefix apps/web run gen:api`.

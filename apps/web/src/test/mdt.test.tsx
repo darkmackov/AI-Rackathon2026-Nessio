@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { actorHeaders } from '../api'
 import { createMdtSnapshotMutation, getJobQueryKey } from '../client/@tanstack/react-query.gen'
-import { demoDraftText } from '../mocks/mdt'
+import { demoDraftText, demoResultLine } from '../mocks/mdt'
 import { createDemoState, createHandlers } from '../mocks/handlers'
 import { s4CaseId } from '../mocks/coordinator-state'
 import { completeCase, mutation, resolveBlockers } from './mdt-fixtures'
@@ -53,7 +53,7 @@ describe('S5 coordinator MDT workflow', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Potvrdit a připravit' }))
     expect(await screen.findByText('Zmrazené podklady k 21. 10. 2026. Pozdější zprávy mění pouze živou předávku.')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Upravit zápis' })).toBeVisible()
-    expect(demoState.mdt.record(s4CaseId)?.patient_name).toBeNull()
+    expect(demoState.mdt.record(s4CaseId)?.patient_name).toBe('Fiktivní pacient S4')  // the case's name when the handover has none
     expect(screen.queryByRole('button', { name: 'Připravit podklad pro MDT' })).not.toBeInTheDocument()
     expect(screen.getAllByText('Není uvedeno').length).toBeGreaterThan(1)
   })
@@ -105,7 +105,53 @@ describe('S5 coordinator MDT workflow', () => {
     await user.click(within(confirmation).getByRole('button', { name: 'Confirm MDT conclusion' }))
     expect(await screen.findByText('The MDT conclusion has been confirmed.')).toBeVisible()
     expect(demoState.getCases().find((item) => item.id === s4CaseId)?.state).toBe('zaver_mdt')
-    expect(screen.queryByRole('button', { name: 'Write / edit conclusion' })).not.toBeInTheDocument()
+    // Corrections stay possible until the feedback is sent, and need a new confirmation (Q-F34).
+    expect(screen.getByText('Editing or uploading the conclusion again removes its confirmation. Confirm it again afterwards.')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Write / edit conclusion' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Confirm MDT conclusion' })).not.toBeInTheDocument()
+  })
+
+  it('applies the conclusion prefill to the record-restating fields only, never as an AI draft or the decision', async () => {
+    let now = 0
+    const state = createDemoState(() => now); server.use(...createHandlers(state)); completeCase(state); resolveBlockers(state)
+    await mutation(createMdtSnapshotMutation(), { headers: actorHeaders('koordinator'), path: { case_id: s4CaseId }, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })
+    const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const panel = await screen.findByRole('region', { name: 'Předvyplnění ze zápisu: Závěr MDT' })
+    await user.click(within(panel).getByRole('button', { name: 'Předvyplnit ze zápisu' }))
+    const job = state.mdt.jobs(s4CaseId)[0]
+    now = 3500
+    await act(async () => { await queryClient.refetchQueries({ queryKey: getJobQueryKey({ headers: actorHeaders('koordinator'), path: { job_id: job.id } }) }) })
+    expect(await within(panel).findByText('Převzato ze zápisu MDT – nejde o návrh AI')).toBeVisible()
+    expect(within(panel).queryByText('AI návrh – vyžaduje kontrolu')).not.toBeInTheDocument()
+    await user.click(within(panel).getByRole('button', { name: 'Použít jako rozepsaný text' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Zapsat / upravit závěr' })
+    expect(within(dialog).getByLabelText('Místo')).toHaveValue('Praha 4')
+    expect(within(dialog).getByLabelText('Závěr MDT')).toHaveValue('')
+    expect(within(dialog).getByLabelText('Doporučení MDT')).toHaveValue('')
+    fireEvent.change(within(dialog).getByLabelText('Závěr MDT'), { target: { value: 'Fiktivní závěr z jednání.' } })
+    await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
+    await waitFor(() => expect(state.mdt.conclusion(s4CaseId)).toMatchObject({ place: 'Praha 4', conclusion: 'Fiktivní závěr z jednání.', ai_draft_used: false }))
+  })
+
+  it('applies the AI result rows to the record editor without saving them', async () => {
+    let now = 0
+    const state = createDemoState(() => now); server.use(...createHandlers(state)); completeCase(state); resolveBlockers(state)
+    await mutation(createMdtSnapshotMutation(), { headers: actorHeaders('koordinator'), path: { case_id: s4CaseId }, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })
+    state.mdt.saveRecord({ ...state.mdt.record(s4CaseId)!, results: [{ date: '2026-10-08', examination: 'Fiktivní CT', result: 'Dlouhý fiktivní text.' }] })
+    state.mdt.saveSnapshot({ ...state.mdt.snapshot(s4CaseId)!, examinations: [{ date: '2026-10-08', place: 'Fiktivní KOC', type: 'Fiktivní CT', result_full_text: 'Dlouhý fiktivní text.', origin: 'manual', entered: { by: 'koordinator', at: '2026-10-20T09:00:00' } }] })
+    const { queryClient } = renderApp(); const user = userEvent.setup(); await openMdt(user)
+    const panel = await screen.findByRole('region', { name: 'Návrh AI: Výsledky stávajících vyšetření' })
+    await user.click(within(panel).getByRole('button', { name: 'Připravit návrh AI' }))
+    const job = state.mdt.jobs(s4CaseId)[0]
+    now = 3500
+    await act(async () => { await queryClient.refetchQueries({ queryKey: getJobQueryKey({ headers: actorHeaders('koordinator'), path: { job_id: job.id } }) }) })
+    expect(await within(panel).findByText(demoResultLine)).toBeVisible()
+    await user.click(within(panel).getByRole('button', { name: 'Použít jako výsledky zápisu' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Upravit zápis' })
+    expect(within(dialog).getByLabelText('Výsledek (1)')).toHaveValue(demoResultLine)
+    expect(state.mdt.record(s4CaseId)?.results?.[0].result).toBe('Dlouhý fiktivní text.')
+    await user.click(within(dialog).getByRole('button', { name: 'Uložit' }))
+    await waitFor(() => expect(state.mdt.record(s4CaseId)?.results?.[0].result).toBe(demoResultLine))
   })
 
   it('polls an AI draft and only turns it into a manual handover value after explicit use and save', async () => {

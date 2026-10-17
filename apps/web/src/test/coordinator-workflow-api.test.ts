@@ -43,7 +43,7 @@ describe('S4 HTTP workflow', () => {
     expect(complete.state).toBe('kompletni')
     const audit = await client.fetchQuery(api.listAuditOptions(scoped))
     expectApiResponse('list_audit', 200, audit)
-    expect(audit.map((event) => event.action)).toEqual(['take_over', 'update_case', 'milestones', 'transition', 'hold', 'resume', 'transition'])
+    expect(audit.map((event) => event.action)).toEqual(['case_taken_over', 'case_updated', 'milestones_updated', 'case_transitioned', 'hold_set', 'hold_cleared', 'case_transitioned'])
     expect(audit.every((event) => event.actor_id === 'koordinator')).toBe(true)
   })
 

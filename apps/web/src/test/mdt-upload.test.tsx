@@ -3,8 +3,8 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { actorHeaders } from '../api'
-import { createMdtSnapshotMutation, getJobQueryKey, uploadMdtConclusionMutation } from '../client/@tanstack/react-query.gen'
+import { actorHeaders, createQueryClient } from '../api'
+import { createMdtSnapshotMutation, getJobQueryKey, getMdtConclusionPdfOptions, uploadMdtConclusionMutation, upsertMdtConclusionMutation } from '../client/@tanstack/react-query.gen'
 import { createDemoState, createHandlers } from '../mocks/handlers'
 import { s4CaseId } from '../mocks/coordinator-state'
 import { renderApp } from './renderApp'
@@ -41,17 +41,20 @@ describe('S5 upload and cut-off', () => {
     await user.upload(screen.getByLabelText('Vybrat závěr MDT'), pdf())
     await user.click(screen.getByRole('button', { name: 'Nahrát dokument závěru' }))
     expect(await screen.findByText('Čeká na zpracování')).toBeVisible()
-    expect(state.mdt.conclusion(s4CaseId)).toBeUndefined()
-    const job = state.mdt.jobs(s4CaseId).find((job) => job.kind === 'ingest_document')
+    // Saved as the conclusion right away, like the backend; the document goes through the normal ingest (Q-F38).
+    const saved = state.mdt.conclusion(s4CaseId)
+    expect(saved).toMatchObject({ source: 'uploaded', confirmed: null })
+    const job = state.documents.listJobs(s4CaseId, state.clock().now).find((job) => job.document_id === saved?.document_id)
     if (!job) throw new Error('Missing upload job')
+    expect(state.documents.get(job.document_id ?? '')?.doc_type).toBe('mdt_conclusion')
     const jobKey = getJobQueryKey({ headers, path: { job_id: job.id } })
     now = 1500
     await act(async () => { await queryClient.refetchQueries({ queryKey: jobKey }) })
     expect(await screen.findByText('Probíhá AI extrakce')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Potvrdit závěr MDT' })).toBeDisabled()
     now = 3500
     await act(async () => { await queryClient.refetchQueries({ queryKey: jobKey }) })
     expect(await screen.findByText('Nahraný závěr')).toBeVisible()
-    expect(state.mdt.conclusion(s4CaseId)).toMatchObject({ source: 'uploaded', document_id: job.document_id, confirmed: null })
     expectApiResponse('get_mdt_conclusion', 200, state.mdt.conclusion(s4CaseId))
     await user.click(screen.getByRole('button', { name: 'Otevřít nahraný závěr' }))
     const source = await screen.findByRole('dialog', { name: 'Zdrojový dokument' })
@@ -76,7 +79,7 @@ describe('S5 upload and cut-off', () => {
     expect(await screen.findByText('Čeká na zpracování')).toBeVisible()
   })
 
-  it('excludes a late received document even when its examination date precedes the snapshot date', async () => {
+  it('refuses a snapshot whose handover quotes a document received after the MDT date', async () => {
     let now = 0
     const state = createDemoState(() => now); server.use(...createHandlers(state)); completeCase(state); resolveBlockers(state)
     const upload = state.documents.upload(s4CaseId, pdf(), 'koordinator', '2026-10-22T08:00:00', state.clock().now)
@@ -85,18 +88,27 @@ describe('S5 upload and cut-off', () => {
     if (!live) throw new Error('Missing fixture')
     const evidence = [{ document_id: upload.document.id, quote: 'FIKTIVNÍ UKÁZKA – nejde o text nahraného souboru.' }]
     state.documents.saveHandover({ ...live.handover, other: { origin: 'ai', status: 'found', value: 'Fiktivní pozdní údaj', evidence }, examinations: [{ date: '2026-10-20', place: 'Fiktivní pracoviště', type: 'Fiktivní pozdní kontrola', result_full_text: 'Fiktivní pozdní údaj', origin: 'ai', evidence }] })
-    await mutation(createMdtSnapshotMutation(), { headers, path, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })
-    expect(state.mdt.snapshot(s4CaseId)?.other).toBeUndefined()
-    expect(state.mdt.record(s4CaseId)?.results).toEqual([])
-    expect(state.documents.result(s4CaseId)?.handover.other?.value).toBe('Fiktivní pozdní údaj')
+    // Refused rather than silently filtered (Q-F39), even though the examination date precedes the MDT.
+    await expect(mutation(createMdtSnapshotMutation(), { headers, path, body: { board_id: 'mdt-git-lipova', mdt_date: '2026-10-21' } })).rejects.toMatchObject({ status: 409 })
+    expect(state.mdt.snapshot(s4CaseId)).toBeUndefined()
+    expect(state.mdt.record(s4CaseId)).toBeUndefined()
+    expect(state.getCases().find((item) => item.id === s4CaseId)?.state).toBe('kompletni')
   })
 
-  it('keeps the upload response within the generated models and returns safe errors for unsupported files', async () => {
+  it('keeps the upload response within the generated models, serves the uploaded PDF and keeps it the source when fields are typed in', async () => {
     await prepare()
+    await expect(mutation(uploadMdtConclusionMutation(), { headers, path, body: { file: new File(['invalid'], 'file.exe', { type: 'application/octet-stream' }) } })).rejects.toMatchObject({ status: 415 })
+    expect(demoState.mdt.conclusion(s4CaseId)).toBeUndefined()
+    await mutation(upsertMdtConclusionMutation(), { headers, path, body: { presented_by: 'Fiktivní lékař' } })
     const uploaded = await mutation(uploadMdtConclusionMutation(), { headers, path, body: { file: pdf() } })
     expectApiResponse('upload_mdt_conclusion', 201, uploaded)
-    expect(uploaded.document).toMatchObject({ case_id: s4CaseId, uploaded_by: 'koordinator' })
+    expect(uploaded.document).toMatchObject({ case_id: s4CaseId, uploaded_by: 'koordinator', doc_type: 'mdt_conclusion' })
     expect(uploaded.job.case_id).toBe(s4CaseId)
-    await expect(mutation(uploadMdtConclusionMutation(), { headers, path, body: { file: new File(['invalid'], 'file.exe', { type: 'application/octet-stream' }) } })).rejects.toMatchObject({ status: 415 })
+    // Fields typed in earlier stay; the report stays the source when more are added (Q-F38).
+    expect(demoState.mdt.conclusion(s4CaseId)).toMatchObject({ source: 'uploaded', document_id: uploaded.document.id, presented_by: 'Fiktivní lékař' })
+    const typed = await mutation(upsertMdtConclusionMutation(), { headers, path, body: { diagnosis_code: 'Z00.0' } })
+    expect(typed).toMatchObject({ source: 'uploaded', document_id: uploaded.document.id, diagnosis_code: 'Z00.0' })
+    const served = await createQueryClient().fetchQuery(getMdtConclusionPdfOptions({ headers, path, parseAs: 'text' }))
+    expect(String(served)).toContain('fictional uploaded document')
   })
 })
