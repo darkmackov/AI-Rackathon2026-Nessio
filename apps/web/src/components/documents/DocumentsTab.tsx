@@ -73,6 +73,10 @@ export default function DocumentsTab({ item, names, openSource, readOnly = false
   const documents = useQuery(listDocumentsOptions({ path: { case_id: item.id }, headers: actorHeaders(actor) }))
   const editing = documents.data?.find((document) => document.id === editingId)
   return <Stack gap="lg">
+    {!readOnly && <Stack component="section" aria-labelledby={uploadHeading} gap="sm">
+      <Title order={2} size="h4" id={uploadHeading}>{t('documents.uploadTitle')}</Title>
+      <DocumentUploader caseId={item.id} actorId={actor} />
+    </Stack>}
     <Stack component="section" aria-labelledby={listHeading} gap="sm">
       <Group justify="space-between" gap="sm">
         <Title order={2} size="h4" id={listHeading}>{t('documents.list')}{documents.isSuccess && documents.data.length > 0 && <Text span inherit c="dimmed" fw={400}> ({documents.data.length})</Text>}</Title>
@@ -84,10 +88,6 @@ export default function DocumentsTab({ item, names, openSource, readOnly = false
       {documents.isSuccess && !documents.data.length && <EmptyState title={t('documents.empty')} description={t(readOnly ? 'documents.emptyReadOnly' : 'documents.emptyHelp')} />}
       {documents.isSuccess && documents.data.length > 0 && <DocumentTable item={item} documents={documents.data} names={names} openSource={openSource} onEdit={setEditingId} editDisabled={readOnly} pending={busy} />}
     </Stack>
-    {!readOnly && <Stack component="section" aria-labelledby={uploadHeading} gap="sm">
-      <Title order={2} size="h4" id={uploadHeading}>{t('documents.uploadTitle')}</Title>
-      <DocumentUploader caseId={item.id} actorId={actor} />
-    </Stack>}
     <Drawer opened={!!editing && !readOnly} onClose={() => { if (!busy) setEditingId(null) }} title={t('documents.edit')} position="right" size="md"
       closeOnEscape={!busy} closeOnClickOutside={!busy} closeButtonProps={{ 'aria-label': t('close'), ...pendingControlProps(busy) }}>
       {editing && !readOnly && <DocumentMetadataForm key={editing.id} document={editing} caseId={item.id} actorId={actor} onClose={() => setEditingId(null)} />}

@@ -79,12 +79,14 @@ function ReferralContent({ caseId }: { caseId: string }) {
   return <Stack gap="md">
     <BackLink />
     <Paper withBorder p="md"><Stack gap="xs">
-      <Group justify="space-between" align="flex-start"><PageHeading size="h2">{current.patient_name || t('referral.unnamed')}</PageHeading><Group gap="xs" align="flex-start"><Badge variant="light">{current.state ? t(`states.${current.state}`) : t('unavailable')}</Badge><ExportCaseFhir caseId={caseId} actorId={actor} /></Group></Group>
+      <Group justify="space-between" align="flex-start"><PageHeading size="h2">{current.patient_name || t('referral.unnamed')}</PageHeading><Group gap="xs" align="center"><Badge variant="light">{current.state ? t(`states.${current.state}`) : t('unavailable')}</Badge><ExportCaseFhir caseId={caseId} actorId={actor} />
+        {editable && <SendReferral caseId={caseId} actorId={actor} koc={koc} disabled={!handover.isSuccess || !jobs.isSuccess || processing} sent={(returned) => setFeedback(returned ? 'referral.resend' : 'referral.sent')} />}</Group></Group>
       {current.diagnosis_label && <Text size="sm">{current.diagnosis_label}</Text>}
       <Text size="sm">{t('referral.koc')}: {koc}</Text>
       <Group gap="md"><Group gap={4}><Text size="xs" c="dimmed">{t('owner')}:</Text><PersonChip id={current.on_move} size="xs" /></Group><Text size="sm">{t('nextStep')}: {current.next_step ?? t('unavailable')}</Text><Group gap={4}><Text size="xs" c="dimmed">{t('nextDue')}:</Text><DueDate value={current.next_due} /></Group></Group>
     </Stack></Paper>
     {feedback && <Alert color="green" role="status">{t(feedback)}</Alert>}
+    {editable && processing && <Alert color="blue" role="status">{t('referral.processing')}</Alert>}
     {current.state === 'vraceno_lekari' && <ReturnedNote caseId={caseId} actorId={actor} />}
     {!editable && <Alert color="blue" role="status">{t('referral.readOnly')}</Alert>}
     <Tabs value={tab} onChange={(value) => { setTab(value); setFocusPath(null); closeSource() }} keepMounted>
@@ -109,9 +111,6 @@ function ReferralContent({ caseId }: { caseId: string }) {
           </>}
           <FindingsPanel caseId={caseId} names={names} sources={sources} handover={handover.data} showField={showField} />
           {jobs.isError && <QueryError error={jobs.error} retry={() => { void jobs.refetch() }} pending={jobs.isFetching} />}
-          {editable && <><Text size="sm" c="dimmed">{t('referral.reviewHelp')}</Text>{processing && <Alert color="blue" role="status">{t('referral.processing')}</Alert>}
-            <SendReferral caseId={caseId} actorId={actor} koc={koc} disabled={!handover.isSuccess || !jobs.isSuccess || processing} sent={(returned) => setFeedback(returned ? 'referral.resend' : 'referral.sent')} />
-          </>}
         </Stack></Tabs.Panel>
       </Grid.Col>{wide && <Grid.Col span={5}>{source || <SourcePlaceholder />}</Grid.Col>}</Grid>
       {!wide && source}

@@ -90,6 +90,14 @@ describe('S2 document upload and processing in the case documents tab', () => {
     await waitFor(() => expect(queryClient.getQueryData(listDocumentsQueryKey({ headers: actorHeaders(fixture.referring_doctor_id), path: { case_id: fixture.id } }))).toMatchObject([{ uploaded_by: fixture.referring_doctor_id }]))
   })
 
+  it('puts the upload above the document list', async () => {
+    renderDocuments()
+    await openPanel()
+    const [upload, list] = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+    expect(upload).toBe('Nahrát dokumenty')
+    expect(list).toBe('Dokumenty případu')
+  })
+
   it('validates formats and document dates', () => {
     expect(supportedFile(pdf())).toBe(true)
     expect(supportedFile(docx())).toBe(true)
